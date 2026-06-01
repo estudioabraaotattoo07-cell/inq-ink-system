@@ -690,6 +690,16 @@ const FIN_INIT = [
   },
 ];
 
+
+// ─── MÁSCARA TELEFONE ────────────────────────────────────────────────────────
+function maskTel(v: string) {
+  v = v.replace(/\D/g, "").slice(0, 11);
+  if (v.length <= 2) return v.length ? "(" + v : v;
+  if (v.length <= 7) return "(" + v.slice(0,2) + ") " + v.slice(2);
+  if (v.length <= 11) return "(" + v.slice(0,2) + ") " + v.slice(2,7) + "-" + v.slice(7);
+  return v;
+}
+
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 export default function CRM() {
   const [onboardingDone, setOnboardingDone] = useState(false);
@@ -737,7 +747,7 @@ export default function CRM() {
   const [editing, setEditing] = useState(false);
   const [msgEdit, setMsgEdit] = useState("");
   const [agView, setAgView] = useState("week");
-  const [agDate, setAgDate] = useState(new Date(2026, 5, 4));
+  const [agDate, setAgDate] = useState(new Date());
   const [horarios, setHorarios] = useState([
     { dia: "Segunda", aberto: true, ini: "09:00", fim: "19:00" },
     { dia: "Terca", aberto: true, ini: "09:00", fim: "19:00" },
@@ -752,6 +762,7 @@ export default function CRM() {
     estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico",
     qual: "Q2", primeira: false, cob: false, intencao: "", nascimento: ""
   });
+  const [formAg, setFormAg] = useState({ agendar: false, data: "", hora: "09:00", tipo: "cons" });
   const [artForm, setArtForm] = useState({
     nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "", email: "", tel: ""
   });
@@ -994,11 +1005,29 @@ export default function CRM() {
       }).select().single();
       if (!error && data) {
         setClients(p => [{ ...nc, id: data.id, etapa: "lead" }, ...p]);
+        // Salvar agendamento se marcado
+        if (formAg.agendar && formAg.data) {
+          await dbUpsert("agenda", {
+            titulo: nc.nome,
+            cliente_id: data.id,
+            cliente_nome: nc.nome,
+            artista: nc.artista,
+            data: formAg.data,
+            hora: formAg.hora,
+            tipo: formAg.tipo === "cons" ? "cons_" + nc.artista : "sess_" + nc.artista
+          });
+          setAgEvents(p => [...p, {
+            id: Date.now(), title: nc.nome,
+            tipo: formAg.tipo === "cons" ? "cons_" + nc.artista : "sess_" + nc.artista,
+            date: formAg.data, start: parseInt(formAg.hora.split(":")[0]), end: parseInt(formAg.hora.split(":")[0]) + 2
+          }]);
+        }
       }
     } else {
       setClients(p => [{ ...nc, id: Date.now(), etapa: "lead" }, ...p]);
     }
     setShowForm(false);
+    setFormAg({ agendar: false, data: "", hora: "09:00", tipo: "cons" });
     setForm({ nome: "", tel: "", email: "", insta: "", artista: "abraao", estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico", qual: "Q2", primeira: false, cob: false, intencao: "", nascimento: "" });
   };
 
@@ -1054,7 +1083,7 @@ export default function CRM() {
   const maxE = estilos[0]?.[1] || 1;
   const wDates = useMemo(() => getWeekDates(agDate), [agDate]);
   const mDates = useMemo(() => getMonthDates(agDate), [agDate]);
-  const todayStr = fmtDate(new Date(2026, 4, 30));
+  const todayStr = fmtDate(new Date());
   const evOn = (d: string) => agEvents.filter(e => e.date === d);
   const agNav = (dir: number) => {
     const d = new Date(agDate);
@@ -2565,7 +2594,7 @@ export default function CRM() {
               <div className="fmb">
                 <div className="fr">
                   <div className="ff"><label className="fl">Nome *</label><input className="fi" placeholder="Nome completo" value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })} /></div>
-                  <div className="ff"><label className="fl">Telefone *</label><input className="fi" placeholder="(27) 99999-9999" value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })} /></div>
+                  <div className="ff"><label className="fl">Telefone *</label><input className="fi" placeholder="(99) 9 9999-9999" value={form.tel} onChange={e => setForm({ ...form, tel: maskTel(e.target.value) })} /></div>
                 </div>
                 <div className="fr">
                   <div className="ff"><label className="fl">Email</label><input className="fi" placeholder="email@email.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></div>
@@ -2610,6 +2639,31 @@ export default function CRM() {
                 <div className="ff"><label className="fl">Descrição do Projeto</label><textarea className="fta" placeholder="Descreva a ideia..." value={form.desc} onChange={e => setForm({ ...form, desc: e.target.value })} /></div>
                 <div className="ff"><label className="fl">Intenção Emocional</label><input className="fi" placeholder="Homenagem, estética, memória..." value={form.intencao} onChange={e => setForm({ ...form, intencao: e.target.value })} /></div>
                 <div className="ff"><label className="fl">Data de Nascimento</label><input className="fi" type="date" value={(form as any).nascimento || ""} onChange={e => setForm({ ...form, nascimento: e.target.value } as any)} /></div>
+                <div style={{ borderTop: "1px solid var(--br)", marginTop: 12, paddingTop: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <input type="checkbox" id="chkAg" checked={formAg.agendar} onChange={e => setFormAg(f => ({ ...f, agendar: e.target.checked }))} />
+                    <label htmlFor="chkAg" style={{ fontSize: 12, fontWeight: 600, color: "var(--gold)", cursor: "pointer" }}>📅 Agendar sessão agora</label>
+                  </div>
+                  {formAg.agendar && (
+                    <div className="fr">
+                      <div className="ff">
+                        <label className="fl">Data</label>
+                        <input className="fi" type="date" value={formAg.data} onChange={e => setFormAg(f => ({ ...f, data: e.target.value }))} />
+                      </div>
+                      <div className="ff">
+                        <label className="fl">Hora</label>
+                        <input className="fi" type="time" value={formAg.hora} onChange={e => setFormAg(f => ({ ...f, hora: e.target.value }))} />
+                      </div>
+                      <div className="ff">
+                        <label className="fl">Tipo</label>
+                        <select className="fs" value={formAg.tipo} onChange={e => setFormAg(f => ({ ...f, tipo: e.target.value }))}>
+                          <option value="cons">Consultoria</option>
+                          <option value="sess">Sessão</option>
+                        </select>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="fmf">
                 <button className="btn-c" onClick={() => setShowForm(false)}>Cancelar</button>
