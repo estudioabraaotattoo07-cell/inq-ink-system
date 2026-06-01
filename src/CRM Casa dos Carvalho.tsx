@@ -1,4 +1,27 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// ─── SUPABASE ─────────────────────────────────────────────────────────────────
+const SUPA_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const sb = SUPA_URL && SUPA_KEY ? createClient(SUPA_URL, SUPA_KEY) : null;
+
+async function dbGet(table: string) {
+  if (!sb) return null;
+  const { data, error } = await sb.from(table).select("*");
+  if (error) { console.error(table, error); return null; }
+  return data;
+}
+async function dbUpsert(table: string, row: any) {
+  if (!sb) return;
+  const { error } = await sb.from(table).upsert(row);
+  if (error) console.error("upsert", table, error);
+}
+async function dbDelete(table: string, id: any) {
+  if (!sb) return;
+  const { error } = await sb.from(table).delete().eq("id", id);
+  if (error) console.error("delete", table, error);
+}
 
 // ─── THEME ───────────────────────────────────────────────────────────────────
 const DARK = {
@@ -736,11 +759,84 @@ export default function CRM() {
     title: "", tipo: "cons_abraao", date: "2026-06-01", start: 9, end: 11
   });
 
+  const [dbReady, setDbReady] = useState(false);
+
   useEffect(() => {
     const el = document.createElement("style");
     el.textContent = S;
     document.head.appendChild(el);
     return () => document.head.removeChild(el);
+  }, []);
+
+  // ─── CARREGAR DADOS DO SUPABASE ──────────────────────────────────────────
+  useEffect(() => {
+    async function loadAll() {
+      if (!sb) { setDbReady(true); return; }
+      try {
+        const [cls, arts, fins, sds, ags, cfgs] = await Promise.all([
+          dbGet("clientes"), dbGet("artistas"), dbGet("financeiro"),
+          dbGet("saidas"), dbGet("agenda"), dbGet("configuracoes")
+        ]);
+        if (cls && cls.length > 0) setClients(cls.map((c: any) => ({
+          ...c,
+          hist: c.hist || [],
+          pv: c.followups || [],
+          faltas: c.faltas || 0,
+          indicacoes: c.indicacoes || 0,
+          credito: c.credito || 0,
+          desc: c.descricao || "",
+        })));
+        if (arts && arts.length > 0) setArtists(arts);
+        if (fins && fins.length > 0) setFin(fins.map((f: any) => ({
+          ...f, cliente: f.cliente_nome
+        })));
+        if (sds && sds.length > 0) setSaidas(sds.map((s: any) => ({
+          ...s, desc: s.descricao
+        })));
+        if (ags && ags.length > 0) setAgEvents(ags.map((a: any) => ({
+          ...a, title: a.titulo, start: parseInt(a.hora?.split(":")[0] || "9"), end: parseInt(a.hora?.split(":")[0] || "9") + 2
+        })));
+        if (cfgs && cfgs.length > 0) {
+          const cfg = cfgs[0];
+          if (cfg.studio_name) setStudioName(cfg.studio_name);
+          if (cfg.studio_tel) setStudioTel(cfg.studio_tel);
+          if (cfg.studio_owner) setStudioOwner(cfg.studio_owner);
+          if (cfg.studio_email) setStudioEmail(cfg.studio_email);
+          if (cfg.studio_city) setStudioCity(cfg.studio_city);
+          if (cfg.studio_insta) setStudioInsta(cfg.studio_insta);
+          if (cfg.aura_name) setAuraName(cfg.aura_name);
+          if (cfg.google_link) setGoogleLink(cfg.google_link);
+          if (cfg.cnpj) setCnpj(cfg.cnpj);
+          if (cfg.meta_mensal) setMetaMensal(cfg.meta_mensal);
+          if (cfg.horarios) setHorarios(cfg.horarios);
+          setDark(cfg.dark_mode !== false);
+          setOnboardingDone(true);
+        }
+      } catch(e) { console.error("Load error", e); }
+      setDbReady(true);
+    }
+    loadAll();
+  }, []);
+
+  // ─── SALVAR CLIENTE NO SUPABASE ──────────────────────────────────────────
+  const saveClientDb = useCallback(async (c: any) => {
+    await dbUpsert("clientes", {
+      id: typeof c.id === "number" ? undefined : c.id,
+      nome: c.nome, insta: c.insta || "", tel: c.tel || "",
+      qual: c.qual, artista: c.artista, etapa: c.etapa,
+      estilo: c.estilo || "", regiao: c.regiao || "",
+      intencao: c.intencao || "", primeira: c.primeira || false,
+      cob: c.cob || false, descricao: c.desc || "",
+      stars: c.stars || 0, star_reason: c.starReason || "",
+      consent: c.consent, nps: c.nps, obs: c.obs || "",
+      val_a: c.val_a || 0, val_c: c.val_c || 0, pgto: c.pgto || "",
+      orcamento: c.orcamento || false, contrato: c.contrato || false,
+      faltas: c.faltas || 0, indicacoes: c.indicacoes || 0,
+      credito: c.credito || 0, cri: c.cri || "",
+      google_review: c.googleReview || false,
+      hist: c.hist || [], followups: c.pv || [], dias: c.dias || 0,
+      updated_at: new Date().toISOString()
+    });
   }, []);
 
   useMemo(() => applyTheme(dark), [dark]);
@@ -783,20 +879,31 @@ export default function CRM() {
     const orq = ns === "sessao_agend";
     const tatuado = ns === "tatuado";
     const pvFlow = tatuado ? PV_FLOW.map(p => ({ l: p.label, s: "pending", dias: p.dias, msg: p.msg })) : undefined;
-    setClients(p => p.map(c => c.id !== cid ? c : {
-      ...c, etapa: ns, orcamento: orq,
-      pv: tatuado ? (pvFlow || []) : c.pv,
-      hist: [
-        ...c.hist,
-        { t: "Movido para: " + lbl, d: new Date().toLocaleDateString("pt-BR") },
-        ...(orq ? [{ t: "Orcamento pendente de registro", d: new Date().toLocaleDateString("pt-BR") }] : []),
-        ...(tatuado ? [{ t: "Fluxo de pos-venda iniciado automaticamente", d: new Date().toLocaleString("pt-BR") }] : []),
-      ]
-    }));
+    setClients(p => {
+      const updated = p.map(c => c.id !== cid ? c : {
+        ...c, etapa: ns, orcamento: orq,
+        pv: tatuado ? (pvFlow || []) : c.pv,
+        hist: [
+          ...c.hist,
+          { t: "Movido para: " + lbl, d: new Date().toLocaleDateString("pt-BR") },
+          ...(orq ? [{ t: "Orcamento pendente de registro", d: new Date().toLocaleDateString("pt-BR") }] : []),
+          ...(tatuado ? [{ t: "Fluxo de pos-venda iniciado automaticamente", d: new Date().toLocaleString("pt-BR") }] : []),
+        ]
+      });
+      const c = updated.find(c => c.id === cid);
+      if (c) setTimeout(() => saveClientDb(c), 100);
+      return updated;
+    });
   };
 
-  const upC = (cid: number, f: string, v: any) =>
-    setClients(p => p.map(c => c.id !== cid ? c : { ...c, [f]: v }));
+  const upC = (cid: number, f: string, v: any) => {
+    setClients(p => {
+      const updated = p.map(c => c.id !== cid ? c : { ...c, [f]: v });
+      const c = updated.find(c => c.id === cid);
+      if (c) setTimeout(() => saveClientDb(c), 100);
+      return updated;
+    });
+  };
 
   const registrarFalta = (cid: number, artista: string) => {
     setClients(p => p.map(c => {
@@ -857,26 +964,34 @@ export default function CRM() {
     }));
   };
 
-  const saveClient = () => {
-    const nc = {
+  const saveClient = async () => {
+    const nc: any = {
       ...form, id: Date.now(), data: new Date().toLocaleDateString("pt-BR"),
       dias: 0, stars: 0, starReason: "", consent: null, nps: null, obs: "",
       val_a: 0, val_c: 0, pgto: "", cri: "", orcamento: false,
       hist: [{ t: "Cadastro manual criado", d: new Date().toLocaleString("pt-BR") }], pv: []
     };
     setClients(p => [nc, ...p]);
+    await saveClientDb(nc);
     setShowForm(false);
-    setForm({ nome: "", tel: "", email: "", insta: "", artista: "abraao", estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico", qual: "Q2", primeira: false, cob: false, intencao: "" });
+    setForm({ nome: "", tel: "", email: "", insta: "", artista: "abraao", estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico", qual: "Q2", primeira: false, cob: false, intencao: "", nascimento: "" });
   };
 
-  const saveArtist = () => {
-    setArtists(p => [...p, { id: Date.now().toString(), ...artForm, ativo: true }]);
+  const saveArtist = async () => {
+    const na = { id: Date.now().toString(), ...artForm, ativo: true };
+    setArtists(p => [...p, na]);
+    await dbUpsert("artistas", na);
     setShowArtForm(false);
     setArtForm({ nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "", email: "", tel: "" });
   };
 
-  const saveAgEvent = () => {
-    setAgEvents(p => [...p, { id: Date.now(), ...agForm, start: Number(agForm.start), end: Number(agForm.end) }]);
+  const saveAgEvent = async () => {
+    const ne = { id: Date.now(), ...agForm, start: Number(agForm.start), end: Number(agForm.end) };
+    setAgEvents(p => [...p, ne]);
+    await dbUpsert("agenda", {
+      titulo: ne.title, artista: agForm.tipo.includes("camilla") ? "camilla" : "abraao",
+      data: agForm.date, hora: agForm.start + ":00", tipo: agForm.tipo
+    });
     setShowAgForm(false);
   };
 
