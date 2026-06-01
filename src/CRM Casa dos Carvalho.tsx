@@ -333,8 +333,7 @@ const CAL_COLORS: Record<string, string> = {
   sess_camilla: "#27AE60",
   bloq_abraao: "#C0392B",
   bloq_camilla: "#E67E22",
-  bloq_geral: "#555",
-  piercing: "#E91E8C"
+  bloq_geral: "#555"
 };
 
 const CAL_LABELS: Record<string, string> = {
@@ -344,8 +343,7 @@ const CAL_LABELS: Record<string, string> = {
   sess_camilla: "Sessão Camilla",
   bloq_abraao: "Bloq. Abraao",
   bloq_camilla: "Bloq. Camilla",
-  bloq_geral: "Bloq. Geral",
-  piercing: "Piercing"
+  bloq_geral: "Bloq. Geral"
 };
 
 const SEGS = [
@@ -766,12 +764,11 @@ export default function CRM() {
   });
   const [formAg, setFormAg] = useState({ agendar: false, data: "", hora: "09:00", tipo: "cons" });
   const [artForm, setArtForm] = useState({
-    nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "", email: "", tel: ""
+    nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "@", email: "", tel: ""
   });
   const [agForm, setAgForm] = useState({
-    title: "", tipo: "cons_abraao", date: new Date().toISOString().split("T")[0], start: 9, end: 11, desc: ""
+    title: "", tipo: "cons_abraao", date: "2026-06-01", start: 9, end: 11
   });
-  const [editingEvent, setEditingEvent] = useState<any>(null);
 
   const [dbReady, setDbReady] = useState(false);
 
@@ -808,7 +805,7 @@ export default function CRM() {
           ...s, desc: s.descricao
         })));
         if (ags && ags.length > 0) setAgEvents(ags.map((a: any) => ({
-          ...a, title: a.titulo, start: parseInt(a.hora?.split(":")[0] || "9"), end: parseInt(a.hora?.split(":")[0] || "9") + 2
+          ...a, title: a.titulo || a.cliente_nome || "Sem título", start: parseInt(a.hora?.split(":")[0] || "9"), end: parseInt(a.hora?.split(":")[0] || "9") + 2
         })));
         if (cfgs && cfgs.length > 0) {
           const cfg = cfgs[0];
@@ -900,7 +897,7 @@ export default function CRM() {
         hist: [
           ...c.hist,
           { t: "Movido para: " + lbl, d: new Date().toLocaleDateString("pt-BR") },
-          ...(orq ? [{ t: "Orcamento pendente de registro", d: new Date().toLocaleDateString("pt-BR") }] : []),
+          ...(orq ? [{ t: "Orçamento pendente de registro", d: new Date().toLocaleDateString("pt-BR") }] : []),
           ...(tatuado ? [{ t: "Fluxo de pos-venda iniciado automaticamente", d: new Date().toLocaleString("pt-BR") }] : []),
         ]
       });
@@ -939,7 +936,7 @@ export default function CRM() {
       if (c.id !== cid) return c;
       const novasFaltas = Math.max((c.faltas || 0) - 1, 0);
       const novoEtapa = c.etapa === "blacklist" && (c.faltas || 0) <= 3 ? "qualificacao" : c.etapa;
-      const audit = "Falta removida (correcao) — " + new Date().toLocaleDateString("pt-BR") + " — por " + artista;
+      const audit = "Falta removida (correção) — " + new Date().toLocaleDateString("pt-BR") + " — por " + artista;
       return { ...c, faltas: novasFaltas, etapa: novoEtapa, hist: [...c.hist, { t: audit, d: new Date().toLocaleString("pt-BR") }] };
     }));
   };
@@ -963,7 +960,7 @@ export default function CRM() {
     setClients(p => p.map(c => {
       if (c.id !== cid) return c;
       const novas = (c.indicacoes || 0) + 1;
-      const audit = "Indicacao registrada " + novas + "/8 — " + new Date().toLocaleDateString("pt-BR") + " — por " + artista;
+      const audit = "Indicação registrada " + novas + "/8 — " + new Date().toLocaleDateString("pt-BR") + " — por " + artista;
       return { ...c, indicacoes: novas, hist: [...c.hist, { t: audit, d: new Date().toLocaleString("pt-BR") }] };
     }));
   };
@@ -972,7 +969,7 @@ export default function CRM() {
     setClients(p => p.map(c => {
       if (c.id !== cid) return c;
       const novas = Math.max((c.indicacoes || 0) - 1, 0);
-      const audit = "Indicacao removida (correcao) " + novas + "/8 — " + new Date().toLocaleDateString("pt-BR") + " — por " + artista;
+      const audit = "Indicação removida (correcao) " + novas + "/8 — " + new Date().toLocaleDateString("pt-BR") + " — por " + artista;
       return { ...c, indicacoes: novas, hist: [...c.hist, { t: audit, d: new Date().toLocaleString("pt-BR") }] };
     }));
   };
@@ -1010,6 +1007,7 @@ export default function CRM() {
         setClients(p => [{ ...nc, id: data.id, etapa: "lead" }, ...p]);
         // Salvar agendamento se marcado
         if (formAg.agendar && formAg.data) {
+          const endHour = (formAg as any).horaFim ? parseInt((formAg as any).horaFim.split(":")[0]) : parseInt(formAg.hora.split(":")[0]) + 2;
           await dbUpsert("agenda", {
             titulo: nc.nome,
             cliente_id: data.id,
@@ -1022,7 +1020,7 @@ export default function CRM() {
           setAgEvents(p => [...p, {
             id: Date.now(), title: nc.nome,
             tipo: formAg.tipo === "cons" ? "cons_" + nc.artista : "sess_" + nc.artista,
-            date: formAg.data, start: parseInt(formAg.hora.split(":")[0]), end: parseInt(formAg.hora.split(":")[0]) + 2
+            date: formAg.data, start: parseInt(formAg.hora.split(":")[0]), end: endHour
           }]);
         }
       }
@@ -1030,7 +1028,7 @@ export default function CRM() {
       setClients(p => [{ ...nc, id: Date.now(), etapa: "lead" }, ...p]);
     }
     setShowForm(false);
-    setFormAg({ agendar: false, data: "", hora: "09:00", tipo: "cons" });
+    setFormAg({ agendar: false, data: "", hora: "09:00", horaFim: "11:00", tipo: "cons" } as any);
     setForm({ nome: "", tel: "", email: "", insta: "", artista: "abraao", estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico", qual: "Q2", primeira: false, cob: false, intencao: "", nascimento: "" });
   };
 
@@ -1039,28 +1037,16 @@ export default function CRM() {
     setArtists(p => [...p, na]);
     await dbUpsert("artistas", na);
     setShowArtForm(false);
-    setArtForm({ nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "", email: "", tel: "" });
+    setArtForm({ nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "@", email: "", tel: "" });
   };
 
   const saveAgEvent = async () => {
-    if (editingEvent) {
-      // EDITAR evento existente
-      const updated = { ...editingEvent, ...agForm, start: Number(agForm.start), end: Number(agForm.end) };
-      setAgEvents(p => p.map(e => e.id === editingEvent.id ? updated : e));
-      await dbUpsert("agenda", {
-        id: editingEvent.id,
-        titulo: agForm.title, artista: agForm.tipo.includes("camilla") ? "camilla" : agForm.tipo.includes("abraao") ? "abraao" : "abraao",
-        data: agForm.date, hora: agForm.start + ":00", tipo: agForm.tipo, obs: agForm.desc || ""
-      });
-      setEditingEvent(null);
-    } else {
-      // NOVO evento
-      const ne = { id: Date.now(), ...agForm, start: Number(agForm.start), end: Number(agForm.end) };
-      setAgEvents(p => [...p, ne]);
-      await dbUpsert("agenda", {
-        titulo: ne.title, artista: agForm.tipo.includes("camilla") ? "camilla" : "abraao",
-        data: agForm.date, hora: agForm.start + ":00", tipo: agForm.tipo, obs: agForm.desc || ""
-      });
+    const ne = { id: Date.now(), ...agForm, start: Number(agForm.start), end: Number(agForm.end) };
+    setAgEvents(p => [...p, ne]);
+    await dbUpsert("agenda", {
+      titulo: ne.title, artista: agForm.tipo.includes("camilla") ? "camilla" : "abraao",
+      data: agForm.date, hora: agForm.start + ":00", tipo: agForm.tipo
+    });
     setShowAgForm(false);
   };
 
@@ -1082,7 +1068,7 @@ export default function CRM() {
     tatuados: clients.filter(c => c.etapa === "tatuado" || c.etapa === "pos_venda").length,
     hoje: clients.filter(c => c.data === "29/05/2026").length
   };
-  const pvC = clients.filter(c => c.etapa === "tatuado" || c.etapa === "pos_venda");
+  const pvC = clients.filter(c => c.pv.length > 0);
   const totalFat = fin.reduce((s, f) => s + f.val_a, 0);
   const origC = useMemo(() => {
     const m: Record<string, number> = {};
@@ -1274,7 +1260,7 @@ export default function CRM() {
                   <div className="ff"><label className="fl">Tipo</label><select className="fs" value={artForm.role} onChange={e => setArtForm({ ...artForm, role: e.target.value })}><option value="residente">Residente</option><option value="guest">Guest</option></select></div>
                   <div className="ff"><label className="fl">Comissão (%)</label><input className="fi" type="number" min={0} max={100} value={artForm.com} onChange={e => setArtForm({ ...artForm, com: Number(e.target.value) })} /></div>
                 </div>
-                <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={artForm.insta} onChange={e => { const v = e.target.value; setArtForm({ ...artForm, insta: v && !v.startsWith("@") ? "@" + v : v }); }} /></div>
+                <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={artForm.insta} onChange={e => setArtForm({ ...artForm, insta: e.target.value })} /></div>
                 <div className="ff"><label className="fl">Cor</label><input type="color" value={artForm.cor} onChange={e => setArtForm({ ...artForm, cor: e.target.value })} style={{ width: "100%", height: 38, background: "none", border: "1px solid rgba(201,168,76,0.12)", borderRadius: 5, cursor: "pointer" }} /></div>
               </div>
               <div className="fmf"><button className="btn-c" onClick={() => setShowArtForm(false)}>Cancelar</button><button className="btn-s" onClick={saveArtist} disabled={!artForm.nome}>Salvar</button></div>
@@ -1605,14 +1591,12 @@ export default function CRM() {
                     return (
                       <div key={h} className="dr">
                         <div className="dtime">{h}:00</div>
-                        <div className="dslot" onClick={() => { if (!evs.length) { setEditingEvent(null); setAgForm(f => ({ ...f, date: ds, start: h, end: h + 2, title: "", desc: "" })); setShowAgForm(true); } }}>
+                        <div className="dslot" onClick={() => { setAgForm(f => ({ ...f, date: ds, start: h, end: h + 2 })); setShowAgForm(true); }}>
                           {evs.map(e => (
                             <div key={e.id} className="dev" style={{ background: CAL_COLORS[e.tipo] || "#888" }}>
                               {e.title} - {e.start}h as {e.end}h
                               <span style={{ marginLeft: 8, opacity: .7, cursor: "pointer" }}
-                                onClick={ev => { ev.stopPropagation(); if(window.confirm("Excluir este evento?")) { setAgEvents(p => p.filter(x => x.id !== e.id)); dbDelete("agenda", e.id); } }}>🗑</span>
-                              <span style={{ marginLeft: 4, opacity: .7, cursor: "pointer" }}
-                                onClick={ev => { ev.stopPropagation(); setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "" }); setShowAgForm(true); }}>✏️</span>
+                                onClick={ev => { ev.stopPropagation(); setAgEvents(p => p.filter(x => x.id !== e.id)); }}>✕</span>
                             </div>
                           ))}
                         </div>
@@ -1735,8 +1719,8 @@ export default function CRM() {
             </div>
             <div className="ftable">
               <div className="fth" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <span>Saidas e Despesas</span>
-                <button className="btn-new" style={{ fontSize: 11, padding: "5px 12px" }} onClick={() => setShowSaidaForm(true)}>+ Lancar</button>
+                <span>Saídas e Despesas</span>
+                <button className="btn-new" style={{ fontSize: 11, padding: "5px 12px" }} onClick={() => setShowSaidaForm(true)}>+ Lançar</button>
               </div>
               <table className="ft">
                 <thead><tr><th>Descricao</th><th>Categoria</th><th>Data</th><th>Valor</th><th></th></tr></thead>
@@ -1750,23 +1734,23 @@ export default function CRM() {
                       <td><button className="btn-sm" style={{ fontSize: 10, color: "var(--q1)" }} onClick={() => setSaidas(p => p.filter(x => x.id !== s.id))}>Remover</button></td>
                     </tr>
                   ))}
-                  {saidas.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--tx3)", fontSize: 12, padding: 16 }}>Nenhuma saida registrada.</td></tr>}
+                  {saidas.length === 0 && <tr><td colSpan={5} style={{ textAlign: "center", color: "var(--tx3)", fontSize: 12, padding: 16 }}>Nenhuma saída registrada.</td></tr>}
                 </tbody>
               </table>
               <div style={{ padding: "10px 15px", background: "var(--dk3)", display: "flex", justifyContent: "flex-end", gap: 4, alignItems: "center" }}>
-                <span style={{ fontSize: 12, color: "var(--tx2)" }}>Total saidas:</span>
+                <span style={{ fontSize: 12, color: "var(--tx2)" }}>Total saídas:</span>
                 <span style={{ fontSize: 16, fontWeight: 700, color: "var(--q1)", fontFamily: "'Cormorant Garamond',serif" }}>R$ {totalSaidas.toLocaleString("pt-BR")}</span>
               </div>
             </div>
             {inadimplentes.length > 0 && (
               <div className="ftable">
-                <div className="fth">Inadimplencia</div>
+                <div className="fth">Inadimplência</div>
                 <div style={{ padding: "11px 15px", display: "flex", flexDirection: "column", gap: 6 }}>
                   {inadimplentes.map(c => (
                     <div key={c.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 11px", background: "rgba(192,57,43,.08)", border: "1px solid rgba(192,57,43,.2)", borderRadius: 7 }}>
                       <div>
                         <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 14, fontWeight: 600 }}>{c.nome}</div>
-                        <div style={{ fontSize: 11, color: "var(--tx2)" }}>Sessao realizada - pagamento nao registrado</div>
+                        <div style={{ fontSize: 11, color: "var(--tx2)" }}>Sessão realizada — pagamento não registrado</div>
                       </div>
                       <button className="btn-sm gold" onClick={() => setSel(c)}>Ver ficha</button>
                     </div>
@@ -1793,7 +1777,7 @@ export default function CRM() {
                 </div>
               </div>
               <div className="ftable">
-                <div className="fth">Dias Mais Rentaveis</div>
+                <div className="fth">Dias Mais Rentáveis</div>
                 <div style={{ padding: "13px 15px" }}>
                   {(() => {
                     const dias = ["Dom","Seg","Ter","Qua","Qui","Sex","Sab"];
@@ -1815,15 +1799,15 @@ export default function CRM() {
               <span style={{ fontSize: 20 }}>🧾</span>
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gold)" }}>Nota Fiscal</div>
-                <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 2 }}>Integracao com emissao de notas em breve. O numero da nota sera vinculado a cada sessao e enviado automaticamente pela Aura.</div>
+                <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 2 }}>Integração com emissão de notas em breve. O numero da nota sera vinculado a cada sessao e enviado automaticamente pela Aura.</div>
               </div>
             </div>
             {showSaidaForm && (
               <div className="fov" onClick={e => { if (e.target === e.currentTarget) setShowSaidaForm(false); }}>
                 <div className="fmod" style={{ maxWidth: 420 }}>
-                  <div className="fmh"><div className="fmt">Lancar Saida</div><button className="mc" onClick={() => setShowSaidaForm(false)}>X</button></div>
+                  <div className="fmh"><div className="fmt">Lançar Saída</div><button className="mc" onClick={() => setShowSaidaForm(false)}>X</button></div>
                   <div className="fmb">
-                    <div className="ff"><label className="fl">Descricao *</label><input className="fi" placeholder="Ex: Agulhas e tintas" value={saidaForm.desc} onChange={e => setSaidaForm({ ...saidaForm, desc: e.target.value })} /></div>
+                    <div className="ff"><label className="fl">Descrição *</label><input className="fi" placeholder="Ex: Agulhas e tintas" value={saidaForm.desc} onChange={e => setSaidaForm({ ...saidaForm, desc: e.target.value })} /></div>
                     <div className="fr">
                       <div className="ff"><label className="fl">Categoria</label><select className="fs" value={saidaForm.categoria} onChange={e => setSaidaForm({ ...saidaForm, categoria: e.target.value })}>{categorias.map(c => <option key={c}>{c}</option>)}</select></div>
                       <div className="ff"><label className="fl">Valor (R$)</label><input className="fi" type="number" min={0} value={saidaForm.valor} onChange={e => setSaidaForm({ ...saidaForm, valor: Number(e.target.value) })} /></div>
@@ -1931,8 +1915,15 @@ export default function CRM() {
                     </div>
                     <div className="ff">
                       <label className="fl">Cor</label>
-                      <input type="color" value={editingArtist.cor} onChange={e => setEditingArtist({ ...editingArtist, cor: e.target.value })}
-                        style={{ width: "100%", height: 38, background: "none", border: "1px solid var(--br)", borderRadius: 5, cursor: "pointer" }} />
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+                        {["#4A9EBF","#9B6BB5","#C0392B","#E67E22","#C9A84C","#27AE60","#3498DB","#E91E8C","#1ABC9C","#8E44AD","#E8E2D9","#555045"].map(cor => (
+                          <div key={cor} onClick={() => setEditingArtist({ ...editingArtist, cor })}
+                            style={{ width: 28, height: 28, borderRadius: "50%", background: cor, cursor: "pointer",
+                              border: editingArtist.cor === cor ? "3px solid var(--gold)" : "2px solid transparent",
+                              boxShadow: editingArtist.cor === cor ? "0 0 0 1px var(--gold)" : "none",
+                              transition: "all .15s" }} />
+                        ))}
+                      </div>
                     </div>
                   </div>
                   <div className="fmf">
@@ -1971,7 +1962,7 @@ export default function CRM() {
                 ✓ Comissão e forma de repasse<br />
                 ✓ Horario e periodo de trabalho<br />
                 ✓ Clausula LGPD<br />
-                ✓ Nao captacao de clientes (12 meses)<br />
+                ✓ Não captação de clientes (12 meses)<br />
                 ✓ Direitos autorais das obras<br />
                 ✓ Rescisao e penalidades
               </div>
@@ -2293,14 +2284,14 @@ export default function CRM() {
                 {sc.orcamento && (
                   <div className="ba">
                     <span style={{ fontSize: 18 }}>💰</span>
-                    <div style={{ flex: 1, fontSize: 12, color: "var(--q2)", fontWeight: 600 }}>Orcamento pendente - registre o valor combinado nesta consultoria.</div>
+                    <div style={{ flex: 1, fontSize: 12, color: "var(--q2)", fontWeight: 600 }}>Orçamento pendente - registre o valor combinado nesta consultoria.</div>
                     <button className="btn-sm gold" onClick={() => {
                       const v = prompt("Valor combinado (ex: 1200):");
                       if (v) {
                         upC(sc.id, "val_a", Number(v));
                         upC(sc.id, "orcamento", false);
                         setClients(p => p.map(c => c.id !== sc.id ? c : {
-                          ...c, hist: [...c.hist, { t: "Orcamento: R$ " + Number(v).toLocaleString("pt-BR"), d: new Date().toLocaleString("pt-BR") }]
+                          ...c, hist: [...c.hist, { t: "Orçamento: R$ " + Number(v).toLocaleString("pt-BR"), d: new Date().toLocaleString("pt-BR") }]
                         }));
                       }
                     }}>Registrar</button>
@@ -2316,8 +2307,14 @@ export default function CRM() {
                     ].map((fd, i) => (
                       <div className="fi2" key={i}>
                         <div className="fil">{fd.l}{(fd as any).w ? " ⚠" : ""}</div>
-                        <input className="ef" value={(sc as any)[fd.f] || ""} placeholder={(fd as any).w ? "Clique para adicionar" : ""}
-                          onChange={e => upC(sc.id, fd.f, e.target.value)}
+                        <input className="ef"
+                          value={fd.f === "tel" ? maskTel((sc as any)[fd.f] || "") : fd.f === "insta" ? ((sc as any)[fd.f] ? (sc as any)[fd.f] : "") : (sc as any)[fd.f] || ""}
+                          placeholder={(fd as any).w ? "Clique para adicionar" : ""}
+                          onChange={e => {
+                            if (fd.f === "tel") upC(sc.id, fd.f, maskTel(e.target.value));
+                            else if (fd.f === "insta") { const v = e.target.value; upC(sc.id, fd.f, v && !v.startsWith("@") ? "@" + v : v); }
+                            else upC(sc.id, fd.f, e.target.value);
+                          }}
                           style={{ borderColor: (fd as any).w && !(sc as any)[fd.f] ? "var(--q2)" : "var(--br)" }} />
                       </div>
                     ))}
@@ -2331,9 +2328,9 @@ export default function CRM() {
                   <div className="stit">Projeto Artístico</div>
                   <div className="fg3">
                     {[
-                      { l: "Estilo", v: sc.estilo }, { l: "Regiao", v: sc.regiao }, { l: "Tamanho", v: sc.tam },
+                      { l: "Estilo", v: sc.estilo }, { l: "Região", v: sc.regiao }, { l: "Tamanho", v: sc.tam },
                       { l: "Cobertura", v: sc.cob ? "Sim" : "Nao" }, { l: "1 Tattoo", v: sc.primeira ? "Sim" : "Nao" },
-                      { l: "Intencao", v: sc.intencao }
+                      { l: "Intenção", v: sc.intencao }
                     ].map((fd, i) => (
                       <div className="fi2" key={i}>
                         <div className="fil">{fd.l}</div>
@@ -2375,7 +2372,7 @@ export default function CRM() {
                     <div className="fil">Consentimento de Uso de Imagem</div>
                     <div style={{ display: "flex", gap: 6, marginTop: 5 }}>
                       <button className={"cb" + (sc.consent === true ? " yes" : "")} onClick={() => upC(sc.id, "consent", true)}>✓ Autorizado</button>
-                      <button className={"cb" + (sc.consent === false ? " no" : "")} onClick={() => upC(sc.id, "consent", false)}>✕ Nao autorizado</button>
+                      <button className={"cb" + (sc.consent === false ? " no" : "")} onClick={() => upC(sc.id, "consent", false)}>✕ Não autorizado</button>
                       {sc.consent === null && <span style={{ fontSize: 11, color: "var(--tx3)", alignSelf: "center" }}>Nao informado</span>}
                     </div>
                   </div>
@@ -2449,7 +2446,7 @@ export default function CRM() {
                   <div className="stit">Confirmação de Projeto</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7 }}>
                     <div style={{ fontSize: 12, color: "var(--tx)", flex: 1 }}>
-                      Contrato: <strong style={{ color: sc.contrato ? "var(--q3)" : "var(--q2)" }}>{sc.contrato ? "✓ Enviado" : "Nao enviado"}</strong>
+                      Contrato: <strong style={{ color: sc.contrato ? "var(--q3)" : "var(--q2)" }}>{sc.contrato ? "✓ Enviado" : "Não enviado"}</strong>
                     </div>
                     <button className="btn-sm gold"
                       onClick={() => setShowCtr({ type: "client", nome: sc.nome, artista: aName(sc.artista), proj: sc.desc, valor: sc.val_a > 0 ? "R$ " + sc.val_a.toLocaleString("pt-BR") : "A definir" })}>
@@ -2546,7 +2543,7 @@ export default function CRM() {
                 )}
 
                 <div>
-                  <div className="stit">Historico</div>
+                  <div className="stit">Histórico</div>
                   {[...sc.hist].reverse().map((h: any, i: number) => (
                     <div className="hi" key={i}>
                       <div className="hd" />
@@ -2593,7 +2590,7 @@ export default function CRM() {
                     navigator.clipboard?.writeText(txt);
                     if (showCtr.type === "client" && sc) upC(sc.id, "contrato", true);
                     setShowCtr(null);
-                  }}>📤 Enviar</button>
+                  }}>📋 Copiar</button>
                 </div>
               </div>
             </div>
@@ -2636,7 +2633,7 @@ export default function CRM() {
                 </div>
                 <div className="fr">
                   <div className="ff"><label className="fl">Estilo</label><input className="fi" placeholder="Fine Line, Realismo..." value={form.estilo} onChange={e => setForm({ ...form, estilo: e.target.value })} /></div>
-                  <div className="ff"><label className="fl">Regiao</label><input className="fi" placeholder="Antebraco, Costas..." value={form.regiao} onChange={e => setForm({ ...form, regiao: e.target.value })} /></div>
+                  <div className="ff"><label className="fl">Região</label><input className="fi" placeholder="Antebraco, Costas..." value={form.regiao} onChange={e => setForm({ ...form, regiao: e.target.value })} /></div>
                 </div>
                 <div className="fr">
                   <div className="ff">
@@ -2654,7 +2651,6 @@ export default function CRM() {
                   </div>
                 </div>
                 <div className="ff"><label className="fl">Descrição do Projeto</label><textarea className="fta" placeholder="Descreva a ideia..." value={form.desc} onChange={e => setForm({ ...form, desc: e.target.value })} /></div>
-
                 <div className="ff"><label className="fl">Data de Nascimento</label><input className="fi" type="date" value={(form as any).nascimento || ""} onChange={e => setForm({ ...form, nascimento: e.target.value } as any)} /></div>
                 <div style={{ borderTop: "1px solid var(--br)", marginTop: 12, paddingTop: 12 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
@@ -2668,8 +2664,12 @@ export default function CRM() {
                         <input className="fi" type="date" value={formAg.data} onChange={e => setFormAg(f => ({ ...f, data: e.target.value }))} />
                       </div>
                       <div className="ff">
-                        <label className="fl">Hora</label>
+                        <label className="fl">Início</label>
                         <input className="fi" type="time" value={formAg.hora} onChange={e => setFormAg(f => ({ ...f, hora: e.target.value }))} />
+                      </div>
+                      <div className="ff">
+                        <label className="fl">Término</label>
+                        <input className="fi" type="time" value={(formAg as any).horaFim || ""} onChange={e => setFormAg(f => ({ ...f, horaFim: e.target.value } as any))} />
                       </div>
                       <div className="ff">
                         <label className="fl">Tipo</label>
@@ -2713,11 +2713,18 @@ export default function CRM() {
                   <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={artForm.insta} onChange={e => { const v = e.target.value; setArtForm({ ...artForm, insta: v && !v.startsWith("@") ? "@" + v : v }); }} /></div>
                   <div className="ff"><label className="fl">Email</label><input className="fi" placeholder="email" value={artForm.email} onChange={e => setArtForm({ ...artForm, email: e.target.value })} /></div>
                 </div>
-                <div className="ff"><label className="fl">Telefone</label><input className="fi" placeholder="(99) 9 9999-9999" value={artForm.tel} onChange={e => setArtForm({ ...artForm, tel: maskTel(e.target.value) })} /></div>
+                <div className="ff"><label className="fl">Telefone</label><input className="fi" placeholder="(27) 9 9999-9999" value={artForm.tel} onChange={e => setArtForm({ ...artForm, tel: maskTel(e.target.value) })} /></div>
                 <div className="ff">
                   <label className="fl">Cor</label>
-                  <input type="color" value={artForm.cor} onChange={e => setArtForm({ ...artForm, cor: e.target.value })}
-                    style={{ width: "100%", height: 38, background: "none", border: "1px solid var(--br)", borderRadius: 5, cursor: "pointer" }} />
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
+                    {["#4A9EBF","#9B6BB5","#C0392B","#E67E22","#C9A84C","#27AE60","#3498DB","#E91E8C","#1ABC9C","#8E44AD","#E8E2D9","#555045"].map(cor => (
+                      <div key={cor} onClick={() => setArtForm({ ...artForm, cor })}
+                        style={{ width: 28, height: 28, borderRadius: "50%", background: cor, cursor: "pointer",
+                          border: artForm.cor === cor ? "3px solid var(--gold)" : "2px solid transparent",
+                          boxShadow: artForm.cor === cor ? "0 0 0 1px var(--gold)" : "none",
+                          transition: "all .15s" }} />
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="fmf">
@@ -2730,30 +2737,44 @@ export default function CRM() {
 
         {/* ── FORM NOVO EVENTO ── */}
         {showAgForm && (
-          <div className="fov" onClick={e => { if (e.target === e.currentTarget) setShowAgForm(false); }}>
+          <div className="fov" onClick={e => { if (e.target === e.currentTarget) { setShowAgForm(false); setEditingEvent(null); } }}>
             <div className="fmod" style={{ maxWidth: 400 }}>
               <div className="fmh">
                 <div className="fmt">{editingEvent ? "Editar Evento" : "Novo Evento"}</div>
                 <button className="mc" onClick={() => { setShowAgForm(false); setEditingEvent(null); }}>✕</button>
               </div>
               <div className="fmb">
-                <div className="ff"><label className="fl">Titulo / Cliente *</label><input className="fi" placeholder="Nome" value={agForm.title} onChange={e => setAgForm({ ...agForm, title: e.target.value })} /></div>
+                <div className="ff"><label className="fl">Título / Cliente *</label><input className="fi" placeholder="Nome" value={agForm.title} onChange={e => setAgForm({ ...agForm, title: e.target.value })} /></div>
                 <div className="ff">
                   <label className="fl">Tipo</label>
                   <select className="fs" value={agForm.tipo} onChange={e => setAgForm({ ...agForm, tipo: e.target.value })}>
                     {Object.entries(CAL_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
-                <div className="ff"><label className="fl">Descrição (opcional)</label><input className="fi" placeholder="Breve descrição..." value={(agForm as any).desc || ""} onChange={e => setAgForm({ ...agForm, desc: e.target.value } as any)} /></div>
                 <div className="ff"><label className="fl">Data</label><input className="fi" type="date" value={agForm.date} onChange={e => setAgForm({ ...agForm, date: e.target.value })} /></div>
                 <div className="fr">
-                  <div className="ff"><label className="fl">Inicio (h)</label><input className="fi" type="number" min={8} max={20} value={agForm.start} onChange={e => setAgForm({ ...agForm, start: Number(e.target.value) })} /></div>
+                  <div className="ff"><label className="fl">Início (h)</label><input className="fi" type="number" min={8} max={20} value={agForm.start} onChange={e => setAgForm({ ...agForm, start: Number(e.target.value) })} /></div>
                   <div className="ff"><label className="fl">Fim (h)</label><input className="fi" type="number" min={9} max={22} value={agForm.end} onChange={e => setAgForm({ ...agForm, end: Number(e.target.value) })} /></div>
                 </div>
               </div>
-              <div className="fmf">
-                <button className="btn-c" onClick={() => setShowAgForm(false)}>Cancelar</button>
-                <button className="btn-s" onClick={saveAgEvent} disabled={!agForm.title}>Salvar</button>
+              <div className="fmf" style={{ justifyContent: "space-between" }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {editingEvent && (
+                    <button className="btn-c" style={{ color: "var(--q1)", borderColor: "rgba(192,57,43,.3)" }}
+                      onClick={() => {
+                        if (window.confirm("Tem certeza que deseja excluir este evento?")) {
+                          setAgEvents(p => p.filter(x => x.id !== editingEvent.id));
+                          dbDelete("agenda", editingEvent.id);
+                          setShowAgForm(false);
+                          setEditingEvent(null);
+                        }
+                      }}>🗑 Excluir</button>
+                  )}
+                </div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <button className="btn-c" onClick={() => { setShowAgForm(false); setEditingEvent(null); }}>Cancelar</button>
+                  <button className="btn-s" onClick={saveAgEvent} disabled={!agForm.title}>Salvar</button>
+                </div>
               </div>
             </div>
           </div>
