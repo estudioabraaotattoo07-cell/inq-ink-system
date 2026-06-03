@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 // ─── SUPABASE ─────────────────────────────────────────────────────────────────
@@ -711,12 +711,12 @@ const FIN_INIT = [
 function TimeScroller({ value, onChange, label }: { value: number; onChange: (h: number, m: number) => void; label: string }) {
   const safeVal = (isNaN(value) || value == null) ? 9 : value;
   const hour = Math.floor(safeVal);
-  const [open, setOpen] = React.useState(false);
-  const [selH, setSelH] = React.useState(hour);
-  const [selM, setSelM] = React.useState(0);
+  const [open, setOpen] = useState(false);
+  const [selH, setSelH] = useState(hour);
+  const [selM, setSelM] = useState(0);
   const HOURS = Array.from({ length: 24 }, (_, i) => i);
   const MINS = [0, 15, 30, 45];
-  React.useEffect(() => {
+  useEffect(() => {
     const sv = (isNaN(value) || value == null) ? 9 : value;
     setSelH(Math.floor(sv));
   }, [value]);
@@ -781,16 +781,16 @@ function hsvToHex(h: number, s: number, v: number): string {
   return "#"+toH(5)+toH(3)+toH(1);
 }
 function ColorPicker({ value, onChange }: { value: string; onChange: (c: string) => void }) {
-  const [hsv, setHsv] = React.useState<[number,number,number]>(() => hexToHsv(value || "#C9A84C"));
-  const sqRef = React.useRef<HTMLDivElement>(null);
-  const hueRef = React.useRef<HTMLDivElement>(null);
-  const dragRef = React.useRef<"sq"|"hue"|null>(null);
-  const hsvRef = React.useRef(hsv);
+  const [hsv, setHsv] = useState<[number,number,number]>(() => hexToHsv(value || "#C9A84C"));
+  const sqRef = useRef<HTMLDivElement>(null);
+  const hueRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<"sq"|"hue"|null>(null);
+  const hsvRef = useRef(hsv);
   hsvRef.current = hsv;
 
-  React.useEffect(() => { setHsv(hexToHsv(value || "#C9A84C")); }, [value]);
+  useEffect(() => { setHsv(hexToHsv(value || "#C9A84C")); }, [value]);
 
-  const calcSq = (e: MouseEvent | React.MouseEvent) => {
+  const calcSq = (e: MouseEvent | MouseEvent) => {
     if (!sqRef.current) return;
     const r = sqRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
@@ -798,7 +798,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
     const ns: [number,number,number] = [hsvRef.current[0], Math.round(x*100), Math.round((1-y)*100)];
     setHsv(ns); onChange(hsvToHex(...ns));
   };
-  const calcHue = (e: MouseEvent | React.MouseEvent) => {
+  const calcHue = (e: MouseEvent | MouseEvent) => {
     if (!hueRef.current) return;
     const r = hueRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
@@ -806,7 +806,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
     setHsv(ns); onChange(hsvToHex(...ns));
   };
 
-  React.useEffect(() => {
+  useEffect(() => {
     const move = (e: MouseEvent) => { if (dragRef.current === "sq") calcSq(e); else if (dragRef.current === "hue") calcHue(e); };
     const up = () => { dragRef.current = null; };
     window.addEventListener("mousemove", move);
