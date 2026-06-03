@@ -860,6 +860,7 @@ export default function CRM() {
   const [showHistorico, setShowHistorico] = useState(false);
   const [historico, setHistorico] = useState<{id?:any; data:string; hora:string; acao:string}[]>([]);
   const [confirmExcluir, setConfirmExcluir] = useState<any>(null); // evento a confirmar exclusão
+  const [confirmRemoverArtista, setConfirmRemoverArtista] = useState<any>(null);
   const [undoEvento, setUndoEvento] = useState<any>(null); // evento para desfazer
   const [undoTimer, setUndoTimer] = useState<any>(null);
 
@@ -1149,11 +1150,28 @@ export default function CRM() {
 
   const saveArtist = async () => {
     if (!artForm.nome.trim()) return;
-    const na = { id: Date.now().toString(), ...artForm, ativo: true };
-    const saved = await dbInsert("artistas", na);
-    setArtists(p => [...p, { ...na, id: saved?.id || na.id }]);
+    const row = {
+      nome: artForm.nome,
+      role: artForm.role,
+      com: artForm.com,
+      cor: artForm.cor,
+      insta: artForm.insta || "",
+      email: artForm.email || "",
+      tel: artForm.tel || "",
+      ativo: true
+    };
+    try {
+      const { data, error } = await sb.from("artistas").insert(row).select().single();
+      if (error) throw error;
+      setArtists(p => [...p, { ...row, id: data.id }]);
+    } catch(e) {
+      console.error("Erro ao salvar artista:", e);
+      // Fallback local
+      setArtists(p => [...p, { ...row, id: Date.now().toString() }]);
+    }
     setShowArtForm(false);
     setArtForm({ nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "@", email: "", tel: "" });
+    addLog(`Artista "${artForm.nome}" cadastrado`);
   };
 
   const saveAgEvent = async () => {
@@ -1427,7 +1445,7 @@ export default function CRM() {
             <div className="fmod" style={{ maxWidth: 420 }}>
               <div className="fmh"><div className="fmt">Adicionar Artista</div><button className="mc" onClick={() => setShowArtForm(false)}>✕</button></div>
               <div className="fmb">
-                <div className="ff"><label className="fl">Nome Completo *</label><input className="fi" placeholder="Nome do artista" value={artForm.nome} onChange={e => setArtForm({ ...artForm, nome: e.target.value })} /></div>
+                <div className="ff"><label className="fl">Nome Completo *</label><input className="fi" placeholder="Nome do artista" value={artForm.nome} onChange={e => setArtForm({ ...artForm, nome: e.target.value.replace(/\b\w/g, l => l.toUpperCase()) })} /></div>
                 <div className="fr">
                   <div className="ff"><label className="fl">Tipo</label><select className="fs" value={artForm.role} onChange={e => setArtForm({ ...artForm, role: e.target.value })}><option value="residente">Residente</option><option value="guest">Guest</option></select></div>
                   <div className="ff"><label className="fl">Comissão (%)</label><input className="fi" type="number" min={0} max={100} value={artForm.com} onChange={e => setArtForm({ ...artForm, com: Number(e.target.value) })} /></div>
@@ -2062,7 +2080,7 @@ export default function CRM() {
                       {a.ativo ? "Desativar" : "Reativar"}
                     </button>
                     {a.role === "guest" && (
-                      <button className="btn-sm red" onClick={() => setArtists(p => p.filter(x => x.id !== a.id))}>Remover</button>
+                      <button className="btn-sm red" onClick={() => setConfirmRemoverArtista(a)}>Remover</button>
                     )}
                   </div>
                 </div>
@@ -2487,9 +2505,7 @@ export default function CRM() {
                   </div>
                 </div>
                 <button className="mc" onClick={() => setSel(null)}>✕</button>
-                {selCtx === "clientes" && (
-                  <button onClick={() => deleteClient(sc.id)} style={{ background: "rgba(192,57,43,.15)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 6, padding: "4px 10px", fontSize: 11, color: "var(--q1)", cursor: "pointer", marginRight: 4 }}>🗑 Excluir</button>
-                )}
+                <button onClick={() => saveClientDb(sc)} style={{ background: "rgba(39,174,96,.15)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 6, padding: "4px 12px", fontSize: 11, color: "#27AE60", cursor: "pointer", fontWeight: 600 }}>💾 Salvar</button>
               </div>
               <div className="mb">
                 {sc.orcamento && (
@@ -2720,6 +2736,51 @@ export default function CRM() {
                 </div>
 
                 <div>
+                  <div className="stit">💰 Financeiro da Sessão</div>
+                  <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
+                    <div className="fr">
+                      <div className="ff">
+                        <label className="fl">Valor da Arte</label>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 12, color: "var(--tx2)" }}>R$</span>
+                          <input className="fi" type="number" min={0} value={sc.val_a || ""} placeholder="0,00"
+                            onChange={e => upC(sc.id, "val_a", Number(e.target.value))}
+                            style={{ flex: 1 }} />
+                        </div>
+                      </div>
+                      <div className="ff">
+                        <label className="fl">Forma de Pagamento</label>
+                        <select className="fs" value={sc.pgto || ""} onChange={e => upC(sc.id, "pgto", e.target.value)}>
+                          <option value="">Não informado</option>
+                          <option value="Pix">Pix</option>
+                          <option value="Dinheiro">Dinheiro</option>
+                          <option value="Cartao Debito">Cartão Débito</option>
+                          <option value="Cartao Credito">Cartão Crédito</option>
+                          <option value="Transferencia">Transferência</option>
+                        </select>
+                      </div>
+                    </div>
+                    {sc.val_c > 0 && (
+                      <div style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 6, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 10, color: "var(--tx3)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 4 }}>🔒 Valor captado pela Aura</div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "var(--tx)" }}>R$ {sc.val_c.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
+                      </div>
+                    )}
+                    {sc.val_a > 0 && sc.val_c > 0 && sc.val_a !== sc.val_c && (
+                      <div style={{ background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.4)", borderRadius: 6, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>⚠️</span>
+                        <div>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--q1)" }}>Divergência detectada</div>
+                          <div style={{ fontSize: 11, color: "var(--tx2)" }}>
+                            Artista declarou R$ {sc.val_a.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · Aura registrou R$ {sc.val_c.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · Diferença: R$ {Math.abs(sc.val_a - sc.val_c).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
                   <div className="stit">Mover no Pipeline</div>
                   <div className="pm">
                     {STAGES.map(s => (
@@ -2756,6 +2817,12 @@ export default function CRM() {
                     </div>
                   ))}
                 </div>
+
+                {selCtx === "clientes" && (
+                  <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: 12, borderTop: "1px solid var(--br)", marginTop: 8 }}>
+                    <button onClick={() => deleteClient(sc.id)} style={{ background: "rgba(192,57,43,.15)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 6, padding: "6px 14px", fontSize: 12, color: "var(--q1)", cursor: "pointer", fontWeight: 600 }}>🗑 Excluir cliente</button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2965,7 +3032,7 @@ export default function CRM() {
                 <button className="mc" onClick={() => setShowArtForm(false)}>✕</button>
               </div>
               <div className="fmb">
-                <div className="ff"><label className="fl">Nome Completo *</label><input className="fi" placeholder="Nome do artista" value={artForm.nome} onChange={e => setArtForm({ ...artForm, nome: e.target.value })} /></div>
+                <div className="ff"><label className="fl">Nome Completo *</label><input className="fi" placeholder="Nome do artista" value={artForm.nome} onChange={e => setArtForm({ ...artForm, nome: e.target.value.replace(/\b\w/g, l => l.toUpperCase()) })} /></div>
                 <div className="fr">
                   <div className="ff">
                     <label className="fl">Tipo</label>
@@ -3104,6 +3171,37 @@ export default function CRM() {
                   <button className="btn-c" onClick={() => { setShowAgForm(false); setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); }}>Cancelar</button>
                   <button className="btn-s" onClick={saveAgEvent} disabled={!agForm.title}>Salvar</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONFIRMAÇÃO REMOVER ARTISTA ── */}
+        {confirmRemoverArtista && (
+          <div className="ov" onClick={() => setConfirmRemoverArtista(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid rgba(192,57,43,.4)", borderRadius: 12, width: "min(440px, 92vw)", padding: "28px 28px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(192,57,43,.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>🎨</div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--tx)" }}>Remover artista?</div>
+                  <div style={{ fontSize: 12, color: "var(--tx2)", marginTop: 3 }}>{confirmRemoverArtista.nome}</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--tx3)", background: "var(--dk3)", borderRadius: 7, padding: "10px 14px", lineHeight: 1.6 }}>
+                ⚠️ Os clientes vinculados a este artista <strong style={{color:"var(--tx)"}}>não serão excluídos</strong>, mas ficarão sem artista atribuído.<br/>
+                Esta ação <strong style={{color:"var(--q1)"}}>não pode ser desfeita</strong>.
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button className="btn-c" onClick={() => setConfirmRemoverArtista(null)}>Cancelar</button>
+                <button style={{ background: "rgba(192,57,43,.8)", border: "1px solid rgba(192,57,43,.5)", borderRadius: 7, padding: "7px 18px", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}
+                  onClick={async () => {
+                    setArtists(p => p.filter(x => x.id !== confirmRemoverArtista.id));
+                    await dbDelete("artistas", confirmRemoverArtista.id);
+                    addLog(`Artista "${confirmRemoverArtista.nome}" removido`);
+                    setConfirmRemoverArtista(null);
+                  }}>
+                  Remover
+                </button>
               </div>
             </div>
           </div>
