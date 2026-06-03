@@ -791,6 +791,9 @@ export default function CRM() {
   const [regiaoOpts, setRegiaoOpts] = useState<string[]>(["Antebraço", "Braço inteiro", "Costela", "Costas", "Ombro", "Panturrilha", "Clavicula", "Pescoco", "Mao", "Pe"]);
   const [showHistorico, setShowHistorico] = useState(false);
   const [historico, setHistorico] = useState<{id?:any; data:string; hora:string; acao:string}[]>([]);
+  const [confirmExcluir, setConfirmExcluir] = useState<any>(null); // evento a confirmar exclusão
+  const [undoEvento, setUndoEvento] = useState<any>(null); // evento para desfazer
+  const [undoTimer, setUndoTimer] = useState<any>(null);
 
   const [dbReady, setDbReady] = useState(false);
 
@@ -1129,6 +1132,31 @@ export default function CRM() {
   };
 
   const disparo = () => { setSent(true); setTimeout(() => setSent(false), 4000); };
+
+  const excluirEvento = (e: any, fecharModal = false) => {
+    // Remove da UI imediatamente
+    setAgEvents(p => p.filter(x => x.id !== e.id));
+    if (fecharModal) { setShowAgForm(false); setEditingEvent(null); }
+    setConfirmExcluir(null);
+    // Guarda para desfazer
+    setUndoEvento(e);
+    // Cancela timer anterior se existir
+    if (undoTimer) clearTimeout(undoTimer);
+    // Após 8s, deleta de verdade
+    const t = setTimeout(() => {
+      dbDelete("agenda", e.id);
+      addLog(`Agenda: evento "${e.title}" excluído`);
+      setUndoEvento(null);
+    }, 8000);
+    setUndoTimer(t);
+  };
+
+  const desfazerExclusao = () => {
+    if (undoTimer) clearTimeout(undoTimer);
+    if (undoEvento) setAgEvents(p => [...p, undoEvento]);
+    setUndoEvento(null);
+    setUndoTimer(null);
+  };
 
   const pk = dateSel || segSel;
   const pmsg = pk ? MSGS[pk] : null;
@@ -1646,20 +1674,23 @@ export default function CRM() {
                       return (
                         <div key={h + "-" + di} className="wc" style={{ position: "relative", overflow: "visible" }}
                           onClick={() => { setAgDate(d); setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); setAgForm(f => ({ ...f, date: ds, start: h, end: h + 2, title: "", desc: "", tipo: "cons_abraao" })); setShowAgForm(true); }}>
-                          {evs.map(e => {
+                          {evs.map((e, ei) => {
                             const duration = Math.max(e.end - e.start, 1);
+                            const total = evs.length;
+                            const w = total > 1 ? `calc(${100/total}% - 3px)` : "calc(100% - 4px)";
+                            const left = total > 1 ? `calc(${(ei * 100/total)}% + 1px)` : "2px";
                             return (
                               <div key={e.id} className="we" style={{
                                 background: getEventColor(e.tipo, artists, e.artista),
-                                position: "absolute", left: 2, right: 2, top: 2,
+                                position: "absolute", left, width: w, top: 2,
                                 height: (duration * 46) - 4 + "px",
                                 zIndex: 10, borderRadius: 4, padding: "3px 5px",
                                 overflow: "hidden", fontSize: 10, fontWeight: 600, color: "#fff",
                                 cursor: "pointer", display: "flex", alignItems: "flex-start", justifyContent: "space-between"
                               }}
                               onClick={ev => { ev.stopPropagation(); setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "" }); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); }}>
-                                <span>{e.title}<br/><span style={{opacity:.8}}>{e.start}h–{e.end}h</span></span>
-                                <span onClick={ev => { ev.stopPropagation(); setAgEvents(p => p.filter(x => x.id !== e.id)); dbDelete("agenda", e.id); addLog(`Agenda: evento "${e.title}" excluído`); }} style={{ opacity: .8, cursor: "pointer", fontSize: 12, flexShrink: 0 }}>🗑</span>
+                                <span style={{overflow:"hidden",flex:1,minWidth:0}}>{e.title}<br/><span style={{opacity:.8}}>{e.start}h–{e.end}h</span></span>
+                                <span onClick={ev => { ev.stopPropagation(); setConfirmExcluir(e); }} style={{ opacity: .8, cursor: "pointer", fontSize: 12, flexShrink: 0 }}>🗑</span>
                               </div>
                             );
                           })}
@@ -1701,7 +1732,7 @@ export default function CRM() {
                                   <span style={{ opacity: .8, cursor: "pointer", fontSize: 13 }}
                                     onClick={ev => { ev.stopPropagation(); setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "" }); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); }}>✏️</span>
                                   <span style={{ opacity: .8, cursor: "pointer", fontSize: 13 }}
-                                    onClick={ev => { ev.stopPropagation(); if(window.confirm("Excluir este evento?")) { setAgEvents(p => p.filter(x => x.id !== e.id)); dbDelete("agenda", e.id); addLog(`Agenda: evento "${e.title}" excluído`); } }}>🗑</span>
+                                    onClick={ev => { ev.stopPropagation(); setConfirmExcluir(e); }}>🗑</span>
                                 </div>
                               </div>
                             );
@@ -3003,7 +3034,7 @@ export default function CRM() {
                 <div>
                   {editingEvent && (
                     <button className="btn-c" style={{ color: "var(--q1)", borderColor: "rgba(192,57,43,.3)" }}
-                      onClick={() => { if (window.confirm("Excluir este evento?")) { const titulo = editingEvent.title; setAgEvents(p => p.filter(x => x.id !== editingEvent.id)); dbDelete("agenda", editingEvent.id); setShowAgForm(false); setEditingEvent(null); addLog(`Agenda: evento "${titulo}" excluído`); } }}>
+                      onClick={() => { setConfirmExcluir(editingEvent); }}>
                       🗑 Excluir
                     </button>
                   )}
@@ -3014,6 +3045,41 @@ export default function CRM() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── CONFIRMAÇÃO EXCLUSÃO EVENTO ── */}
+        {confirmExcluir && (
+          <div className="ov" onClick={() => setConfirmExcluir(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid rgba(192,57,43,.4)", borderRadius: 12, width: "min(420px, 92vw)", padding: "28px 28px 22px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(192,57,43,.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>🗑</div>
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "var(--tx)" }}>Excluir evento?</div>
+                  <div style={{ fontSize: 12, color: "var(--tx2)", marginTop: 3 }}>"{confirmExcluir.title}" — {confirmExcluir.date} às {confirmExcluir.start}h</div>
+                </div>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--tx3)", background: "var(--dk3)", borderRadius: 7, padding: "10px 14px" }}>
+                Você poderá desfazer esta ação por <strong style={{color:"var(--gold)"}}>8 segundos</strong> após confirmar.
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button className="btn-c" onClick={() => setConfirmExcluir(null)}>Cancelar</button>
+                <button style={{ background: "rgba(192,57,43,.8)", border: "1px solid rgba(192,57,43,.5)", borderRadius: 7, padding: "7px 18px", fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer" }}
+                  onClick={() => excluirEvento(confirmExcluir, confirmExcluir.id === editingEvent?.id)}>
+                  Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── BARRA DESFAZER ── */}
+        {undoEvento && (
+          <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 30, padding: "10px 20px", display: "flex", alignItems: "center", gap: 14, boxShadow: "0 4px 24px rgba(0,0,0,.6)", fontSize: 13 }}>
+            <span style={{ color: "var(--tx2)" }}>Evento "<strong style={{color:"var(--tx)"}}>{undoEvento.title}</strong>" excluído</span>
+            <button onClick={desfazerExclusao} style={{ background: "var(--gold)", border: "none", borderRadius: 20, padding: "5px 16px", fontSize: 12, fontWeight: 700, color: "#1a1a1a", cursor: "pointer" }}>
+              ↩ Desfazer
+            </button>
           </div>
         )}
 
