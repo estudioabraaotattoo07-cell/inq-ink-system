@@ -951,6 +951,12 @@ export default function CRM() {
   const [confirmExcluirCliente, setConfirmExcluirCliente] = useState<any>(null);
   const [confirmMover, setConfirmMover] = useState<{cid: any; stage: any; agEvents: any[]} | null>(null);
   const [confirmPagamento, setConfirmPagamento] = useState<{cid: any; agEvent: any} | null>(null);
+  const [pipelineMotivo, setPipelineMotivo] = useState<{cid: any; stage: any; motivo: string; dias?: string} | null>(null);
+  const [showLogoCrop, setShowLogoCrop] = useState(false);
+  const [logoCropSrc, setLogoCropSrc] = useState("");
+  const [logoCropPos, setLogoCropPos] = useState({ x: 0, y: 0 });
+  const [logoCropScale, setLogoCropScale] = useState(1);
+  const logoCropRef = useRef<any>(null);
   const [pagFormas, setPagFormas] = useState<{forma: string; valor: string; parcelas: string}[]>([{ forma: "Pix", valor: "", parcelas: "1" }]);
   const [showAviso, setShowAviso] = useState<string | null>(null);
   const [undoEvento, setUndoEvento] = useState<any>(null);
@@ -1097,14 +1103,72 @@ export default function CRM() {
   );
 
   const move = (cid: number, ns: string) => {
+    const cli = clients.find(c => c.id === cid);
+    const evs = agEvents.filter(e => e.cliente_id === cid);
+
+    // Cumpriu Evento — modal de pagamento
     if (ns === "tatuado") {
-      const evs = agEvents.filter(e => e.cliente_id === cid);
       const ev = evs.length > 0 ? evs[evs.length - 1] : null;
       const valorPrev = ev?.valor_previsto ? (Number(ev.valor_previsto)).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
       setPagFormas([{ forma: "Pix", valor: valorPrev, parcelas: "1" }]);
       setConfirmPagamento({ cid, agEvent: ev });
       return;
     }
+
+    // Consulta Marcada — abre agendamento tipo Consulta
+    if (ns === "cons_agendada") {
+      executarMove(cid, ns);
+      if (evs.length === 0) {
+        setTimeout(() => {
+          setEditingEvent(null);
+          setAgClientVinc(cli || null);
+          setAgClientSearch("");
+          setAgForm({ title: cli?.nome || "", desc: "", tipo: "cons_" + (cli?.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11 } as any);
+          setShowAgForm(true);
+        }, 200);
+      }
+      return;
+    }
+
+    // Sessão Agendada — abre agendamento tipo Sessão
+    if (ns === "sessao_agend") {
+      executarMove(cid, ns);
+      if (evs.length === 0) {
+        setTimeout(() => {
+          setEditingEvent(null);
+          setAgClientVinc(cli || null);
+          setAgClientSearch("");
+          setAgForm({ title: cli?.nome || "", desc: "", tipo: "sess_" + (cli?.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11 } as any);
+          setShowAgForm(true);
+        }, 200);
+      }
+      return;
+    }
+
+    // Pós-venda — observação opcional
+    if (ns === "pos_venda") {
+      setPipelineMotivo({ cid, stage: STAGES.find(s => s.id === ns), motivo: "", dias: "" });
+      return;
+    }
+
+    // Lista de Espera — motivo livre
+    if (ns === "lista_espera") {
+      setPipelineMotivo({ cid, stage: STAGES.find(s => s.id === ns), motivo: "", dias: "" });
+      return;
+    }
+
+    // Hibernação — motivo + sugestão de dias para Aura
+    if (ns === "hibernacao") {
+      setPipelineMotivo({ cid, stage: STAGES.find(s => s.id === ns), motivo: "", dias: "30" });
+      return;
+    }
+
+    // Blacklist — motivo obrigatório
+    if (ns === "blacklist") {
+      setPipelineMotivo({ cid, stage: STAGES.find(s => s.id === ns), motivo: "", dias: "" });
+      return;
+    }
+
     executarMove(cid, ns);
   };
 
@@ -1678,9 +1742,10 @@ export default function CRM() {
                       if (!file) return;
                       const reader = new FileReader();
                       reader.onload = ev => {
-                        const base64 = ev.target?.result as string;
-                        setStudioLogo(base64);
-                        localStorage.setItem("inq_logo", base64);
+                        setLogoCropSrc(ev.target?.result as string);
+                        setLogoCropPos({ x: 0, y: 0 });
+                        setLogoCropScale(1);
+                        setShowLogoCrop(true);
                       };
                       reader.readAsDataURL(file);
                     }} />
@@ -4052,6 +4117,156 @@ export default function CRM() {
           </div>
         )}
 
+        {/* ── MODAL PIPELINE MOTIVO ── */}
+        {pipelineMotivo && (() => {
+          const stage = pipelineMotivo.stage;
+          const isBlacklist = stage?.id === "blacklist";
+          const isHibernacao = stage?.id === "hibernacao";
+          const isPosVenda = stage?.id === "pos_venda";
+          const isListaEspera = stage?.id === "lista_espera";
+          const cor = isBlacklist ? "var(--q1)" : isHibernacao ? "#888" : isListaEspera ? "#3498DB" : "var(--gold)";
+          const titulo = isPosVenda ? "Observação do Evento" : isBlacklist ? "🚫 Mover para Blacklist" : isHibernacao ? "💤 Hibernar Cliente" : isListaEspera ? "⏳ Lista de Espera" : stage?.label || "";
+          return (
+            <div className="ov" onClick={() => setPipelineMotivo(null)}>
+              <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: `1px solid ${isBlacklist ? "rgba(192,57,43,.4)" : "var(--br)"}`, borderRadius: 12, width: "min(460px, 92vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: cor }}>{titulo}</div>
+                <div style={{ fontSize: 13, color: "var(--tx2)" }}>
+                  {isPosVenda && "Deseja registrar uma observação sobre esta sessão? (opcional)"}
+                  {isBlacklist && "Informe o motivo. Este registro ficará salvo no histórico do cliente."}
+                  {isHibernacao && "Informe o motivo e em quantos dias a Aura deve tentar recontato."}
+                  {isListaEspera && "Informe o motivo para colocar este cliente em espera."}
+                </div>
+                <textarea
+                  placeholder={isPosVenda ? "Ex: cliente satisfeito, retocar daqui 30 dias..." : isBlacklist ? "Motivo obrigatório..." : "Motivo..."}
+                  value={pipelineMotivo.motivo}
+                  onChange={e => setPipelineMotivo(p => p ? { ...p, motivo: e.target.value } : p)}
+                  style={{ background: "var(--dk3)", border: `1px solid ${isBlacklist && !pipelineMotivo.motivo ? "rgba(192,57,43,.5)" : "var(--br)"}`, borderRadius: 7, padding: "10px 12px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", resize: "vertical", minHeight: 80, outline: "none" }}
+                />
+                {isHibernacao && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 12, color: "var(--tx2)" }}>Aura recontata em</span>
+                    <input type="number" min={1} value={pipelineMotivo.dias || "30"}
+                      onChange={e => setPipelineMotivo(p => p ? { ...p, dias: e.target.value } : p)}
+                      style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 9px", fontSize: 12, color: "var(--tx)", width: 70, outline: "none" }} />
+                    <span style={{ fontSize: 12, color: "var(--tx2)" }}>dias</span>
+                    <span style={{ fontSize: 11, color: "var(--tx3)", fontStyle: "italic" }}>(sugestão para a Aura)</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button className="btn-c" onClick={() => setPipelineMotivo(null)}>Cancelar</button>
+                  <button className="btn-s"
+                    disabled={isBlacklist && !pipelineMotivo.motivo.trim()}
+                    style={{ background: isBlacklist ? "rgba(192,57,43,.8)" : "var(--gold)", color: isBlacklist ? "#fff" : "#000" }}
+                    onClick={() => {
+                      const { cid, stage: st, motivo, dias } = pipelineMotivo;
+                      const lbl = st?.label || "";
+                      // Registrar no histórico
+                      if (motivo.trim() || !isPosVenda) {
+                        setClients(p => p.map(c => c.id !== cid ? c : {
+                          ...c,
+                          hist: [...c.hist,
+                            ...(motivo.trim() ? [{ t: (isPosVenda ? "Obs. sessão: " : "Motivo: ") + motivo, d: new Date().toLocaleDateString("pt-BR") }] : []),
+                            ...(isHibernacao && dias ? [{ t: "Aura: recontato em " + dias + " dias", d: new Date().toLocaleDateString("pt-BR") }] : []),
+                          ]
+                        }));
+                      }
+                      executarMove(cid, st?.id);
+                      setPipelineMotivo(null);
+                    }}>
+                    {isPosVenda ? "Confirmar" : "Mover"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── MODAL CROP LOGO ── */}
+        {showLogoCrop && (
+          <div className="ov" onClick={() => setShowLogoCrop(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 14, width: "min(420px, 94vw)", padding: "24px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--gold)" }}>Ajustar Logo</div>
+              <div style={{ fontSize: 12, color: "var(--tx2)" }}>Arraste a imagem para centralizar dentro do círculo.</div>
+              <div style={{ position: "relative", width: 260, height: 260, margin: "0 auto", overflow: "hidden", borderRadius: 8, cursor: "grab", userSelect: "none" }}
+                ref={logoCropRef}
+                onMouseDown={e => {
+                  const startX = e.clientX - logoCropPos.x;
+                  const startY = e.clientY - logoCropPos.y;
+                  const onMove = (ev: MouseEvent) => setLogoCropPos({ x: ev.clientX - startX, y: ev.clientY - startY });
+                  const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+                  window.addEventListener("mousemove", onMove);
+                  window.addEventListener("mouseup", onUp);
+                }}
+                onTouchStart={e => {
+                  const t = e.touches[0];
+                  const startX = t.clientX - logoCropPos.x;
+                  const startY = t.clientY - logoCropPos.y;
+                  const onMove = (ev: TouchEvent) => { const tt = ev.touches[0]; setLogoCropPos({ x: tt.clientX - startX, y: tt.clientY - startY }); };
+                  const onUp = () => { window.removeEventListener("touchmove", onMove as any); window.removeEventListener("touchend", onUp); };
+                  window.addEventListener("touchmove", onMove as any);
+                  window.addEventListener("touchend", onUp);
+                }}>
+                {/* imagem arrastável */}
+                <img src={logoCropSrc} alt="crop"
+                  style={{ position: "absolute", top: logoCropPos.y, left: logoCropPos.x, width: 260 * logoCropScale, height: "auto", pointerEvents: "none", draggable: false } as any} />
+                {/* overlay escuro fora do círculo */}
+                <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+                  <svg width="260" height="260" style={{ position: "absolute", inset: 0 }}>
+                    <defs>
+                      <mask id="circleMask">
+                        <rect width="260" height="260" fill="white"/>
+                        <circle cx="130" cy="130" r="120" fill="black"/>
+                      </mask>
+                    </defs>
+                    <rect width="260" height="260" fill="rgba(0,0,0,0.72)" mask="url(#circleMask)"/>
+                    <circle cx="130" cy="130" r="120" fill="none" stroke="#C9A84C" strokeWidth="2"/>
+                  </svg>
+                </div>
+              </div>
+              {/* zoom */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 11, color: "var(--tx3)" }}>Zoom</span>
+                <input type="range" min={0.5} max={3} step={0.05} value={logoCropScale}
+                  onChange={e => setLogoCropScale(Number(e.target.value))}
+                  style={{ flex: 1, accentColor: "var(--gold)" }} />
+                <span style={{ fontSize: 11, color: "var(--tx2)", width: 36 }}>{Math.round(logoCropScale * 100)}%</span>
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button className="btn-c" onClick={() => { setShowLogoCrop(false); setLogoCropSrc(""); }}>Cancelar</button>
+                <button className="btn-s" onClick={() => {
+                  // Renderizar o recorte em canvas
+                  const canvas = document.createElement("canvas");
+                  canvas.width = 240; canvas.height = 240;
+                  const ctx = canvas.getContext("2d");
+                  if (!ctx) return;
+                  const img = new Image();
+                  img.onload = () => {
+                    ctx.beginPath();
+                    ctx.arc(120, 120, 120, 0, Math.PI * 2);
+                    ctx.clip();
+                    const scale = logoCropScale;
+                    const iw = 260 * scale;
+                    const ih = img.naturalHeight * (iw / img.naturalWidth);
+                    const sx = logoCropPos.x * (240 / 260);
+                    const sy = logoCropPos.y * (240 / 260);
+                    const sw = iw * (240 / 260);
+                    const sh = ih * (240 / 260);
+                    ctx.drawImage(img, sx, sy, sw, sh);
+                    const base64 = canvas.toDataURL("image/png");
+                    setStudioLogo(base64);
+                    localStorage.setItem("inq_logo", base64);
+                    setShowLogoCrop(false);
+                    setLogoCropSrc("");
+                    setLogoCropPos({ x: 0, y: 0 });
+                    setLogoCropScale(1);
+                  };
+                  img.src = logoCropSrc;
+                }}>✓ Confirmar Recorte</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── CONFIRMAÇÃO EXCLUSÃO CLIENTE ── */}
         {confirmExcluirCliente && (
           <div className="ov" onClick={() => setConfirmExcluirCliente(null)}>
@@ -4214,9 +4429,10 @@ export default function CRM() {
                           if (!file) return;
                           const reader = new FileReader();
                           reader.onload = ev => {
-                            const base64 = ev.target?.result as string;
-                            setStudioLogo(base64);
-                            localStorage.setItem("inq_logo", base64);
+                            setLogoCropSrc(ev.target?.result as string);
+                            setLogoCropPos({ x: 0, y: 0 });
+                            setLogoCropScale(1);
+                            setShowLogoCrop(true);
                           };
                           reader.readAsDataURL(file);
                         }} />
