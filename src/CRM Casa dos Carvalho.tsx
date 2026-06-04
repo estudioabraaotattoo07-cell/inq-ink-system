@@ -952,6 +952,7 @@ export default function CRM() {
   const [confirmMover, setConfirmMover] = useState<{cid: any; stage: any; agEvents: any[]} | null>(null);
   const [confirmPagamento, setConfirmPagamento] = useState<{cid: any; agEvent: any} | null>(null);
   const [pipelineMotivo, setPipelineMotivo] = useState<{cid: any; stage: any; motivo: string; dias?: string} | null>(null);
+  const [confirmCancelarEvento, setConfirmCancelarEvento] = useState<{event: any; motivo: string} | null>(null);
   const [showLogoCrop, setShowLogoCrop] = useState(false);
   const [logoCropSrc, setLogoCropSrc] = useState("");
   const [logoCropPos, setLogoCropPos] = useState({ x: 0, y: 0 });
@@ -1962,9 +1963,10 @@ export default function CRM() {
         {(tab === "kanban" || tab === "clientes") && (
           <div className="ctrl">
             <input className="srch" placeholder="Buscar..." value={srch} onChange={e => setSrch(e.target.value)} />
-            {["todos", "abraao", "camilla"].map(f => (
-              <button key={f} className={"fb" + (fa === f ? " on" : "")} onClick={() => setFa(f)}>
-                {f === "todos" ? "Todos" : f === "abraao" ? "Abraao" : "Camilla"}
+            <button className={"fb" + (fa === "todos" ? " on" : "")} onClick={() => setFa("todos")}>Todos</button>
+            {artists.filter(a => a.ativo).map(a => (
+              <button key={a.id} className={"fb" + (fa === a.id ? " on" : "")} onClick={() => setFa(a.id)}>
+                {a.nome.split(" ")[0]}
               </button>
             ))}
           </div>
@@ -1973,18 +1975,32 @@ export default function CRM() {
         {/* ── KANBAN ── */}
         {tab === "kanban" && (
           <>
-          {/* Seletor de coluna — visível em mobile/tablet */}
-          <div style={{ display: "flex", overflowX: "auto", gap: 6, padding: "8px 14px", background: "var(--dk2)", borderBottom: "1px solid var(--br)", scrollbarWidth: "none" }}>
+          {/* Seletor de coluna */}
+          <div style={{ display: "flex", overflowX: "auto", gap: 6, padding: "8px 14px 6px", background: "var(--dk2)", scrollbarWidth: "none" }}>
             {STAGES.map(stage => (
               <button key={stage.id} onClick={() => {
+                const kw = document.getElementById("kanban-scroll");
                 const el = document.getElementById("kcol-" + stage.id);
-                el?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "start" });
+                if (kw && el) kw.scrollTo({ left: el.offsetLeft - 14, behavior: "smooth" });
               }} style={{ flexShrink: 0, padding: "5px 12px", fontSize: 11, fontWeight: 600, borderRadius: 20, border: "1px solid var(--br)", background: "var(--dk3)", color: "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap" }}>
                 {stage.emoji} {stage.label}
               </button>
             ))}
           </div>
-          <div className="kw">
+          {/* Barra de rolagem dourada visível */}
+          <div style={{ padding: "4px 14px 0", background: "var(--dk2)", borderBottom: "1px solid var(--br)" }}>
+            <div style={{ height: 4, background: "var(--dk4)", borderRadius: 2, overflow: "hidden" }}>
+              <div id="kanban-scrollbar-thumb" style={{ height: "100%", background: "var(--gold)", borderRadius: 2, width: "30%", transition: "left .1s" }} />
+            </div>
+          </div>
+          <div className="kw" id="kanban-scroll" onScroll={e => {
+            const el = e.currentTarget;
+            const pct = el.scrollLeft / (el.scrollWidth - el.clientWidth);
+            const thumb = document.getElementById("kanban-scrollbar-thumb");
+            const trackW = el.clientWidth - 28;
+            const thumbW = Math.max(trackW * (el.clientWidth / el.scrollWidth), 40);
+            if (thumb) { thumb.style.width = thumbW + "px"; thumb.style.marginLeft = (pct * (trackW - thumbW)) + "px"; }
+          }}>
             {STAGES.map(stage => {
               const sc2 = getSC(stage.id);
               return (
@@ -2005,6 +2021,9 @@ export default function CRM() {
                             <span className={"qb " + QC[c.qual]}>{c.qual}</span>
                           </div>
                           <div className="cst">{c.estilo || "Sem estilo"} {c.regiao || " - "}</div>
+                          {agEvents.some(e => e.cliente_id === c.id && e.status === "cancelado") && (
+                            <div style={{ fontSize: 10, color: "#E67E22", background: "rgba(230,126,34,.12)", border: "1px solid rgba(230,126,34,.25)", borderRadius: 4, padding: "2px 6px", display: "inline-flex", alignItems: "center", gap: 3, marginBottom: 2 }}>⊘ Evento cancelado</div>
+                          )}
                           <div className="cft">
                             <span className={("at " + aClass(c.artista)) || ""} style={aStyle(c.artista)}>{aName(c.artista).split(" ")[0]}</span>
                             <span className="cd">{c.data}</span>
@@ -4026,18 +4045,7 @@ export default function CRM() {
                   )}
                   {editingEvent && editingEvent.status !== "cancelado" && (
                     <button className="btn-c" style={{ color: "#E67E22", borderColor: "rgba(230,126,34,.3)" }}
-                      onClick={async () => {
-                        const updated = { ...editingEvent, status: "cancelado" };
-                        setAgEvents(p => p.map(x => x.id === editingEvent.id ? updated : x));
-                        await sb.from("agenda").update({ status: "cancelado" }).eq("id", editingEvent.id);
-                        if (agClientVinc) {
-                          setClients(p => p.map(c => c.id !== agClientVinc.id ? c : {
-                            ...c, hist: [...c.hist, { t: "Evento cancelado: " + editingEvent.date, d: new Date().toLocaleDateString("pt-BR") }]
-                          }));
-                        }
-                        addLog(`Agenda: evento "${editingEvent.title}" cancelado`);
-                        setShowAgForm(false); setEditingEvent(null); setAgClientVinc(null); setAgClientSearch("");
-                      }}>
+                      onClick={() => setConfirmCancelarEvento({ event: editingEvent, motivo: "" })}>
                       ⊘ Cancelar Evento
                     </button>
                   )}
@@ -4055,6 +4063,54 @@ export default function CRM() {
                     saveAgEvent();
                   }}>Salvar</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL CONFIRMAR CANCELAR EVENTO ── */}
+        {confirmCancelarEvento && (
+          <div className="ov" onClick={() => setConfirmCancelarEvento(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid rgba(230,126,34,.4)", borderRadius: 12, width: "min(460px, 92vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "#E67E22" }}>⊘ Cancelar Evento</div>
+              <div style={{ fontSize: 13, color: "var(--tx2)", lineHeight: 1.6 }}>
+                Ao cancelar, o cliente será movido automaticamente para <strong style={{ color: "#888" }}>Hibernação</strong> e o motivo ficará registrado no histórico — disponível para a Aura usar no recontato.
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <label style={{ fontSize: 11, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Motivo do cancelamento *</label>
+                <textarea
+                  placeholder="Ex: cliente desmarcou, problema de saúde, questão financeira..."
+                  value={confirmCancelarEvento.motivo}
+                  onChange={e => setConfirmCancelarEvento(p => p ? { ...p, motivo: e.target.value } : p)}
+                  style={{ background: "var(--dk3)", border: `1px solid ${!confirmCancelarEvento.motivo ? "rgba(230,126,34,.4)" : "var(--br)"}`, borderRadius: 7, padding: "10px 12px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", resize: "vertical", minHeight: 70, outline: "none" }}
+                />
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button className="btn-c" onClick={() => setConfirmCancelarEvento(null)}>Voltar</button>
+                <button disabled={!confirmCancelarEvento.motivo.trim()}
+                  style={{ background: !confirmCancelarEvento.motivo.trim() ? "var(--dk4)" : "rgba(230,126,34,.85)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: confirmCancelarEvento.motivo.trim() ? "pointer" : "not-allowed", fontFamily: "'DM Sans',sans-serif" }}
+                  onClick={async () => {
+                    const { event, motivo } = confirmCancelarEvento;
+                    const updated = { ...event, status: "cancelado" };
+                    setAgEvents(p => p.map(x => x.id === event.id ? updated : x));
+                    await sb.from("agenda").update({ status: "cancelado" }).eq("id", event.id);
+                    if (agClientVinc) {
+                      setClients(p => p.map(c => c.id !== agClientVinc.id ? c : {
+                        ...c,
+                        hist: [...c.hist,
+                          { t: "⊘ Evento cancelado: " + (event.date || "").split("-").reverse().join("/"), d: new Date().toLocaleDateString("pt-BR") },
+                          { t: "Motivo cancelamento: " + motivo, d: new Date().toLocaleDateString("pt-BR") },
+                          { t: "Aura: recontato sugerido em 30 dias", d: new Date().toLocaleDateString("pt-BR") },
+                        ]
+                      }));
+                      executarMove(agClientVinc.id, "hibernacao");
+                    }
+                    addLog(`Agenda: evento "${event.title}" cancelado — ${motivo}`);
+                    setConfirmCancelarEvento(null);
+                    setShowAgForm(false); setEditingEvent(null); setAgClientVinc(null); setAgClientSearch("");
+                  }}>
+                  ⊘ Confirmar Cancelamento
+                </button>
               </div>
             </div>
           </div>
@@ -4497,6 +4553,7 @@ export default function CRM() {
                             setLogoCropSrc(ev.target?.result as string);
                             setLogoCropPos({ x: 0, y: 0 });
                             setLogoCropScale(1);
+                            setShowSettings(false);
                             setShowLogoCrop(true);
                           };
                           reader.readAsDataURL(file);
