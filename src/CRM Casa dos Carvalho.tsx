@@ -3387,6 +3387,7 @@ export default function CRM() {
                 })()}
 
               </div>
+              <div className="fmf" style={{ justifyContent: "space-between" }}>
                 <div>
                   {editingEvent && (
                     <button className="btn-c" style={{ color: "var(--q1)", borderColor: "rgba(192,57,43,.3)" }}
