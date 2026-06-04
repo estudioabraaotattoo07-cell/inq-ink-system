@@ -790,21 +790,24 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
 
   useEffect(() => { setHsv(hexToHsv(value || "#C9A84C")); }, [value]);
 
-  const calcSq = (e: MouseEvent | MouseEvent) => {
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+
+  const calcSq = useCallback((e: MouseEvent) => {
     if (!sqRef.current) return;
     const r = sqRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
     const y = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
     const ns: [number,number,number] = [hsvRef.current[0], Math.round(x*100), Math.round((1-y)*100)];
-    setHsv(ns); onChange(hsvToHex(...ns));
-  };
-  const calcHue = (e: MouseEvent | MouseEvent) => {
+    setHsv(ns); onChangeRef.current(hsvToHex(...ns));
+  }, []);
+  const calcHue = useCallback((e: MouseEvent) => {
     if (!hueRef.current) return;
     const r = hueRef.current.getBoundingClientRect();
     const x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
     const ns: [number,number,number] = [Math.round(x*360), hsvRef.current[1], hsvRef.current[2]];
-    setHsv(ns); onChange(hsvToHex(...ns));
-  };
+    setHsv(ns); onChangeRef.current(hsvToHex(...ns));
+  }, []);
 
   useEffect(() => {
     const move = (e: MouseEvent) => { if (dragRef.current === "sq") calcSq(e); else if (dragRef.current === "hue") calcHue(e); };
@@ -812,7 +815,7 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
     return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
-  }, []);
+  }, [calcSq, calcHue]);
 
   const bgSq = `hsl(${hsv[0]},100%,50%)`;
   const curX = hsv[1]; const curY = 100 - hsv[2];
@@ -1241,15 +1244,12 @@ export default function CRM() {
       tel: artForm.tel || "",
       ativo: true
     };
-    try {
-      const { data, error } = await sb.from("artistas").insert(row).select().single();
-      if (error) throw error;
-      setArtists(p => [...p, { ...row, id: data.id }]);
-    } catch(e) {
-      console.error("Erro ao salvar artista:", e);
-      // Fallback local
-      setArtists(p => [...p, { ...row, id: Date.now().toString() }]);
+    const { data: artData, error: artError } = await sb.from("artistas").insert(row).select().single();
+    if (artError) {
+      alert(`Erro ao salvar artista: ${artError.message}`);
+      return;
     }
+    setArtists(p => [...p, { ...row, id: artData.id }]);
     setShowArtForm(false);
     setArtForm({ nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "@", email: "", tel: "" });
     addLog(`Artista "${artForm.nome}" cadastrado`);
