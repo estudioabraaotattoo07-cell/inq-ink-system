@@ -935,13 +935,14 @@ export default function CRM() {
   const [regiaoOpts, setRegiaoOpts] = useState<string[]>(["Antebraço", "Braço Inteiro", "Costela", "Costas", "Ombro", "Panturrilha", "Clavícula", "Pescoço", "Mão", "Pé"]);
   const [showHistorico, setShowHistorico] = useState(false);
   const [historico, setHistorico] = useState<{id?:any; data:string; hora:string; acao:string}[]>([]);
-  const [confirmExcluir, setConfirmExcluir] = useState<any>(null); // evento a confirmar exclusão
+  const [confirmExcluir, setConfirmExcluir] = useState<any>(null);
   const [confirmRemoverArtista, setConfirmRemoverArtista] = useState<any>(null);
   const [confirmExcluirCliente, setConfirmExcluirCliente] = useState<any>(null);
   const [confirmMover, setConfirmMover] = useState<{cid: any; stage: any; agEvents: any[]} | null>(null);
   const [confirmPagamento, setConfirmPagamento] = useState<{cid: any; agEvent: any} | null>(null);
   const [pagFormas, setPagFormas] = useState<{forma: string; valor: string; parcelas: string}[]>([{ forma: "Pix", valor: "", parcelas: "1" }]);
-  const [undoEvento, setUndoEvento] = useState<any>(null); // evento para desfazer
+  const [showAviso, setShowAviso] = useState<string | null>(null);
+  const [undoEvento, setUndoEvento] = useState<any>(null);
   const [undoTimer, setUndoTimer] = useState<any>(null);
 
   const [dbReady, setDbReady] = useState(false);
@@ -1122,7 +1123,7 @@ export default function CRM() {
   const confirmarPagamento = async () => {
     if (!confirmPagamento) return;
     const { cid } = confirmPagamento;
-    const totalPago = pagFormas.reduce((s, f) => s + (parseFloat(f.valor) || 0), 0);
+    const totalPago = pagFormas.reduce((s, f) => s + (parseFloat(f.valor.replace(/\./g, "").replace(",", ".")) || 0), 0);
     const dataHoje = new Date().toLocaleDateString("pt-BR");
     // Lançar cada forma no financeiro
     for (const f of pagFormas) {
@@ -1312,6 +1313,8 @@ export default function CRM() {
       tipo: agForm.tipo,
       obs: (agForm as any).desc || "",
       valor_previsto: parseFloat((agForm as any).valorPrevisto || "0") || 0,
+      sinal: parseFloat((agForm as any).sinal || "0") || 0,
+      sinal_pago: !!(agForm as any).sinalPago,
       ...(agClientVinc ? { cliente_id: agClientVinc.id, cliente_nome: agClientVinc.nome } : {})
     };
 
@@ -1351,15 +1354,30 @@ export default function CRM() {
       const tipoLabel: Record<string,string> = { cons: "Consulta", sess: "Sessão", piercing: "Piercing", bloq: "Bloqueio" };
       const tipoKey = agForm.tipo.split("_")[0];
       const tipoNome = tipoLabel[tipoKey] || agForm.tipo;
+      const sinalVal = parseFloat((agForm as any).sinal || "0") || 0;
+      const sinalPago = !!(agForm as any).sinalPago;
+      const histEntries = [
+        { t: `Agendamento criado: ${tipoNome} em ${dataFmt} às ${agForm.start}h`, d: new Date().toLocaleString("pt-BR") },
+        ...(sinalVal > 0 ? [{ t: `Sinal de R$${sinalVal.toFixed(2)} ${sinalPago ? "recebido" : "pendente"}`, d: new Date().toLocaleString("pt-BR") }] : [])
+      ];
       setClients(p => {
         const updated = p.map(c => c.id !== agClientVinc.id ? c : {
-          ...c,
-          hist: [...(c.hist || []), { t: `Agendamento criado: ${tipoNome} em ${dataFmt} às ${agForm.start}h`, d: new Date().toLocaleString("pt-BR") }]
+          ...c, hist: [...(c.hist || []), ...histEntries]
         });
         const c = updated.find(c => c.id === agClientVinc.id);
         if (c) setTimeout(() => saveClientDb(c), 100);
         return updated;
       });
+      // Lançar sinal no financeiro se já pago
+      if (sinalVal > 0 && sinalPago) {
+        sb.from("financeiro").insert({
+          tipo: "entrada", valor: sinalVal, forma: "Sinal",
+          parcelas: 1, descricao: `Sinal — ${agClientVinc.nome}`,
+          cliente_id: agClientVinc.id,
+          data: new Date().toISOString().split("T")[0],
+          artista: agForm.tipo.includes("camilla") ? "camilla" : "abraao"
+        });
+      }
     }
   };
 
@@ -2909,67 +2927,6 @@ export default function CRM() {
                   </div>
                 </div>
 
-                <div>
-                  <div className="stit">💰 Financeiro da Sessão</div>
-                  <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
-                    <div className="fr">
-                      <div className="ff">
-                        <label className="fl">Valor da Arte</label>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ fontSize: 12, color: "var(--tx2)" }}>R$</span>
-                          <input className="fi"
-                            value={sc.val_a ? sc.val_a.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}
-                            placeholder="0,00"
-                            onChange={e => {
-                              const raw = e.target.value.replace(/\D/g, "");
-                              const num = raw ? Number(raw) / 100 : 0;
-                              upC(sc.id, "val_a", num);
-                            }}
-                            style={{ flex: 1 }} />
-                        </div>
-                      </div>
-                      <div className="ff">
-                        <label className="fl">Forma de Pagamento</label>
-                        <select className="fs" value={sc.pgto || ""} onChange={e => upC(sc.id, "pgto", e.target.value)}>
-                          <option value="">Não informado</option>
-                          <option value="Pix">Pix</option>
-                          <option value="Dinheiro">Dinheiro</option>
-                          <option value="Cartao Debito">Cartão Débito</option>
-                          <option value="Cartao Credito">Cartão Crédito</option>
-                          <option value="Transferencia">Transferência</option>
-                        </select>
-                      </div>
-                    </div>
-                    {sc.pgto === "Cartao Credito" && (
-                      <div className="ff">
-                        <label className="fl">Parcelas</label>
-                        <select className="fs" value={(sc as any).parcelas || "1"} onChange={e => upC(sc.id, "parcelas", e.target.value)}>
-                          {[1,2,3,4,5,6,7,8,9,10,11,12].map(n => (
-                            <option key={n} value={String(n)}>{n}x {sc.val_a ? `de R$ ${(sc.val_a/n).toLocaleString("pt-BR",{minimumFractionDigits:2})}` : ""}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    {sc.val_c > 0 && (
-                      <div style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 6, padding: "10px 12px" }}>
-                        <div style={{ fontSize: 10, color: "var(--tx3)", letterSpacing: ".08em", textTransform: "uppercase", marginBottom: 4 }}>🔒 Valor captado pela Aura</div>
-                        <div style={{ fontSize: 16, fontWeight: 700, color: "var(--tx)" }}>R$ {sc.val_c.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</div>
-                      </div>
-                    )}
-                    {sc.val_a > 0 && sc.val_c > 0 && sc.val_a !== sc.val_c && (
-                      <div style={{ background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.4)", borderRadius: 6, padding: "10px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-                        <span style={{ fontSize: 16 }}>⚠️</span>
-                        <div>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: "var(--q1)" }}>Divergência detectada</div>
-                          <div style={{ fontSize: 11, color: "var(--tx2)" }}>
-                            Artista declarou R$ {sc.val_a.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · Aura registrou R$ {sc.val_c.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · Diferença: R$ {Math.abs(sc.val_a - sc.val_c).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 {/* AGENDAMENTOS DO CLIENTE */}
                 {(() => {
                   const evsCli = agEvents.filter(e => e.cliente_id === sc.id);
@@ -3362,6 +3319,25 @@ export default function CRM() {
                     onChange={e => setAgForm({ ...agForm, valorPrevisto: e.target.value } as any)} />
                 </div>
 
+                {/* 6b. SINAL */}
+                <div className="fr" style={{ gap: 10 }}>
+                  <div className="ff" style={{ flex: 1 }}>
+                    <label className="fl">Sinal (R$)</label>
+                    <input className="fi" type="number" min="0" step="0.01" placeholder="0,00"
+                      value={(agForm as any).sinal || ""}
+                      onChange={e => setAgForm({ ...agForm, sinal: e.target.value } as any)} />
+                  </div>
+                  <div className="ff" style={{ flex: 1, justifyContent: "flex-end" }}>
+                    <label className="fl">Sinal pago?</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                      <input type="checkbox" id="sinalPago" checked={!!(agForm as any).sinalPago}
+                        onChange={e => setAgForm({ ...agForm, sinalPago: e.target.checked } as any)}
+                        style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--gold)" }} />
+                      <label htmlFor="sinalPago" style={{ fontSize: 12, color: "var(--tx2)", cursor: "pointer" }}>Já recebido</label>
+                    </div>
+                  </div>
+                </div>
+
                 {/* 7. TIPO SESSÃO */}
                 <div className="ff">
                   <label className="fl">Tipo</label>
@@ -3384,8 +3360,33 @@ export default function CRM() {
                   </div>
                 </div>
 
+                {/* 8. PIPELINE DO CLIENTE */}
+                {agClientVinc && (() => {
+                  const cli = clients.find(c => c.id === agClientVinc.id);
+                  if (!cli) return null;
+                  const stage = STAGES.find(s => s.id === cli.etapa);
+                  return (
+                    <div className="ff">
+                      <label className="fl">Pipeline</label>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {STAGES.filter(s => !["blacklist"].includes(s.id)).map(s => (
+                          <div key={s.id}
+                            onMouseDown={() => {
+                              if (s.id !== cli.etapa) move(cli.id, s.id);
+                            }}
+                            style={{ padding: "4px 10px", borderRadius: 20, cursor: s.id === cli.etapa ? "default" : "pointer", fontSize: 11, fontWeight: 600,
+                              background: s.id === cli.etapa ? s.color + "33" : "var(--dk3)",
+                              border: `1px solid ${s.id === cli.etapa ? s.color : "var(--br)"}`,
+                              color: s.id === cli.etapa ? s.color : "var(--tx2)" }}>
+                            {s.emoji} {s.label}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
               </div>
-              <div className="fmf" style={{ justifyContent: "space-between" }}>
                 <div>
                   {editingEvent && (
                     <button className="btn-c" style={{ color: "var(--q1)", borderColor: "rgba(192,57,43,.3)" }}
@@ -3398,12 +3399,25 @@ export default function CRM() {
                   <button className="btn-c" onClick={() => { setShowAgForm(false); setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); }}>Cancelar</button>
                   <button className="btn-s" onClick={() => {
                     if (!agClientVinc) {
-                      alert("Apenas clientes cadastrados podem ser agendados. Cadastre o cliente primeiro na aba Clientes.");
+                      setShowAviso("Apenas clientes cadastrados podem ser agendados. Cadastre o cliente primeiro na aba Clientes.");
                       return;
                     }
                     saveAgEvent();
                   }}>Salvar</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── AVISO GENÉRICO ── */}
+        {showAviso && (
+          <div className="ov" onClick={() => setShowAviso(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(400px, 90vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)", fontFamily: "'Cormorant Garamond',serif" }}>⚠ Atenção</div>
+              <div style={{ fontSize: 13, color: "var(--tx)", lineHeight: 1.6 }}>{showAviso}</div>
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <button className="btn-s" onClick={() => setShowAviso(null)}>Entendido</button>
               </div>
             </div>
           </div>
@@ -3418,7 +3432,7 @@ export default function CRM() {
               </div>
               {confirmPagamento.agEvent && (
                 <div style={{ fontSize: 12, color: "var(--tx3)", background: "var(--dk3)", borderRadius: 8, padding: "8px 12px" }}>
-                  Agendamento: {confirmPagamento.agEvent.date} às {confirmPagamento.agEvent.start}h
+                  Agendamento: {confirmPagamento.agEvent.date?.split("-").reverse().join("/") || confirmPagamento.agEvent.date} às {confirmPagamento.agEvent.start}h
                   {confirmPagamento.agEvent.valor_previsto > 0 && ` — Previsto: R$${parseFloat(confirmPagamento.agEvent.valor_previsto).toFixed(2)}`}
                 </div>
               )}
@@ -3429,8 +3443,12 @@ export default function CRM() {
                     style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "var(--tx)", flex: 1 }}>
                     {["Pix","Dinheiro","Cartão","Transferência"].map(o => <option key={o}>{o}</option>)}
                   </select>
-                  <input type="number" min="0" step="0.01" placeholder="R$ 0,00" value={f.valor}
-                    onChange={e => setPagFormas(p => p.map((x,j) => j===i ? {...x, valor: e.target.value} : x))}
+                  <input type="text" placeholder="R$ 0,00" value={f.valor}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/\D/g, "");
+                      const num = raw ? (Number(raw) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
+                      setPagFormas(p => p.map((x,j) => j===i ? {...x, valor: num} : x));
+                    }}
                     style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "var(--tx)", width: 90 }} />
                   {f.forma === "Cartão" && (
                     <select value={f.parcelas} onChange={e => setPagFormas(p => p.map((x,j) => j===i ? {...x, parcelas: e.target.value} : x))}
@@ -3449,7 +3467,7 @@ export default function CRM() {
                 + Adicionar forma de pagamento
               </button>
               {(() => {
-                const total = pagFormas.reduce((s,f) => s + (parseFloat(f.valor)||0), 0);
+                const total = pagFormas.reduce((s,f) => s + (parseFloat(f.valor.replace(/\./g,"").replace(",",".")) || 0), 0);
                 const prev = confirmPagamento.agEvent?.valor_previsto || 0;
                 const diff = total - prev;
                 if (prev > 0 && Math.abs(diff) > 0.01) return (
