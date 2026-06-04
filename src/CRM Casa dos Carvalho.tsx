@@ -1155,7 +1155,6 @@ export default function CRM() {
     addLog(`Cliente "${nome}" excluído`);
     setConfirmExcluirCliente(null);
   };
-  };
 
   const registrarIndicacao = (cid: number, artista: string) => {
     setClients(p => p.map(c => {
