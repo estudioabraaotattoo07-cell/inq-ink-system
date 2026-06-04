@@ -309,7 +309,7 @@ const STAGES = [
   { id: "qualificacao", label: "Qualificação", color: "#C9A84C", emoji: "🔍" },
   { id: "cons_agendada", label: "Consultoria", color: "#9B6BB5", emoji: "📅" },
   { id: "sessao_agend", label: "Sessão Agendada", color: "#4A9EBF", emoji: "✏️" },
-  { id: "tatuado", label: "Tatuado", color: "#27AE60", emoji: "✅" },
+  { id: "tatuado", label: "Cumpriu Evento", color: "#27AE60", emoji: "✅" },
   { id: "pos_venda", label: "Pós-venda", color: "#E67E22", emoji: "💬" },
   { id: "lista_espera", label: "Lista de Espera", color: "#3498DB", emoji: "⏳" },
   { id: "hibernacao", label: "Hibernação", color: "#666", emoji: "💤" },
@@ -939,6 +939,8 @@ export default function CRM() {
   const [confirmRemoverArtista, setConfirmRemoverArtista] = useState<any>(null);
   const [confirmExcluirCliente, setConfirmExcluirCliente] = useState<any>(null);
   const [confirmMover, setConfirmMover] = useState<{cid: any; stage: any; agEvents: any[]} | null>(null);
+  const [confirmPagamento, setConfirmPagamento] = useState<{cid: any; agEvent: any} | null>(null);
+  const [pagFormas, setPagFormas] = useState<{forma: string; valor: string; parcelas: string}[]>([{ forma: "Pix", valor: "", parcelas: "1" }]);
   const [undoEvento, setUndoEvento] = useState<any>(null); // evento para desfazer
   const [undoTimer, setUndoTimer] = useState<any>(null);
 
@@ -1082,6 +1084,18 @@ export default function CRM() {
   );
 
   const move = (cid: number, ns: string) => {
+    if (ns === "tatuado") {
+      const evs = agEvents.filter(e => e.cliente_id === cid);
+      const ev = evs.length > 0 ? evs[evs.length - 1] : null;
+      const valorPrev = ev?.valor_previsto ? String(ev.valor_previsto) : "";
+      setPagFormas([{ forma: "Pix", valor: valorPrev, parcelas: "1" }]);
+      setConfirmPagamento({ cid, agEvent: ev });
+      return;
+    }
+    executarMove(cid, ns);
+  };
+
+  const executarMove = (cid: number, ns: string) => {
     const lbl = STAGES.find(s => s.id === ns)?.label || ns;
     const orq = ns === "sessao_agend";
     const tatuado = ns === "tatuado";
@@ -1103,6 +1117,42 @@ export default function CRM() {
       addLog(`Pipeline: "${nome}" movido para ${lbl}`);
       return updated;
     });
+  };
+
+  const confirmarPagamento = async () => {
+    if (!confirmPagamento) return;
+    const { cid } = confirmPagamento;
+    const totalPago = pagFormas.reduce((s, f) => s + (parseFloat(f.valor) || 0), 0);
+    const dataHoje = new Date().toLocaleDateString("pt-BR");
+    // Lançar cada forma no financeiro
+    for (const f of pagFormas) {
+      const val = parseFloat(f.valor) || 0;
+      if (val <= 0) continue;
+      const cliente = clients.find(c => c.id === cid);
+      await sb.from("financeiro").insert({
+        tipo: "entrada",
+        valor: val,
+        forma: f.forma,
+        parcelas: f.forma === "Cartão" ? parseInt(f.parcelas) || 1 : 1,
+        descricao: `Sessão — ${cliente?.nome || "cliente"}`,
+        cliente_id: cid,
+        data: new Date().toISOString().split("T")[0],
+        artista: confirmPagamento.agEvent?.artista || ""
+      });
+    }
+    // Registrar no histórico do cliente
+    const formasTexto = pagFormas.filter(f => parseFloat(f.valor) > 0).map(f => `${f.forma} R$${parseFloat(f.valor).toFixed(2)}${f.forma === "Cartão" ? ` ${f.parcelas}x` : ""}`).join(" + ");
+    setClients(p => {
+      const updated = p.map(c => c.id !== cid ? c : {
+        ...c,
+        hist: [...(c.hist || []), { t: `Pagamento confirmado: R$${totalPago.toFixed(2)} — ${formasTexto}`, d: new Date().toLocaleString("pt-BR") }]
+      });
+      const c = updated.find(c => c.id === cid);
+      if (c) setTimeout(() => saveClientDb(c), 100);
+      return updated;
+    });
+    setConfirmPagamento(null);
+    executarMove(cid, "tatuado");
   };
 
   const upC = (cid: number, f: string, v: any) => {
@@ -1261,6 +1311,7 @@ export default function CRM() {
       hora: String(agForm.start).padStart(2, "0") + ":00",
       tipo: agForm.tipo,
       obs: (agForm as any).desc || "",
+      valor_previsto: parseFloat((agForm as any).valorPrevisto || "0") || 0,
       ...(agClientVinc ? { cliente_id: agClientVinc.id, cliente_nome: agClientVinc.nome } : {})
     };
 
@@ -1294,10 +1345,21 @@ export default function CRM() {
     setAgClientVinc(null);
     setAgClientSearch("");
     addLog(`Agenda: evento "${agForm.title}" criado para ${agForm.date} às ${agForm.start}h`);
-    // Fluxo pós-agendamento: perguntar se quer completar cadastro
-    if (!agClientVinc && agForm.title) {
-      setPostAgNome(agForm.title);
-      setShowPostAg(true);
+    // Registrar no histórico do cliente vinculado
+    if (agClientVinc) {
+      const dataFmt = agForm.date ? agForm.date.split("-").reverse().join("/") : agForm.date;
+      const tipoLabel: Record<string,string> = { cons: "Consulta", sess: "Sessão", piercing: "Piercing", bloq: "Bloqueio" };
+      const tipoKey = agForm.tipo.split("_")[0];
+      const tipoNome = tipoLabel[tipoKey] || agForm.tipo;
+      setClients(p => {
+        const updated = p.map(c => c.id !== agClientVinc.id ? c : {
+          ...c,
+          hist: [...(c.hist || []), { t: `Agendamento criado: ${tipoNome} em ${dataFmt} às ${agForm.start}h`, d: new Date().toLocaleString("pt-BR") }]
+        });
+        const c = updated.find(c => c.id === agClientVinc.id);
+        if (c) setTimeout(() => saveClientDb(c), 100);
+        return updated;
+      });
     }
   };
 
@@ -1789,12 +1851,12 @@ export default function CRM() {
                 <button className="ag-nb" onClick={() => agNav(-1)}>&lt;</button>
                 <div className="ag-title">{agTitle()}</div>
                 <button className="ag-nb" onClick={() => agNav(1)}>&gt;</button>
-                <button className="ag-nb" style={{ fontSize: 11 }} onClick={() => setAgDate(new Date(2026, 4, 30))}>Hoje</button>
+                <button className="ag-nb" style={{ fontSize: 11 }} onClick={() => setAgDate(new Date())}>Hoje</button>
               </div>
               <div className="ag-vg">
                 {["day", "week", "month"].map(v => (
                   <button key={v} className={"ag-vb" + (agView === v ? " on" : "")} onClick={() => setAgView(v)}>
-                    {v === "day" ? "Dia" : v === "week" ? "Semana" : "Mes"}
+                    {v === "day" ? "Dia" : v === "week" ? "Semana" : "Mês"}
                   </button>
                 ))}
               </div>
@@ -3292,7 +3354,15 @@ export default function CRM() {
                   </div>
                 </div>
 
-                {/* 6. TIPO SESSÃO */}
+                {/* 6. VALOR PREVISTO */}
+                <div className="ff">
+                  <label className="fl">Valor Previsto (R$)</label>
+                  <input className="fi" type="number" min="0" step="0.01" placeholder="0,00"
+                    value={(agForm as any).valorPrevisto || ""}
+                    onChange={e => setAgForm({ ...agForm, valorPrevisto: e.target.value } as any)} />
+                </div>
+
+                {/* 7. TIPO SESSÃO */}
                 <div className="ff">
                   <label className="fl">Tipo</label>
                   <div style={{ display: "flex", gap: 8 }}>
@@ -3326,8 +3396,72 @@ export default function CRM() {
                 </div>
                 <div style={{ display: "flex", gap: 7 }}>
                   <button className="btn-c" onClick={() => { setShowAgForm(false); setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); }}>Cancelar</button>
-                  <button className="btn-s" onClick={saveAgEvent} disabled={!agClientVinc && !agForm.title}>Salvar</button>
+                  <button className="btn-s" onClick={() => {
+                    if (!agClientVinc) {
+                      alert("Apenas clientes cadastrados podem ser agendados. Cadastre o cliente primeiro na aba Clientes.");
+                      return;
+                    }
+                    saveAgEvent();
+                  }}>Salvar</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONFIRMAÇÃO PAGAMENTO CUMPRIU EVENTO ── */}
+        {confirmPagamento && (
+          <div className="ov" onClick={() => setConfirmPagamento(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(500px, 94vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--gold)" }}>
+                ✅ Confirmar Evento — {clients.find(c => c.id === confirmPagamento.cid)?.nome}
+              </div>
+              {confirmPagamento.agEvent && (
+                <div style={{ fontSize: 12, color: "var(--tx3)", background: "var(--dk3)", borderRadius: 8, padding: "8px 12px" }}>
+                  Agendamento: {confirmPagamento.agEvent.date} às {confirmPagamento.agEvent.start}h
+                  {confirmPagamento.agEvent.valor_previsto > 0 && ` — Previsto: R$${parseFloat(confirmPagamento.agEvent.valor_previsto).toFixed(2)}`}
+                </div>
+              )}
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tx)" }}>Formas de Pagamento</div>
+              {pagFormas.map((f, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <select value={f.forma} onChange={e => setPagFormas(p => p.map((x,j) => j===i ? {...x, forma: e.target.value} : x))}
+                    style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "var(--tx)", flex: 1 }}>
+                    {["Pix","Dinheiro","Cartão","Transferência"].map(o => <option key={o}>{o}</option>)}
+                  </select>
+                  <input type="number" min="0" step="0.01" placeholder="R$ 0,00" value={f.valor}
+                    onChange={e => setPagFormas(p => p.map((x,j) => j===i ? {...x, valor: e.target.value} : x))}
+                    style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "var(--tx)", width: 90 }} />
+                  {f.forma === "Cartão" && (
+                    <select value={f.parcelas} onChange={e => setPagFormas(p => p.map((x,j) => j===i ? {...x, parcelas: e.target.value} : x))}
+                      style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "var(--tx)", width: 60 }}>
+                      {["1","2","3","4","5","6","7","8","9","10","11","12"].map(n => <option key={n}>{n}x</option>)}
+                    </select>
+                  )}
+                  {pagFormas.length > 1 && (
+                    <button onClick={() => setPagFormas(p => p.filter((_,j) => j!==i))}
+                      style={{ background: "none", border: "none", color: "var(--q1)", cursor: "pointer", fontSize: 16, padding: "0 4px" }}>×</button>
+                  )}
+                </div>
+              ))}
+              <button onClick={() => setPagFormas(p => [...p, { forma: "Pix", valor: "", parcelas: "1" }])}
+                style={{ background: "none", border: "1px dashed var(--br)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--tx2)", cursor: "pointer", textAlign: "left" }}>
+                + Adicionar forma de pagamento
+              </button>
+              {(() => {
+                const total = pagFormas.reduce((s,f) => s + (parseFloat(f.valor)||0), 0);
+                const prev = confirmPagamento.agEvent?.valor_previsto || 0;
+                const diff = total - prev;
+                if (prev > 0 && Math.abs(diff) > 0.01) return (
+                  <div style={{ fontSize: 12, color: diff < 0 ? "#E67E22" : "#27AE60", background: diff < 0 ? "rgba(230,126,34,.1)" : "rgba(39,174,96,.1)", borderRadius: 6, padding: "6px 10px" }}>
+                    {diff < 0 ? `⚠️ Faltam R$${Math.abs(diff).toFixed(2)} para fechar o valor previsto` : `✅ R$${diff.toFixed(2)} acima do previsto`}
+                  </div>
+                );
+                return null;
+              })()}
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+                <button className="btn-c" onClick={() => setConfirmPagamento(null)}>Cancelar</button>
+                <button className="btn-s" onClick={confirmarPagamento}>Confirmar e Mover</button>
               </div>
             </div>
           </div>
