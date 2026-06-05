@@ -954,6 +954,10 @@ export default function CRM() {
   const [pipelineMotivo, setPipelineMotivo] = useState<{cid: any; stage: any; motivo: string; dias?: string} | null>(null);
   const [confirmCancelarEvento, setConfirmCancelarEvento] = useState<{event: any; motivo: string} | null>(null);
   const [proximaSessaoModal, setProximaSessaoModal] = useState<{cid: any} | null>(null);
+  const [cancelProjetoModal, setCancelProjetoModal] = useState<{clienteId: any; projetoId: any; motivo: string} | null>(null);
+  const [cancelMotivos, setCancelMotivos] = useState<string[]>(["Cliente desistiu", "Questão financeira", "Mudança de projeto", "Sem resposta do cliente", "Outro"]);
+  const [novoProjetoAberto, setNovoProjetoAberto] = useState<any>(null);
+  const [novoProjetoForm, setNovoProjetoForm] = useState({ estilo: "", tam: "Medio", primeira: false, desc: "", valorTotal: "" });
   const [showLogoCrop, setShowLogoCrop] = useState(false);
   const [logoCropSrc, setLogoCropSrc] = useState("");
   const [logoCropPos, setLogoCropPos] = useState({ x: 0, y: 0 });
@@ -3402,19 +3406,67 @@ export default function CRM() {
                 <div>
                   <div className="stit" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <span>Projetos Artísticos</span>
-                    <button onClick={() => {
-                      const novoProjeto = { id: Date.now(), estilo: "", tam: "Medio", primeira: false, desc: "", status: "ativo", criadoEm: new Date().toLocaleDateString("pt-BR") };
-                      const projetos = [...(sc.projetos || [])];
-                      // Migrar projeto legado se ainda não migrado
-                      if (projetos.length === 0 && (sc.estilo || sc.desc)) {
-                        projetos.push({ id: Date.now() - 1, estilo: sc.estilo || "", tam: sc.tam || "Medio", primeira: sc.primeira || false, desc: sc.desc || "", status: "ativo", criadoEm: "—" });
-                      }
-                      projetos.push(novoProjeto);
-                      upC(sc.id, "projetos", projetos);
-                    }} style={{ fontSize: 11, fontWeight: 600, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "4px 10px", color: "var(--gold)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                      + Novo Projeto
-                    </button>
+                    {novoProjetoAberto !== sc.id && (
+                      <button onClick={() => {
+                        setNovoProjetoAberto(sc.id);
+                        setNovoProjetoForm({ estilo: "", tam: "Medio", primeira: false, desc: "", valorTotal: "" });
+                      }} style={{ fontSize: 11, fontWeight: 600, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "4px 10px", color: "var(--gold)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                        + Novo Projeto
+                      </button>
+                    )}
                   </div>
+                  {/* Formulário inline de novo projeto */}
+                  {novoProjetoAberto === sc.id && (
+                    <div style={{ background: "var(--dk3)", border: "1px solid var(--gold)", borderRadius: 8, padding: "14px", marginBottom: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>Novo Projeto</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                        <div className="fi2">
+                          <div className="fil">Valor Total do Projeto (R$)</div>
+                          <input className="ef" type="text" placeholder="0,00" value={novoProjetoForm.valorTotal}
+                            onChange={e => { const raw = e.target.value.replace(/\D/g,""); const num = raw ? (Number(raw)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : ""; setNovoProjetoForm(p => ({ ...p, valorTotal: num })); }} />
+                        </div>
+                        <div className="fi2">
+                          <div className="fil">Estilo</div>
+                          <select className="ef" value={novoProjetoForm.estilo} onChange={e => setNovoProjetoForm(p => ({ ...p, estilo: e.target.value }))}>
+                            <option value="">Selecionar...</option>
+                            {estiloOpts.map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div className="fi2">
+                          <div className="fil">Tamanho</div>
+                          <select className="ef" value={novoProjetoForm.tam} onChange={e => setNovoProjetoForm(p => ({ ...p, tam: e.target.value }))}>
+                            <option>Discreto</option><option>Medio</option><option>Grande</option><option>Fechamento</option>
+                          </select>
+                        </div>
+                        <div className="fi2">
+                          <div className="fil">1ª Tattoo</div>
+                          <select className="ef" value={novoProjetoForm.primeira ? "Sim" : "Nao"} onChange={e => setNovoProjetoForm(p => ({ ...p, primeira: e.target.value === "Sim" }))}>
+                            <option value="Sim">Sim</option><option value="Nao">Não</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="fi2">
+                        <div className="fil">Descrição do Projeto</div>
+                        <textarea className="ef" placeholder="Descreva o projeto..." value={novoProjetoForm.desc} onChange={e => setNovoProjetoForm(p => ({ ...p, desc: e.target.value }))}
+                          style={{ resize: "vertical", minHeight: 55, width: "100%", fontFamily: "inherit" }} />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <button onClick={() => { setNovoProjetoAberto(null); }} style={{ background: "none", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 14px", fontSize: 12, color: "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Descartar</button>
+                        <button onClick={() => {
+                          const val = parseFloat(novoProjetoForm.valorTotal.replace(/\./g,"").replace(",",".")) || 0;
+                          const proj = { id: Date.now(), estilo: novoProjetoForm.estilo, tam: novoProjetoForm.tam, primeira: novoProjetoForm.primeira, desc: novoProjetoForm.desc, valorTotal: val, status: "ativo", criadoEm: new Date().toLocaleDateString("pt-BR"), pagamentos: [] };
+                          const projs = [...(sc.projetos || [])];
+                          if (projs.length === 0 && (sc.estilo || sc.desc)) {
+                            projs.push({ id: Date.now()-1, estilo: sc.estilo||"", tam: sc.tam||"Medio", primeira: sc.primeira||false, desc: sc.desc||"", valorTotal: 0, status: "ativo", criadoEm: "—", pagamentos: [] });
+                          }
+                          projs.push(proj);
+                          upC(sc.id, "projetos", projs);
+                          setNovoProjetoAberto(null);
+                          setClients(p => p.map(c => c.id !== sc.id ? c : { ...c, hist: [...c.hist, { t: `Projeto criado: ${proj.estilo || "sem estilo"} — R$${val.toLocaleString("pt-BR",{minimumFractionDigits:2})}`, d: new Date().toLocaleDateString("pt-BR") }] }));
+                        }} style={{ background: "var(--gold)", color: "#000", border: "none", borderRadius: 6, padding: "6px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>Salvar Projeto</button>
+                      </div>
+                    </div>
+                  )}
                   {(() => {
                     // Migrate legacy single project if projetos array is empty
                     const projetos: any[] = sc.projetos && sc.projetos.length > 0
@@ -3434,17 +3486,8 @@ export default function CRM() {
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 6 }}>
                               <span style={{ fontSize: 11, color: "var(--gold)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>Projeto {pi + 1} — Em andamento</span>
                               <div style={{ display: "flex", gap: 6 }}>
-                                <button onClick={() => {
-                                  const projs = (sc.projetos && sc.projetos.length > 0) ? [...sc.projetos] : [{ ...proj }];
-                                  const idx = projs.findIndex((p: any) => p.id === proj.id);
-                                  if (idx >= 0) {
-                                    projs[idx] = { ...projs[idx], status: "cancelado", canceladoEm: new Date().toLocaleDateString("pt-BR") };
-                                    upC(sc.id, "projetos", projs);
-                                    setClients(p => p.map(c => c.id !== sc.id ? c : {
-                                      ...c, hist: [...c.hist, { t: `Projeto cancelado: ${proj.estilo || "sem título"}`, d: new Date().toLocaleDateString("pt-BR") }]
-                                    }));
-                                  }
-                                }} style={{ fontSize: 10, fontWeight: 600, background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 5, padding: "3px 9px", color: "var(--q1)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                                <button onClick={() => setCancelProjetoModal({ clienteId: sc.id, projetoId: proj.id, motivo: "" })}
+                                  style={{ fontSize: 10, fontWeight: 600, background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 5, padding: "3px 9px", color: "var(--q1)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                                   ✕ Cancelar
                                 </button>
                                 <button onClick={() => {
@@ -3458,7 +3501,7 @@ export default function CRM() {
                                     }));
                                   }
                                 }} style={{ fontSize: 10, fontWeight: 600, background: "rgba(39,174,96,.1)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 5, padding: "3px 9px", color: "#27AE60", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                                  ✓ Concluir
+                                  ✓ Projeto Concluído
                                 </button>
                               </div>
                             </div>
@@ -3562,6 +3605,50 @@ export default function CRM() {
                                   {proj.desc && <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2, fontStyle: "italic" }}>{proj.desc.slice(0,60)}{proj.desc.length > 60 ? "..." : ""}</div>}
                                 </div>
                                 <span style={{ fontSize: 16 }}>✅</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* ── FINANCEIRO DO CLIENTE ── */}
+                <div>
+                  <div className="stit">Financeiro</div>
+                  {(() => {
+                    const pagCliente = fin.filter((f: any) => f.cliente_id === sc.id || f.cliente_nome === sc.nome);
+                    const totalPago = pagCliente.reduce((s: number, f: any) => s + (Number(f.val_a)||0), 0);
+                    const credito = sc.credito || 0;
+                    const projs = (sc.projetos || []).filter((p: any) => p.status === "ativo");
+                    const totalDevedor = projs.reduce((s: number, p: any) => {
+                      const pago = (p.pagamentos || []).reduce((ss: number, pg: any) => ss + (Number(pg.valor)||0), 0);
+                      return s + Math.max((Number(p.valorTotal)||0) - pago, 0);
+                    }, 0);
+                    return (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+                          <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 12px", textAlign: "center" }}>
+                            <div style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Total Pago</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: "#27AE60", fontFamily: "'Cormorant Garamond',serif" }}>R$ {totalPago.toLocaleString("pt-BR",{minimumFractionDigits:2})}</div>
+                          </div>
+                          <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 12px", textAlign: "center" }}>
+                            <div style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Saldo Devedor</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: totalDevedor > 0 ? "var(--q1)" : "#27AE60", fontFamily: "'Cormorant Garamond',serif" }}>{totalDevedor > 0 ? "R$ " + totalDevedor.toLocaleString("pt-BR",{minimumFractionDigits:2}) : "Quitado"}</div>
+                          </div>
+                          <div style={{ background: "var(--dk3)", border: credito > 0 ? "1px solid rgba(201,168,76,.4)" : "1px solid var(--br)", borderRadius: 7, padding: "10px 12px", textAlign: "center" }}>
+                            <div style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>Crédito</div>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: credito > 0 ? "var(--gold)" : "var(--tx3)", fontFamily: "'Cormorant Garamond',serif" }}>{credito > 0 ? "R$ " + credito.toLocaleString("pt-BR",{minimumFractionDigits:2}) : "—"}</div>
+                          </div>
+                        </div>
+                        {pagCliente.length > 0 && (
+                          <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 13px" }}>
+                            <div style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Histórico de Pagamentos</div>
+                            {pagCliente.slice(-5).reverse().map((f: any, i: number) => (
+                              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)", fontSize: 11 }}>
+                                <span style={{ color: "var(--tx2)" }}>{f.data ? (f.data.includes("-") ? f.data.split("-").reverse().join("/") : f.data) : "—"} — {f.pgto || f.forma_pgto || "—"}</span>
+                                <span style={{ color: "#27AE60", fontWeight: 600 }}>R$ {Number(f.val_a).toLocaleString("pt-BR",{minimumFractionDigits:2})}</span>
                               </div>
                             ))}
                           </div>
@@ -4125,17 +4212,28 @@ export default function CRM() {
                   </div>
                 </div>
 
-                {/* 6. VALOR PREVISTO */}
-                <div className="ff">
-                  <label className="fl">Valor Previsto (R$)</label>
-                  <input className="fi" type="text" placeholder="0,00"
-                    value={(agForm as any).valorPrevisto || ""}
-                    onChange={e => {
-                      const raw = e.target.value.replace(/\D/g, "");
-                      const num = raw ? (Number(raw) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "";
-                      setAgForm({ ...agForm, valorPrevisto: num } as any);
-                    }} />
-                </div>
+                {/* 6. PROJETO VINCULADO — valor vem do projeto do cliente */}
+                {agClientVinc && (() => {
+                  const projs = (agClientVinc.projetos || []).filter((p: any) => p.status === "ativo");
+                  if (projs.length === 0) return null;
+                  return (
+                    <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 13px" }}>
+                      <div style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Projeto(s) ativo(s)</div>
+                      {projs.map((p: any) => {
+                        const pago = (p.pagamentos || []).reduce((s: number, x: any) => s + (Number(x.valor)||0), 0);
+                        const saldo = (Number(p.valorTotal)||0) - pago;
+                        return (
+                          <div key={p.id} style={{ fontSize: 12, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ color: "var(--tx)" }}>{p.estilo || "Sem estilo"} — {p.tam}</span>
+                            <span>
+                              {p.valorTotal > 0 && <span style={{ color: saldo > 0 ? "var(--q1)" : "#27AE60", fontWeight: 600 }}>R$ {saldo > 0 ? saldo.toLocaleString("pt-BR",{minimumFractionDigits:2}) + " a pagar" : "Quitado"}</span>}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
 
                 {/* 6b. SINAL */}
                 <div className="fr" style={{ gap: 10 }}>
@@ -4289,6 +4387,68 @@ export default function CRM() {
             </div>
           </div>
         )}
+
+        {/* ── MODAL CANCELAR PROJETO ── */}
+        {cancelProjetoModal && (() => {
+          const cli = clients.find(c => c.id === cancelProjetoModal.clienteId);
+          const proj = (cli?.projetos || []).find((p: any) => p.id === cancelProjetoModal.projetoId);
+          const temDados = proj && (proj.estilo || proj.desc || proj.valorTotal > 0);
+          const pago = proj ? (proj.pagamentos || []).reduce((s: number, p: any) => s + (Number(p.valor)||0), 0) : 0;
+          return (
+            <div className="ov" onClick={() => setCancelProjetoModal(null)}>
+              <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid rgba(192,57,43,.4)", borderRadius: 12, width: "min(480px, 93vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--q1)" }}>🗑 Cancelar Projeto</div>
+                {proj && (
+                  <div style={{ background: "var(--dk3)", borderRadius: 7, padding: "10px 13px", fontSize: 12 }}>
+                    <div style={{ color: "var(--tx)", fontWeight: 600 }}>{proj.estilo || "Sem estilo"} — {proj.tam}</div>
+                    {proj.valorTotal > 0 && <div style={{ color: "var(--tx2)", marginTop: 3 }}>Valor total: R$ {Number(proj.valorTotal).toLocaleString("pt-BR",{minimumFractionDigits:2})}</div>}
+                    {pago > 0 && <div style={{ color: "#27AE60", marginTop: 2 }}>Valor já pago: R$ {pago.toLocaleString("pt-BR",{minimumFractionDigits:2})} → será registrado como crédito</div>}
+                  </div>
+                )}
+                {temDados && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <label style={{ fontSize: 11, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Motivo do cancelamento *</label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {cancelMotivos.map(m => (
+                        <button key={m} onClick={() => setCancelProjetoModal(p => p ? { ...p, motivo: m } : p)}
+                          style={{ padding: "5px 12px", fontSize: 11, borderRadius: 20, border: `1px solid ${cancelProjetoModal.motivo === m ? "var(--gold)" : "var(--br)"}`, background: cancelProjetoModal.motivo === m ? "rgba(201,168,76,.15)" : "var(--dk3)", color: cancelProjetoModal.motivo === m ? "var(--gold)" : "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                          {m}
+                        </button>
+                      ))}
+                    </div>
+                    {cancelProjetoModal.motivo === "Outro" && (
+                      <input className="fi" placeholder="Descreva o motivo..." value={cancelProjetoModal.motivo === "Outro" ? "" : cancelProjetoModal.motivo}
+                        onChange={e => setCancelProjetoModal(p => p ? { ...p, motivo: e.target.value } : p)}
+                        style={{ marginTop: 4 }} />
+                    )}
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button className="btn-c" onClick={() => setCancelProjetoModal(null)}>Voltar</button>
+                  <button disabled={temDados && !cancelProjetoModal.motivo.trim()}
+                    style={{ background: temDados && !cancelProjetoModal.motivo.trim() ? "var(--dk4)" : "rgba(192,57,43,.8)", color: "#fff", border: "none", borderRadius: 7, padding: "8px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
+                    onClick={() => {
+                      const { clienteId, projetoId, motivo } = cancelProjetoModal;
+                      setClients(p => p.map(c => {
+                        if (c.id !== clienteId) return c;
+                        const projs = (c.projetos || []).filter((p: any) => p.id !== projetoId);
+                        const hist = [...c.hist,
+                          { t: `Projeto excluído: ${proj?.estilo || "sem estilo"}${motivo ? " — " + motivo : ""}`, d: new Date().toLocaleDateString("pt-BR") },
+                          ...(pago > 0 ? [{ t: `Crédito disponível: R$ ${pago.toLocaleString("pt-BR",{minimumFractionDigits:2})} (projeto cancelado)`, d: new Date().toLocaleDateString("pt-BR") }] : [])
+                        ];
+                        const updated = { ...c, projetos: projs, hist, credito: (c.credito || 0) + pago };
+                        setTimeout(() => saveClientDb(updated), 100);
+                        return updated;
+                      }));
+                      setCancelProjetoModal(null);
+                    }}>
+                    🗑 Confirmar Exclusão
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── AVISO GENÉRICO ── */}
         {showAviso && (
