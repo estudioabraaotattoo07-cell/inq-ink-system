@@ -919,9 +919,7 @@ export default function CRM() {
   const [googleLink, setGoogleLink] = useState("");
   const [cnpj, setCnpj] = useState("");
   const [metaMensal, setMetaMensal] = useState(15000);
-  const [saidas, setSaidas] = useState([
-    { id: 1, desc: "Material consumível", categoria: "Material", valor: 350, data: "05/06/2026" },
-    { id: 2, desc: "Energia elétrica", categoria: "Energia", valor: 280, data: "10/06/2026" },
+  const [saidas, setSaidas] = useState<any[]>([]);
   ]);
   const [showSaidaForm, setShowSaidaForm] = useState(false);
   const [saidaForm, setSaidaForm] = useState({ desc: "", categoria: "Material", valor: 0, data: new Date().toLocaleDateString("pt-BR") });
@@ -1528,7 +1526,7 @@ export default function CRM() {
         const artistaSinalEdit = agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || "abraao";
         const artistaObjEdit = artists.find(a => a.id === artistaSinalEdit);
         const comSinalEdit = artistaObjEdit?.com || 0;
-        const { error: errSinalEdit } = await sb.from("financeiro").insert({
+        const { data: fdSinalEdit, error: errSinalEdit } = await sb.from("financeiro").insert({
           cliente_id: agClientVinc.id,
           cliente_nome: agClientVinc.nome,
           artista: artistaSinalEdit,
@@ -1538,8 +1536,9 @@ export default function CRM() {
           pgto: "Sinal",
           com_base: comSinalEdit,
           com_sess: comSinalEdit,
-        });
+        }).select().single();
         if (errSinalEdit) console.error("financeiro insert (sinal edição):", errSinalEdit);
+        if (fdSinalEdit) setFin(p => [...p, { ...fdSinalEdit, cliente: agClientVinc.nome }]);
       }
       return;
     }
@@ -1627,7 +1626,7 @@ export default function CRM() {
         const artistaSinal = agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || "abraao";
         const artistaObjSinal = artists.find(a => a.id === artistaSinal);
         const comSinal = artistaObjSinal?.com || 0;
-        const { error: errSinal } = await sb.from("financeiro").insert({
+        const { data: fdSinal, error: errSinal } = await sb.from("financeiro").insert({
           cliente_id: agClientVinc.id,
           cliente_nome: agClientVinc.nome,
           artista: artistaSinal,
@@ -1637,8 +1636,9 @@ export default function CRM() {
           pgto: "Sinal",
           com_base: comSinal,
           com_sess: comSinal,
-        });
+        }).select().single();
         if (errSinal) console.error("financeiro insert (sinal):", errSinal);
+        if (fdSinal) setFin(p => [...p, { ...fdSinal, cliente: agClientVinc.nome }]);
       }
     }
   };
@@ -4315,7 +4315,8 @@ export default function CRM() {
                           }} />
                       </div>
                     </div>
-                    <div className="ff"><label className="fl">Descrição do Projeto</label><textarea className="fta" placeholder="Descreva a ideia..." value={form.desc} onChange={e => setForm({ ...form, desc: e.target.value })} /></div>
+                    <div className="ff"><label className="fl">Descrição do Projeto</label><textarea className="fta" placeholder="Descreva a ideia..." value={form.desc}
+                      onChange={e => { const v = e.target.value; setForm({ ...form, desc: v.charAt(0).toUpperCase() + v.slice(1) }); }} /></div>
                   </>
                 )}
               </div>
