@@ -88,7 +88,7 @@ body{background:var(--dk);color:var(--tx);font-family:'DM Sans',sans-serif;}
 .srch::placeholder{color:var(--tx3);}
 .fb{background:var(--dk3);border:1px solid var(--br);border-radius:6px;color:var(--tx2);padding:6px 11px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .fb.on{background:var(--gold-d);border-color:var(--gold);color:var(--gold);}
-.kw{flex:1;overflow-x:auto;padding:14px;display:flex;gap:11px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}.kw::-webkit-scrollbar{display:none;}.kc{min-width:215px;max-width:215px;display:flex;flex-direction:column;gap:6px;}
+.kw{flex:1;overflow-x:auto;padding:14px;display:flex;gap:11px;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:var(--gold) var(--dk3);}.kw::-webkit-scrollbar{height:6px;}.kw::-webkit-scrollbar-track{background:var(--dk3);border-radius:3px;}.kw::-webkit-scrollbar-thumb{background:var(--gold);border-radius:3px;}.kc{min-width:215px;max-width:215px;display:flex;flex-direction:column;gap:6px;}
 
 .kh{padding:8px 11px;border-radius:7px 7px 0 0;background:var(--dk3);border:1px solid var(--br);border-bottom:2px solid;display:flex;align-items:center;justify-content:space-between;}
 .kt{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;}
@@ -985,6 +985,7 @@ export default function CRM() {
   const [cancelProjetoModal, setCancelProjetoModal] = useState<{clienteId: any; projetoId: any; motivo: string} | null>(null);
   const [cancelMotivos, setCancelMotivos] = useState<string[]>(["Cliente desistiu", "Questão financeira", "Mudança de projeto", "Sem resposta do cliente", "Outro"]);
   const [novoProjetoAberto, setNovoProjetoAberto] = useState<any>(null);
+  const [showStats, setShowStats] = useState(false);
   const [novoProjetoForm, setNovoProjetoForm] = useState({ estilo: "", tam: "Medio", primeira: false, desc: "", valorTotal: "" });
   const [showRecorrenteModal, setShowRecorrenteModal] = useState<{cid: any} | null>(null);
   const [recorrenteForm, setRecorrenteForm] = useState({ dataInicio: new Date().toISOString().split("T")[0], intervalo: 7, total: 4, hora: 9, duracao: 2, artista: "" });
@@ -1904,7 +1905,15 @@ export default function CRM() {
                 <div className="ff"><label className="fl">Nome Completo *</label><input className="fi" placeholder="Nome do artista" value={artForm.nome} onChange={e => setArtForm({ ...artForm, nome: e.target.value.replace(/(^|s)(S)/g, (_, sp, c) => sp + c.toUpperCase()) })} /></div>
                 <div className="fr">
                   <div className="ff"><label className="fl">Tipo</label><select className="fs" value={artForm.role} onChange={e => setArtForm({ ...artForm, role: e.target.value })}><option value="residente">Residente</option><option value="guest">Guest</option></select></div>
-                  <div className="ff"><label className="fl">Comissão (%)</label><input className="fi" type="number" min={0} max={100} value={artForm.com} onChange={e => setArtForm({ ...artForm, com: Number(e.target.value) })} /></div>
+                  <div className="ff">
+                    <label className="fl">Comissão (%)</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input className="fi" type="number" min={0} max={100} value={artForm.com} onChange={e => setArtForm({ ...artForm, com: Number(e.target.value) })} style={{ width: 80 }} />
+                      <span style={{ fontSize: 11, color: "var(--tx3)" }}>
+                        Artista: <strong style={{ color: "var(--gold)" }}>{artForm.com}%</strong> · Estúdio: <strong style={{ color: "var(--ab)" }}>{100 - artForm.com}%</strong>
+                      </span>
+                    </div>
+                  </div>
                 </div>
                 <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={artForm.insta} onChange={e => { const v = e.target.value; setArtForm({ ...artForm, insta: v && !v.startsWith("@") ? "@" + v : v }); }} /></div>
                 <div className="ff"><label className="fl">Cor</label><ColorPicker value={artForm.cor} onChange={cor => setArtForm({ ...artForm, cor })} /></div>
@@ -1978,7 +1987,7 @@ export default function CRM() {
             { id: "financeiro", l: "Financeiro", i: "💰" },
             { id: "artistas", l: "Artistas", i: "🎨" },
             { id: "contratos", l: "Contratos", i: "📄" },
-            { id: "dashboard", l: "Dashboard", i: "📊" },
+            { id: "dashboard", l: "Visão Geral", i: "📊" },
             { id: "posvenda", l: "Pós-venda", i: "💬" },
             { id: "disparos", l: "Disparos", i: "📣" },
           ].map(t => (
@@ -1989,7 +1998,7 @@ export default function CRM() {
         </div>
 
         {/* STATS */}
-        <div className="stats">
+        <div className="stats" style={{ position: "relative" }}>
           {[
             { i: "👥", v: stats.total, l: "Total", bg: "rgba(201,168,76,.1)" },
             { i: "✅", v: stats.ativos, l: "Ativos", bg: "rgba(91,141,239,.1)" },
@@ -1998,9 +2007,17 @@ export default function CRM() {
           ].map((s, i) => (
             <div className="si" key={i}>
               <div className="sico" style={{ background: s.bg }}>{s.i}</div>
-              <div><div className="sv">{s.v}</div><div className="sl">{s.l}</div></div>
+              <div>
+                <div className="sv">{showStats ? s.v : "••"}</div>
+                <div className="sl">{s.l}</div>
+              </div>
             </div>
           ))}
+          <button onClick={() => setShowStats(p => !p)}
+            style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: showStats ? "var(--gold)" : "var(--tx3)", padding: "4px 6px" }}
+            title={showStats ? "Ocultar dados" : "Ver dados"}>
+            {showStats ? "👁" : "👁"}
+          </button>
         </div>
 
         {/* FILTER BAR */}
@@ -2031,64 +2048,7 @@ export default function CRM() {
               </button>
             ))}
           </div>
-          {/* Barra de rolagem superior — suave, drag e setas */}
-          <div style={{ display: "flex", alignItems: "center", background: "var(--dk2)", borderBottom: "1px solid var(--br)", padding: "4px 8px", gap: 6 }}>
-            <button
-              onMouseDown={e => { e.preventDefault(); const kw = document.getElementById("kanban-scroll"); if (!kw) return; let raf: any; const scroll = () => { kw.scrollLeft -= 6; raf = requestAnimationFrame(scroll); }; raf = requestAnimationFrame(scroll); const stop = () => { cancelAnimationFrame(raf); document.removeEventListener("mouseup", stop); }; document.addEventListener("mouseup", stop); }}
-              style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 3, border: "1px solid var(--br)", background: "var(--dk3)", color: "var(--tx3)", cursor: "pointer", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", userSelect: "none" }}>◀</button>
-            <div style={{ flex: 1, position: "relative", height: 10, background: "var(--dk4)", borderRadius: 5, cursor: "pointer", overflow: "hidden" }}
-              onClick={e => {
-                const kw = document.getElementById("kanban-scroll");
-                const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                if (!kw) return;
-                const pct = (e.clientX - rect.left) / rect.width;
-                kw.scrollTo({ left: pct * (kw.scrollWidth - kw.clientWidth), behavior: "smooth" });
-              }}
-              onMouseDown={e => {
-                e.preventDefault();
-                const kw = document.getElementById("kanban-scroll");
-                const track = e.currentTarget as HTMLElement;
-                if (!kw) return;
-                const rect = track.getBoundingClientRect();
-                const onMove = (ev: MouseEvent) => {
-                  const pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-                  kw.scrollLeft = pct * (kw.scrollWidth - kw.clientWidth);
-                };
-                const onUp = () => { document.removeEventListener("mousemove", onMove); document.removeEventListener("mouseup", onUp); };
-                document.addEventListener("mousemove", onMove);
-                document.addEventListener("mouseup", onUp);
-              }}
-              onTouchStart={e => {
-                const kw = document.getElementById("kanban-scroll");
-                const track = e.currentTarget as HTMLElement;
-                if (!kw) return;
-                const rect = track.getBoundingClientRect();
-                const onMove = (ev: TouchEvent) => {
-                  const pct = Math.max(0, Math.min(1, (ev.touches[0].clientX - rect.left) / rect.width));
-                  kw.scrollLeft = pct * (kw.scrollWidth - kw.clientWidth);
-                };
-                const onUp = () => { document.removeEventListener("touchmove", onMove as any); document.removeEventListener("touchend", onUp); };
-                document.addEventListener("touchmove", onMove as any, { passive: true });
-                document.addEventListener("touchend", onUp);
-              }}>
-              <div id="kanban-thumb" style={{ position: "absolute", top: 0, left: 0, height: "100%", background: "var(--gold)", borderRadius: 5, width: "20%", transition: "left .05s" }} />
-            </div>
-            <button
-              onMouseDown={e => { e.preventDefault(); const kw = document.getElementById("kanban-scroll"); if (!kw) return; let raf: any; const scroll = () => { kw.scrollLeft += 6; raf = requestAnimationFrame(scroll); }; raf = requestAnimationFrame(scroll); const stop = () => { cancelAnimationFrame(raf); document.removeEventListener("mouseup", stop); }; document.addEventListener("mouseup", stop); }}
-              style={{ flexShrink: 0, width: 18, height: 18, borderRadius: 3, border: "1px solid var(--br)", background: "var(--dk3)", color: "var(--tx3)", cursor: "pointer", fontSize: 9, display: "flex", alignItems: "center", justifyContent: "center", userSelect: "none" }}>▶</button>
-          </div>
-          <div className="kw" id="kanban-scroll" onScroll={e => {
-            const el = e.currentTarget;
-            const thumb = document.getElementById("kanban-thumb");
-            const track = thumb?.parentElement;
-            if (thumb && track) {
-              const pct = (el.scrollWidth - el.clientWidth) > 0 ? el.scrollLeft / (el.scrollWidth - el.clientWidth) : 0;
-              const trackW = track.clientWidth;
-              const thumbW = Math.max(trackW * (el.clientWidth / el.scrollWidth), 30);
-              thumb.style.width = thumbW + "px";
-              thumb.style.left = (pct * (trackW - thumbW)) + "px";
-            }
-          }}>
+          <div className="kw" id="kanban-scroll">
             {STAGES.map(stage => {
               const sc2 = getSC(stage.id);
               return (
@@ -3044,7 +3004,7 @@ export default function CRM() {
                     <button className="mc" onClick={() => setEditingArtist(null)}>✕</button>
                   </div>
                   <div className="fmb">
-                    <div className="ff"><label className="fl">Nome Completo</label><input className="fi" value={editingArtist.nome} onChange={e => setEditingArtist({ ...editingArtist, nome: e.target.value })} /></div>
+                    <div className="ff"><label className="fl">Nome Completo</label><input className="fi" value={editingArtist.nome} onChange={e => setEditingArtist({ ...editingArtist, nome: e.target.value.replace(/(^|\s)(\S)/g, (_: string, sp: string, c: string) => sp + c.toUpperCase()) })} /></div>
                     <div className="fr">
                       <div className="ff">
                         <label className="fl">Tipo</label>
@@ -4018,32 +3978,44 @@ export default function CRM() {
                 </div>
                 <button className="mc" onClick={() => setShowCtr(null)}>✕</button>
               </div>
-              <div style={{ padding: "18px 22px" }}>
-                <textarea
-                  value={ctrEdit[showCtr.type + (showCtr.a?.id || "")] !== undefined
-                    ? ctrEdit[showCtr.type + (showCtr.a?.id || "")]
-                    : showCtr.type === "artist"
-                      ? makeContractArtist(studioName).replace("[NOME]", showCtr.a?.nome || " - ").replace("[EMAIL]", showCtr.a?.email || " - ").replace("[INSTAGRAM]", showCtr.a?.insta || " - ").replace("[RESIDENTE / GUEST]", showCtr.a?.role || " - ")
-                      : makeContractClient(studioName, showCtr.nome, showCtr.artista, showCtr.proj, showCtr.valor)
-                  }
-                  onChange={e => setCtrEdit(prev => ({ ...prev, [showCtr.type + (showCtr.a?.id || "")]: e.target.value }))}
-                  style={{ width: "100%", minHeight: 340, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: 14, fontSize: 12, color: "var(--tx2)", fontFamily: "'DM Sans',sans-serif", lineHeight: 1.8, outline: "none", resize: "vertical" }} />
-                <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 6 }}>
-                  💡 Edite diretamente acima. As alteracoes ficam salvas enquanto o sistema estiver aberto.
-                </div>
-                <div style={{ display: "flex", gap: 7, marginTop: 11, justifyContent: "flex-end" }}>
-                  <button className="btn-c" onClick={() => setShowCtr(null)}>Fechar</button>
-                  <button className="btn-s" onClick={() => {
-                    const txt = ctrEdit[showCtr.type + (showCtr.a?.id || "")] ||
-                      (showCtr.type === "artist"
-                        ? makeContractArtist(studioName)
-                        : makeContractClient(studioName, showCtr.nome, showCtr.artista, showCtr.proj, showCtr.valor));
-                    navigator.clipboard?.writeText(txt);
-                    if (showCtr.type === "client" && sc) upC(sc.id, "contrato", true);
-                    setShowCtr(null);
-                  }}>📤 Enviar</button>
-                </div>
-              </div>
+              {(() => {
+                const ctrKey = showCtr.type + (showCtr.a?.id || "");
+                const originalText = showCtr.type === "artist"
+                  ? makeContractArtist(studioName).replace("[NOME]", showCtr.a?.nome || " - ").replace("[EMAIL]", showCtr.a?.email || " - ").replace("[INSTAGRAM]", showCtr.a?.insta || " - ").replace("[RESIDENTE / GUEST]", showCtr.a?.role || " - ")
+                  : makeContractClient(studioName, showCtr.nome, showCtr.artista, showCtr.proj, showCtr.valor);
+                const currentText = ctrEdit[ctrKey] !== undefined ? ctrEdit[ctrKey] : originalText;
+                const isEditing = showCtr.editing || false;
+                return (
+                  <div style={{ padding: "18px 22px" }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 7, marginBottom: 10 }}>
+                      {!isEditing && (
+                        <button className="btn-c" onClick={() => setShowCtr({ ...showCtr, editing: true })}>✏️ Editar</button>
+                      )}
+                      {isEditing && <>
+                        <button className="btn-c" onClick={() => { setCtrEdit(p => ({ ...p, [ctrKey]: originalText })); setShowCtr({ ...showCtr, editing: false }); }}>Cancelar</button>
+                        <button className="btn-s" onClick={() => setShowCtr({ ...showCtr, editing: false })}>💾 Salvar</button>
+                      </>}
+                      <button className="btn-s" style={{ background: "rgba(39,174,96,.8)" }} onClick={() => {
+                        navigator.clipboard?.writeText(currentText);
+                        if (showCtr.type === "client" && sc) upC(sc.id, "contrato", true);
+                        alert("Contrato copiado! A Aura enviará ao artista para assinar via Gov.br.");
+                        setShowCtr(null);
+                      }}>📤 Enviar via Aura</button>
+                    </div>
+                    <textarea
+                      value={currentText}
+                      readOnly={!isEditing}
+                      onChange={e => setCtrEdit(prev => ({ ...prev, [ctrKey]: e.target.value }))}
+                      style={{ width: "100%", minHeight: 340, background: isEditing ? "var(--dk3)" : "var(--dk4)", border: `1px solid ${isEditing ? "var(--gold)" : "var(--br)"}`, borderRadius: 7, padding: 14, fontSize: 12, color: isEditing ? "var(--tx)" : "var(--tx2)", fontFamily: "'DM Sans',sans-serif", lineHeight: 1.8, outline: "none", resize: "vertical", cursor: isEditing ? "text" : "default" }} />
+                    <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 6 }}>
+                      {isEditing ? "✏️ Editando — clique em Salvar para confirmar as alterações." : "🔒 Somente leitura — clique em Editar para modificar."}
+                    </div>
+                    <div style={{ display: "flex", gap: 7, marginTop: 11, justifyContent: "flex-end" }}>
+                      <button className="btn-c" onClick={() => setShowCtr(null)}>Fechar</button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
@@ -4285,7 +4257,8 @@ export default function CRM() {
                     style={{ resize: "vertical", minHeight: 60, fontFamily: "inherit" }} />
                 </div>
 
-                {/* 5. ARTISTA */}
+                {/* 5. ARTISTA — oculto para bloqueio (sub-opções já mostram artistas) */}
+                {!agForm.tipo.startsWith("bloq") && (
                 <div className="ff">
                   <label className="fl">Artista</label>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -4300,6 +4273,8 @@ export default function CRM() {
                     ))}
                   </div>
                 </div>
+                )}
+                )}
 
                 {/* 6. PROJETO VINCULADO — valor vem do projeto do cliente */}
                 {agClientVinc && (() => {
