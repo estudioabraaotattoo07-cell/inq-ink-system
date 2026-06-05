@@ -310,7 +310,7 @@ const STAGES = [
   { id: "qualificacao", label: "Qualificação", color: "#C9A84C", emoji: "🔍" },
   { id: "cons_agendada", label: "Consulta Marcada", color: "#9B6BB5", emoji: "📅" },
   { id: "sessao_agend", label: "Sessão Agendada", color: "#4A9EBF", emoji: "✏️" },
-  { id: "tatuado", label: "Cumpriu Evento", color: "#27AE60", emoji: "✅" },
+  { id: "tatuado", label: "Sessão Realizada", color: "#27AE60", emoji: "✅" },
   { id: "pos_venda", label: "Pós-venda", color: "#E67E22", emoji: "💬" },
   { id: "lista_espera", label: "Lista de Espera", color: "#3498DB", emoji: "⏳" },
   { id: "hibernacao", label: "Hibernação", color: "#666", emoji: "💤" },
@@ -1022,6 +1022,8 @@ export default function CRM() {
   const [orcamentoModal, setOrcamentoModal] = useState<{cid: any; valor: string} | null>(null);
   const [undoEvento, setUndoEvento] = useState<any>(null);
   const [undoTimer, setUndoTimer] = useState<any>(null);
+  const [undoSessao, setUndoSessao] = useState<{cid: any; etapaAnterior: string; finIds: any[]} | null>(null);
+  const [undoSessaoTimer, setUndoSessaoTimer] = useState<any>(null);
 
   const [dbReady, setDbReady] = useState(false);
 
@@ -4988,12 +4990,12 @@ export default function CRM() {
           </div>
         )}
 
-        {/* ── CONFIRMAÇÃO PAGAMENTO CUMPRIU EVENTO ── */}
+        {/* ── SESSÃO REALIZADA — REGISTRAR PAGAMENTO ── */}
         {confirmPagamento && (
           <div className="ov" onClick={() => setConfirmPagamento(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(500px, 94vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--gold)" }}>
-                ✅ Confirmar Evento — {clients.find(c => c.id === confirmPagamento.cid)?.nome}
+                ✅ Sessão Realizada — {clients.find(c => c.id === confirmPagamento.cid)?.nome}
               </div>
               {(() => {
                 const cli = clients.find(c => c.id === confirmPagamento.cid);
@@ -5008,19 +5010,20 @@ export default function CRM() {
                 return (
                   <div style={{ display: "flex", gap: 12, background: "rgba(201,168,76,.08)", border: "1px solid rgba(201,168,76,.2)", borderRadius: 8, padding: "10px 14px", fontSize: 12, flexWrap: "wrap" }}>
                     <span>💰 Projeto: <strong style={{ color: "var(--tx)" }}>R$ {valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>
-                    <span>Pago: <strong style={{ color: "#27AE60" }}>R$ {totalPago.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>
-                    {saldo > 0 && <span>Saldo: <strong style={{ color: "var(--q1)" }}>R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>}
+                    <span>Já pago: <strong style={{ color: "#27AE60" }}>R$ {pagoAntes.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>
+                    {pagandoAgora > 0 && <span>Esta sessão: <strong style={{ color: "var(--ab)" }}>R$ {pagandoAgora.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>}
+                    {saldo > 0 && <span>Saldo restante: <strong style={{ color: "var(--q1)" }}>R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>}
                     {saldo <= 0 && totalPago > 0 && <span style={{ color: "#27AE60", fontWeight: 700 }}>✅ Quitado</span>}
                   </div>
                 );
               })()}
               {confirmPagamento.agEvent && (
                 <div style={{ fontSize: 12, color: "var(--tx3)", background: "var(--dk3)", borderRadius: 8, padding: "8px 12px" }}>
-                  Agendamento: {confirmPagamento.agEvent.date?.split("-").reverse().join("/") || confirmPagamento.agEvent.date} às {confirmPagamento.agEvent.start}h
+                  Sessão: {confirmPagamento.agEvent.date?.split("-").reverse().join("/") || confirmPagamento.agEvent.date} às {confirmPagamento.agEvent.start}h
                   {confirmPagamento.agEvent.valor_previsto > 0 && ` — Previsto: R$${parseFloat(confirmPagamento.agEvent.valor_previsto).toFixed(2)}`}
                 </div>
               )}
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tx)" }}>Formas de Pagamento</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tx)" }}>Pagamento desta sessão</div>
               {pagFormas.map((f, i) => (
                 <div key={i} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <select value={f.forma} onChange={e => setPagFormas(p => p.map((x,j) => j===i ? {...x, forma: e.target.value} : x))}
@@ -5064,9 +5067,15 @@ export default function CRM() {
               <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)" }}>O que acontece após esta sessão?</div>
                 <div style={{ display: "flex", gap: 8 }}>
-                  <button onClick={() => {
+                  <button title="A tatuagem terá mais sessões. Abre o formulário para agendar a próxima." onClick={() => {
+                    const etapaAnterior = clients.find(c => c.id === confirmPagamento?.cid)?.etapa || "sessao_agend";
                     confirmarPagamento();
                     const cli = clients.find(c => c.id === confirmPagamento?.cid);
+                    // Undo 8s
+                    if (undoSessaoTimer) clearTimeout(undoSessaoTimer);
+                    const t = setTimeout(() => { setUndoSessao(null); setUndoSessaoTimer(null); }, 8000);
+                    setUndoSessaoTimer(t);
+                    setUndoSessao({ cid: confirmPagamento?.cid, etapaAnterior, finIds: [] });
                     if (cli) {
                       setTimeout(() => {
                         setEditingEvent(null);
@@ -5077,10 +5086,17 @@ export default function CRM() {
                       }, 400);
                     }
                   }} style={{ flex: 1, background: "rgba(74,158,191,.15)", border: "1px solid rgba(74,158,191,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "var(--ab)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                    📅 Haverá próxima sessão
+                    📅 Agendar Próxima Sessão
                   </button>
-                  <button onClick={confirmarPagamento} style={{ flex: 1, background: "rgba(39,174,96,.15)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#27AE60", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                    ✅ Projeto concluído
+                  <button title="A tatuagem está finalizada. O cliente vai para pós-venda." onClick={() => {
+                    const etapaAnterior = clients.find(c => c.id === confirmPagamento?.cid)?.etapa || "sessao_agend";
+                    if (undoSessaoTimer) clearTimeout(undoSessaoTimer);
+                    const t = setTimeout(() => { setUndoSessao(null); setUndoSessaoTimer(null); }, 8000);
+                    setUndoSessaoTimer(t);
+                    setUndoSessao({ cid: confirmPagamento?.cid, etapaAnterior, finIds: [] });
+                    confirmarPagamento();
+                  }} style={{ flex: 1, background: "rgba(39,174,96,.15)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#27AE60", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                    ✅ Tatuagem Finalizada
                   </button>
                 </div>
               </div>
@@ -5088,6 +5104,38 @@ export default function CRM() {
                 <button className="btn-c" onClick={() => setConfirmPagamento(null)}>Cancelar</button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── BARRA UNDO SESSÃO REALIZADA ── */}
+        {undoSessao && (
+          <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "var(--dk2)", border: "1px solid var(--gold)", borderRadius: 10, padding: "12px 20px", display: "flex", alignItems: "center", gap: 16, boxShadow: "0 4px 24px rgba(0,0,0,.5)", minWidth: 320 }}>
+            <span style={{ fontSize: 13, color: "var(--tx)", flex: 1 }}>✅ Sessão registrada</span>
+            <button onClick={async () => {
+              if (undoSessaoTimer) clearTimeout(undoSessaoTimer);
+              // Reverter etapa do cliente
+              setClients(p => p.map(c => {
+                if (c.id !== undoSessao.cid) return c;
+                const updated = { ...c, etapa: undoSessao.etapaAnterior };
+                setTimeout(() => saveClientDb(updated), 100);
+                return updated;
+              }));
+              // Reverter lançamentos financeiros desta sessão (últimos inseridos para este cliente)
+              const ultimosLanc = fin.filter((f: any) => f.cliente_id === undoSessao.cid).slice(-pagFormas.length);
+              for (const f of ultimosLanc) {
+                await dbDelete("financeiro", f.id);
+              }
+              setFin(p => {
+                const ids = ultimosLanc.map((f: any) => f.id);
+                return p.filter((f: any) => !ids.includes(f.id));
+              });
+              setUndoSessao(null);
+              setUndoSessaoTimer(null);
+              setShowAviso("Ação desfeita. O cliente voltou para o estágio anterior.");
+            }} style={{ background: "var(--gold)", color: "#000", border: "none", borderRadius: 6, padding: "6px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+              Desfazer
+            </button>
+            <div style={{ position: "absolute", bottom: 0, left: 0, height: 3, borderRadius: "0 0 10px 10px", background: "var(--gold)", animation: "resetBar 8s linear forwards" }} />
           </div>
         )}
 
@@ -5107,17 +5155,17 @@ export default function CRM() {
                         <span style={{ fontWeight: 600 }}>{e.date ? e.date.split("-").reverse().join("/") : "—"}</span>
                         <span style={{ color: "var(--tx2)", marginLeft: 8 }}>{String(e.start).padStart(2,"0")}h — {getEventLabel(e.tipo, artists)}</span>
                       </div>
-                      <button title="Altere a data ou horário deste agendamento. O pipeline será atualizado automaticamente ao salvar." onClick={() => {
+                      <button title="Altere a data ou horário. Será movido para Sessão Agendada automaticamente." onClick={() => {
                         setConfirmMover(null);
                         setEditingEvent(e);
                         const cv = clients.find(c => c.id === e.cliente_id) || null;
                         setAgClientVinc(cv);
                         setAgClientSearch("");
-                        // Força o tipo correto conforme o estágio destino
                         const tipoCorreto = confirmMover.stage.id === "cons_agendada"
                           ? "cons_" + (cv?.artista || artists[0]?.id || "abraao")
                           : "sess_" + (cv?.artista || artists[0]?.id || "abraao");
-                        setAgForm({ title: e.title, tipo: tipoCorreto, date: e.date, start: e.start, end: e.end, desc: e.desc || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "", sinal: e.sinal ? Number(e.sinal).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "", sinalPago: !!e.sinal_pago } as any);
+                        // Sinal em branco — não carrega valor anterior para evitar duplicata no financeiro
+                        setAgForm({ title: e.title, tipo: tipoCorreto, date: e.date, start: e.start, end: e.end, desc: e.desc || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : "", sinal: "", sinalPago: false } as any);
                         setShowAgForm(true);
                       }} style={{ fontSize: 11, background: "var(--dk4)", border: "1px solid var(--gold)", borderRadius: 5, padding: "3px 9px", color: "var(--gold)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>📅 Remarcar</button>
                     </div>
