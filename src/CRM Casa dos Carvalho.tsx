@@ -4074,13 +4074,42 @@ export default function CRM() {
                         {artists.filter(a => a.ativo).map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
                       </select>
                     </div>
-                    {[{ l: "Origem", v: sc.orig }, { l: "Criativo", v: sc.cri }, { l: "Data de Nascimento", v: (sc as any).nascimento ? (() => { const p = ((sc as any).nascimento as string).split("-"); return p.length === 3 ? `${p[2]}/${p[1]}/${p[0]}` : (sc as any).nascimento; })() : "—" }].map((fd, i) => (
-                      <div className="fi2" key={i}><div className="fil">{fd.l}</div><div className="fiv">{fd.v || " - "}</div></div>
+                    {[{ l: "Origem", v: sc.orig }, { l: "Criativo", v: sc.cri }].map((fd, i) => (
+                      <div className="fi2" key={i}><div className="fil">{fd.l}</div><div className="fiv">{fd.v || "—"}</div></div>
                     ))}
                     <div className="fi2">
-                      <div className="fil">Documento <span style={{ fontSize: 9, color: "var(--tx3)" }}>RG/CPF — opcional</span></div>
+                      <div className="fil">Data de Nascimento</div>
+                      <input className="ef" type="date"
+                        value={(() => {
+                          const nasc = (sc as any).nascimento;
+                          if (!nasc) return "";
+                          if (nasc.includes("-")) return nasc;
+                          const p = nasc.split("/");
+                          return p.length === 3 ? p[2] + "-" + p[1] + "-" + p[0] : "";
+                        })()}
+                        max={new Date().toISOString().split("T")[0]}
+                        min="1920-01-01"
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (!val) { upC(sc.id, "nascimento", ""); return; }
+                          const ano = parseInt(val.split("-")[0]);
+                          if (ano < 1920 || ano > new Date().getFullYear()) return;
+                          const p = val.split("-");
+                          upC(sc.id, "nascimento", p[2] + "/" + p[1] + "/" + p[0]);
+                        }} />
+                    </div>
+                    <div className="fi2">
+                      <div className="fil">Documento <span style={{ fontSize: 9, color: "var(--tx3)" }}>CPF — opcional</span></div>
                       <input className="ef" placeholder="000.000.000-00" value={(sc as any).documento || ""}
-                        onChange={e => upC(sc.id, "documento", e.target.value)} />
+                        maxLength={14}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
+                          const fmt = raw.length <= 3 ? raw
+                            : raw.length <= 6 ? raw.slice(0,3) + "." + raw.slice(3)
+                            : raw.length <= 9 ? raw.slice(0,3) + "." + raw.slice(3,6) + "." + raw.slice(6)
+                            : raw.slice(0,3) + "." + raw.slice(3,6) + "." + raw.slice(6,9) + "-" + raw.slice(9);
+                          upC(sc.id, "documento", fmt);
+                        }} />
                     </div>
                   </div>
                 </div>
@@ -4743,7 +4772,18 @@ export default function CRM() {
                           <option>Google</option><option>Presencial</option><option>Site</option>
                         </select>
                       </div>
-                      <div className="ff"><label className="fl">Data de Nascimento</label><input className="fi" type="date" value={(form as any).nascimento || ""} onChange={e => setForm({ ...form, nascimento: e.target.value } as any)} /></div>
+                      <div className="ff"><label className="fl">Data de Nascimento</label><input className="fi" type="date"
+                        value={(form as any).nascimento || ""}
+                        max={new Date().toISOString().split("T")[0]}
+                        min="1920-01-01"
+                        onChange={e => {
+                          const val = e.target.value;
+                          if (!val) { setForm({ ...form, nascimento: "" } as any); return; }
+                          const ano = parseInt(val.split("-")[0]);
+                          if (ano >= 1920 && ano <= new Date().getFullYear()) {
+                            setForm({ ...form, nascimento: val } as any);
+                          }
+                        }} /></div>
                     </div>
                   </>
                 )}
@@ -4840,9 +4880,17 @@ export default function CRM() {
                           }} />
                       </div>
                       <div className="ff">
-                        <label className="fl">Documento RG/CPF — Opcional</label>
+                        <label className="fl">Documento CPF — Opcional</label>
                         <input className="fi" placeholder="000.000.000-00" value={(form as any).documento || ""}
-                          onChange={e => setForm({ ...form, documento: e.target.value } as any)} />
+                          maxLength={14}
+                          onChange={e => {
+                            const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
+                            const fmt = raw.length <= 3 ? raw
+                              : raw.length <= 6 ? raw.slice(0,3) + "." + raw.slice(3)
+                              : raw.length <= 9 ? raw.slice(0,3) + "." + raw.slice(3,6) + "." + raw.slice(6)
+                              : raw.slice(0,3) + "." + raw.slice(3,6) + "." + raw.slice(6,9) + "-" + raw.slice(9);
+                            setForm({ ...form, documento: fmt } as any);
+                          }} />
                       </div>
                     </div>
                     <div className="ff"><label className="fl">Descrição do Projeto</label><textarea className="fta" placeholder="Descreva a ideia..." value={form.desc}
@@ -5656,9 +5704,14 @@ export default function CRM() {
                 <button className="btn-c" onClick={() => setConfirmMover(null)}>Cancelar</button>
                 <button className="btn-s" onClick={() => {
                   const precisaAg = ["cons_agendada", "sessao_agend"].includes(confirmMover.stage.id);
-                  if (precisaAg && confirmMover.agEvents.length === 0) {
-                    setShowAviso("Defina um horário antes de confirmar. Use o botão + Agendar para criar um agendamento.");
-                    return;
+                  if (precisaAg) {
+                    const tipoEsperado = confirmMover.stage.id === "cons_agendada" ? "cons" : "sess";
+                    const temAgCorreto = confirmMover.agEvents.some((e: any) => e.tipo?.startsWith(tipoEsperado) || (tipoEsperado === "sess" && e.tipo === "piercing"));
+                    if (!temAgCorreto) {
+                      const nomeEtapa = tipoEsperado === "cons" ? "consulta" : "sessão";
+                      setShowAviso("Defina um agendamento de " + nomeEtapa + " antes de confirmar. Use o botão + Agendar.");
+                      return;
+                    }
                   }
                   setConfirmMover(null);
                   move(confirmMover.cid, confirmMover.stage.id);
