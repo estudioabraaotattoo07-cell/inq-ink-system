@@ -2179,23 +2179,39 @@ export default function CRM() {
               {/* 🎂 Aniversários */}
               {(() => {
                 const hoje = new Date();
-                const aniversariantes = alertas.filter(c => {
-                  if (!(c as any).nascimento) return false;
-                  const nasc = new Date((c as any).nascimento);
+                const parseNasc = (nasc: string) => {
+                  if (!nasc) return null;
+                  // Aceita DD/MM/YYYY ou YYYY-MM-DD
+                  if (nasc.includes("/")) {
+                    const p = nasc.split("/");
+                    if (p.length === 3) return new Date(Number(p[2]), Number(p[1])-1, Number(p[0]));
+                  }
+                  const d = new Date(nasc);
+                  return isNaN(d.getTime()) ? null : d;
+                };
+                const aniversariantes = alertas.map(c => {
+                  const nasc = parseNasc((c as any).nascimento);
+                  if (!nasc) return null;
                   for (let i = 0; i <= 7; i++) {
                     const d = new Date(hoje); d.setDate(d.getDate() + i);
-                    if (nasc.getMonth() === d.getMonth() && nasc.getDate() === d.getDate()) return true;
+                    if (nasc.getMonth() === d.getMonth() && nasc.getDate() === d.getDate()) {
+                      return { ...c, diasAteAniv: i };
+                    }
                   }
-                  return false;
-                });
+                  return null;
+                }).filter(Boolean) as any[];
                 if (aniversariantes.length === 0) return null;
                 return (
                   <div style={{ borderBottom: "1px solid var(--br)", paddingBottom: 8, marginBottom: 8 }}>
                     <div style={{ fontSize: 10, color: "var(--gold)", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".06em", padding: "6px 14px 4px" }}>🎂 Aniversários nos próximos 7 dias</div>
-                    {aniversariantes.map(c => (
+                    {aniversariantes.map((c: any) => (
                       <div key={c.id} className="ad-item" onClick={() => { setSel(c); setSelCtx("clientes"); setShowAlerts(false); }}>
                         <div className="ad-name">{c.nome}</div>
-                        <div className="ad-tags"><span className="atag" style={{ color: "var(--gold)" }}>🎂 {new Date((c as any).nascimento).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })}</span></div>
+                        <div className="ad-tags">
+                          <span className="atag" style={{ color: "var(--gold)" }}>
+                            🎂 {c.diasAteAniv === 0 ? "Hoje!" : c.diasAteAniv === 1 ? "Amanhã!" : "Em " + c.diasAteAniv + " dias"}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -4179,8 +4195,8 @@ export default function CRM() {
                             {/* Valor total do projeto + saldo devedor */}
                             {(() => {
                               const valorTotal = Number(proj.valorTotal) || 0;
-                              const pago = (proj.pagamentos || []).reduce((s: number, p: any) => s + (Number(p.valor) || 0), 0);
-                              const saldo = valorTotal - pago;
+                              const pago = fin.filter((f: any) => f.cliente_id === sc.id && (!f.tipo || f.tipo === "entrada")).reduce((s: number, f: any) => s + (Number(f.val_a) || 0), 0);
+                              const saldo = Math.max(valorTotal - pago, 0);
                               return valorTotal > 0 ? (
                                 <div style={{ display: "flex", gap: 12, padding: "6px 10px", background: "var(--dk4)", borderRadius: 6, fontSize: 12 }}>
                                   <span style={{ color: "var(--tx2)" }}>Total: <strong style={{ color: "var(--tx)" }}>R$ {valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>
@@ -5483,40 +5499,65 @@ export default function CRM() {
                 return null;
               })()}
               <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)" }}>O que acontece após esta sessão?</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button title="A tatuagem terá mais sessões. Abre o formulário para agendar a próxima." onClick={() => {
-                    const etapaAnterior = clients.find(c => c.id === confirmPagamento?.cid)?.etapa || "sessao_agend";
-                    confirmarPagamento();
-                    const cli = clients.find(c => c.id === confirmPagamento?.cid);
-                    // Undo 8s
-                    if (undoSessaoTimer) clearTimeout(undoSessaoTimer);
-                    const t = setTimeout(() => { setUndoSessao(null); setUndoSessaoTimer(null); }, 8000);
-                    setUndoSessaoTimer(t);
-                    setUndoSessao({ cid: confirmPagamento?.cid, etapaAnterior, finIds: [] });
-                    if (cli) {
-                      setTimeout(() => {
-                        setEditingEvent(null);
-                        setAgClientVinc(cli);
-                        setAgClientSearch("");
-                        setAgForm({ title: cli.nome, desc: "", tipo: "sess_" + (cli.artista || "abraao"), date: "", start: 9, end: 11 } as any);
-                        setShowAgForm(true);
-                      }, 400);
-                    }
-                  }} style={{ flex: 1, background: "rgba(74,158,191,.15)", border: "1px solid rgba(74,158,191,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "var(--ab)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                    📅 Agendar Próxima Sessão
-                  </button>
-                  <button title="A tatuagem está finalizada. O cliente vai para pós-venda." onClick={() => {
-                    const etapaAnterior = clients.find(c => c.id === confirmPagamento?.cid)?.etapa || "sessao_agend";
-                    if (undoSessaoTimer) clearTimeout(undoSessaoTimer);
-                    const t = setTimeout(() => { setUndoSessao(null); setUndoSessaoTimer(null); }, 8000);
-                    setUndoSessaoTimer(t);
-                    setUndoSessao({ cid: confirmPagamento?.cid, etapaAnterior, finIds: [] });
-                    confirmarPagamento();
-                  }} style={{ flex: 1, background: "rgba(39,174,96,.15)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#27AE60", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                    ✅ Tatuagem Finalizada
-                  </button>
-                </div>
+                {(() => {
+                  const cli = clients.find(c => c.id === confirmPagamento.cid);
+                  const proj = (cli?.projetos || []).find((p: any) => p.status !== "concluido" && p.status !== "cancelado");
+                  const valorTotal = Number(proj?.valorTotal) || 0;
+                  const pagoAntes = fin.filter((f: any) => f.cliente_id === confirmPagamento.cid && (!f.tipo || f.tipo === "entrada")).reduce((s: number, f: any) => s + (Number(f.val_a) || 0), 0);
+                  const pagandoAgora = pagFormas.reduce((s, f) => s + (parseFloat(f.valor.replace(/\./g,"").replace(",",".")) || 0), 0);
+                  const saldoRestante = Math.max(valorTotal - pagoAntes - pagandoAgora, 0);
+                  const temSaldo = valorTotal > 0 && saldoRestante > 0.01;
+                  return temSaldo ? (
+                    <>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)" }}>Há saldo restante — o que fazer após esta sessão?</div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button title="A tatuagem terá mais sessões. Abre o formulário para agendar a próxima." onClick={() => {
+                          const etapaAnterior = clients.find(c => c.id === confirmPagamento?.cid)?.etapa || "sessao_agend";
+                          confirmarPagamento();
+                          if (undoSessaoTimer) clearTimeout(undoSessaoTimer);
+                          const t = setTimeout(() => { setUndoSessao(null); setUndoSessaoTimer(null); }, 8000);
+                          setUndoSessaoTimer(t);
+                          setUndoSessao({ cid: confirmPagamento?.cid, etapaAnterior, finIds: [] });
+                          if (cli) {
+                            setTimeout(() => {
+                              setEditingEvent(null);
+                              setAgClientVinc(cli);
+                              setAgClientSearch("");
+                              setAgForm({ title: cli.nome, desc: "", tipo: "sess_" + (cli.artista || "abraao"), date: "", start: 9, end: 11 } as any);
+                              setShowAgForm(true);
+                            }, 400);
+                          }
+                        }} style={{ flex: 1, background: "rgba(74,158,191,.15)", border: "1px solid rgba(74,158,191,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "var(--ab)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                          📅 Agendar Próxima Sessão
+                        </button>
+                        <button title="Encerra o projeto mesmo com saldo pendente." onClick={() => {
+                          const etapaAnterior = clients.find(c => c.id === confirmPagamento?.cid)?.etapa || "sessao_agend";
+                          if (undoSessaoTimer) clearTimeout(undoSessaoTimer);
+                          const t = setTimeout(() => { setUndoSessao(null); setUndoSessaoTimer(null); }, 8000);
+                          setUndoSessaoTimer(t);
+                          setUndoSessao({ cid: confirmPagamento?.cid, etapaAnterior, finIds: [] });
+                          confirmarPagamento();
+                        }} style={{ flex: 1, background: "rgba(39,174,96,.15)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "#27AE60", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                          ✅ Finalizar mesmo assim
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#27AE60" }}>✅ Projeto quitado — sessão finalizada!</div>
+                      <button onClick={() => {
+                        const etapaAnterior = clients.find(c => c.id === confirmPagamento?.cid)?.etapa || "sessao_agend";
+                        if (undoSessaoTimer) clearTimeout(undoSessaoTimer);
+                        const t = setTimeout(() => { setUndoSessao(null); setUndoSessaoTimer(null); }, 8000);
+                        setUndoSessaoTimer(t);
+                        setUndoSessao({ cid: confirmPagamento?.cid, etapaAnterior, finIds: [] });
+                        confirmarPagamento();
+                      }} style={{ background: "rgba(39,174,96,.15)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 700, color: "#27AE60", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                        ✅ Confirmar e Finalizar
+                      </button>
+                    </>
+                  );
+                })()}
               </div>
               <div style={{ display: "flex", justifyContent: "flex-start", marginTop: 2 }}>
                 <button className="btn-c" onClick={() => setConfirmPagamento(null)}>Cancelar</button>
