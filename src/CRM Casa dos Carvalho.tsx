@@ -1025,6 +1025,7 @@ export default function CRM() {
   const [undoSessao, setUndoSessao] = useState<{cid: any; etapaAnterior: string; finIds: any[]} | null>(null);
   const [undoSessaoTimer, setUndoSessaoTimer] = useState<any>(null);
   const [confirmAgForm, setConfirmAgForm] = useState(false);
+  const [disparosHist, setDisparosHist] = useState<any[]>([]);
 
   const [dbReady, setDbReady] = useState(false);
 
@@ -1187,13 +1188,16 @@ export default function CRM() {
     // Pontualidade — sem faltas = máximo
     const faltas = c.faltas || 0;
     pts += faltas === 0 ? 25 : faltas === 1 ? 15 : faltas === 2 ? 5 : 0;
-    // Valor médio — baseado no val_a
-    const val = c.val_a || 0;
-    pts += val >= 2000 ? 25 : val >= 1000 ? 20 : val >= 500 ? 15 : val >= 200 ? 10 : val > 0 ? 5 : 0;
+    // Ticket médio real — soma do financeiro do cliente
+    const finCli = fin.filter((f: any) => f.cliente_id === c.id && (!f.tipo || f.tipo === "entrada"));
+    const totalReal = finCli.reduce((s: number, f: any) => s + (Number(f.val_a) || 0), 0);
+    const sessoes = finCli.length || 1;
+    const ticketMedio = totalReal / sessoes;
+    pts += ticketMedio >= 2000 ? 25 : ticketMedio >= 1000 ? 20 : ticketMedio >= 500 ? 15 : ticketMedio >= 200 ? 10 : totalReal > 0 ? 5 : 0;
     // Indicações
     const ind = c.indicacoes || 0;
     pts += ind >= 5 ? 25 : ind >= 3 ? 20 : ind >= 1 ? 12 : 0;
-    // Frequência — dias desde cadastro vs sessões
+    // Recência — dias desde cadastro (quanto mais recente/ativo, melhor)
     const dias = c.dias || 0;
     pts += dias <= 90 ? 25 : dias <= 180 ? 20 : dias <= 365 ? 10 : 5;
     const score = Math.min(pts, 100);
@@ -2995,7 +2999,33 @@ export default function CRM() {
             {/* ════ DRE ════ */}
             {finAbaAtiva === "dre" && (<>
               <div className="ftable">
-                <div className="fth">Demonstrativo de Resultado — {finFiltroMes}</div>
+                <div className="fth" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span>Demonstrativo de Resultado — {finFiltroMes}</span>
+                  <button onClick={() => {
+                    const conteudo = `
+                      <html><head><title>DRE ${finFiltroMes}</title>
+                      <style>body{font-family:sans-serif;padding:32px;color:#111;}h1{font-size:20px;margin-bottom:4px;}h2{font-size:13px;color:#666;margin-bottom:24px;font-weight:400;}table{width:100%;border-collapse:collapse;}tr{border-bottom:1px solid #eee;}td{padding:8px 4px;font-size:13px;}td:last-child{text-align:right;font-weight:600;}.bold{font-weight:700;font-size:15px;}.sep{border-bottom:2px solid #ccc;}.green{color:#27AE60;}.red{color:#C0392B;}.footer{margin-top:32px;font-size:11px;color:#aaa;}</style></head>
+                      <body>
+                      <h1>${studioName} — DRE</h1>
+                      <h2>Competência: ${finFiltroMes} · Gerado em ${new Date().toLocaleDateString("pt-BR")}</h2>
+                      <table>
+                        <tr><td>Receita Bruta</td><td class="green bold">${fmtR(receitaBruta)}</td></tr>
+                        <tr><td>&nbsp;&nbsp;(−) Repasses Artistas</td><td class="red">${fmtR(totalRepasses)}</td></tr>
+                        <tr><td>&nbsp;&nbsp;(−) Depreciação Equipamentos</td><td class="red">${fmtR(deprMensal)}</td></tr>
+                        <tr><td>&nbsp;&nbsp;(−) Despesas Operacionais</td><td class="red">${fmtR(totalSaidas)}</td></tr>
+                        <tr class="sep"><td class="bold">Resultado Antes do Pró-Labore</td><td class="${lucroAntesProlabore >= 0 ? "green" : "red"} bold">${fmtR(lucroAntesProlabore)}</td></tr>
+                        <tr><td>&nbsp;&nbsp;(−) Pró-Labore</td><td class="red">${fmtR(prolabore)}</td></tr>
+                        <tr class="sep"><td class="bold">Lucro Líquido</td><td class="${lucroLiquido >= 0 ? "green" : "red"} bold">${fmtR(lucroLiquido)}</td></tr>
+                      </table>
+                      <div class="footer">In-Quadra Ink System · ${studioName}${cnpj ? " · CNPJ " + cnpj : ""}</div>
+                      </body></html>
+                    `;
+                    const w = window.open("", "_blank");
+                    if (w) { w.document.write(conteudo); w.document.close(); setTimeout(() => w.print(), 400); }
+                  }} style={{ background: "var(--gold)", color: "#000", border: "none", borderRadius: 6, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                    📄 Exportar PDF
+                  </button>
+                </div>
                 <div style={{ padding: "16px 18px", display: "flex", flexDirection: "column", gap: 0 }}>
                   {[
                     { l: "Receita Bruta", v: receitaBruta, bold: true, color: "var(--q3)" },
@@ -3054,9 +3084,67 @@ export default function CRM() {
               <div style={{ background: "rgba(74,158,191,.08)", border: "1px solid rgba(74,158,191,.2)", borderRadius: 8, padding: "13px 16px" }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ab)", marginBottom: 6 }}>💡 Para seu contador</div>
                 <div style={{ fontSize: 11, color: "var(--tx2)", lineHeight: 1.7 }}>
-                  Este DRE é gerado automaticamente com base nos lançamentos do mês. Exporte os dados mensalmente e entregue ao seu contador junto com as notas fiscais emitidas. Em breve: exportação em PDF com CNPJ e competência.
+                  Este DRE é gerado automaticamente com base nos lançamentos do mês. Exporte os dados mensalmente e entregue ao seu contador junto com as notas fiscais emitidas.
                 </div>
               </div>
+
+              {/* Projeção de caixa */}
+              {(() => {
+                const hoje = new Date();
+                // Sessões agendadas nos próximos 90 dias
+                const ag30 = agEvents.filter(e => {
+                  if (!e.date) return false;
+                  const d = new Date(e.date + "T12:00:00");
+                  const diff = Math.floor((d.getTime() - hoje.getTime()) / 86400000);
+                  return diff >= 0 && diff <= 30 && e.status !== "cancelado";
+                });
+                const ag60 = agEvents.filter(e => {
+                  if (!e.date) return false;
+                  const d = new Date(e.date + "T12:00:00");
+                  const diff = Math.floor((d.getTime() - hoje.getTime()) / 86400000);
+                  return diff > 30 && diff <= 60 && e.status !== "cancelado";
+                });
+                const ag90 = agEvents.filter(e => {
+                  if (!e.date) return false;
+                  const d = new Date(e.date + "T12:00:00");
+                  const diff = Math.floor((d.getTime() - hoje.getTime()) / 86400000);
+                  return diff > 60 && diff <= 90 && e.status !== "cancelado";
+                });
+                // Saldos devedores em aberto
+                const saldosAbertos = clients.reduce((s, c) => {
+                  const projs = (c.projetos || []).filter((p: any) => p.status === "ativo" && p.valorTotal > 0);
+                  const pago = fin.filter((f: any) => f.cliente_id === c.id && (!f.tipo || f.tipo === "entrada")).reduce((ss: number, f: any) => ss + (Number(f.val_a) || 0), 0);
+                  const total = projs.reduce((ss: number, p: any) => ss + (Number(p.valorTotal) || 0), 0);
+                  return s + Math.max(total - pago, 0);
+                }, 0);
+                const ticketAtual = totalEntradas > 0 && fin.filter(f => !f.tipo || f.tipo === "entrada").length > 0
+                  ? totalEntradas / fin.filter(f => !f.tipo || f.tipo === "entrada").length
+                  : 0;
+                return (
+                  <div className="ftable" style={{ marginTop: 12 }}>
+                    <div className="fth">📈 Projeção de Caixa</div>
+                    <div style={{ padding: "13px 15px", display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {[
+                          { l: "Próximos 30 dias", ag: ag30, extra: "" },
+                          { l: "31 a 60 dias", ag: ag60, extra: "" },
+                          { l: "61 a 90 dias", ag: ag90, extra: "" },
+                        ].map(({ l, ag }) => (
+                          <div key={l} style={{ flex: 1, minWidth: 140, background: "var(--dk3)", borderRadius: 8, padding: "10px 12px", border: "1px solid var(--br)" }}>
+                            <div style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".05em", marginBottom: 4 }}>{l}</div>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--q3)", fontFamily: "'Cormorant Garamond',serif" }}>{fmtR(ag.length * ticketAtual)}</div>
+                            <div style={{ fontSize: 10, color: "var(--tx2)", marginTop: 2 }}>{ag.length} sessão{ag.length !== 1 ? "ões" : ""} agendada{ag.length !== 1 ? "s" : ""}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ background: "rgba(74,158,191,.08)", border: "1px solid rgba(74,158,191,.2)", borderRadius: 6, padding: "8px 12px", fontSize: 11, color: "var(--tx2)" }}>
+                        💰 Saldo devedor em aberto: <strong style={{ color: saldosAbertos > 0 ? "var(--q2)" : "var(--tx)" }}>{fmtR(saldosAbertos)}</strong>
+                        {ticketAtual > 0 && <span style={{ marginLeft: 12 }}>· Ticket médio atual: <strong style={{ color: "var(--tx)" }}>{fmtR(ticketAtual)}</strong></span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </>)}
 
             {/* ════ EQUIPAMENTOS ════ */}
@@ -3724,6 +3812,36 @@ export default function CRM() {
               </div>
             </div>
             <div className="disr">
+              {/* Alerta de sazonalidade */}
+              {(() => {
+                const hoje = new Date();
+                const proximaData = DATAS.map(d => {
+                  const partes = d.data.split(" ");
+                  if (partes.length !== 2) return null;
+                  const meses: Record<string,number> = { Jan:0,Fev:1,Mar:2,Abr:3,Mai:4,Jun:5,Jul:6,Ago:7,Set:8,Out:9,Nov:10,Dez:11 };
+                  const m = meses[partes[1]];
+                  if (m === undefined) return null;
+                  const dia = parseInt(partes[0]);
+                  let ano = hoje.getFullYear();
+                  const data = new Date(ano, m, dia);
+                  if (data < hoje) data.setFullYear(ano + 1);
+                  const diff = Math.floor((data.getTime() - hoje.getTime()) / 86400000);
+                  return { ...d, diff };
+                }).filter(Boolean).sort((a: any, b: any) => a.diff - b.diff)[0] as any;
+                if (!proximaData || proximaData.diff > 30) return null;
+                const qtdNutricao = clients.filter(c => ["lead","qualificacao"].includes(c.etapa)).length;
+                return (
+                  <div style={{ background: "rgba(201,168,76,.08)", border: "1px solid rgba(201,168,76,.25)", borderRadius: 8, padding: "12px 14px", marginBottom: 12, display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>{proximaData.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gold)" }}>📅 {proximaData.label} em {proximaData.diff} dia{proximaData.diff !== 1 ? "s" : ""}</div>
+                      <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 3, lineHeight: 1.6 }}>
+                        Você tem <strong style={{ color: "var(--tx)" }}>{qtdNutricao} clientes</strong> em nutrição que podem ser ativados. Selecione um segmento e programe um disparo temático.
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="dsec">
                 <div className="dsh">
                   <div className="dst">📱 Preview da Mensagem</div>
@@ -3757,7 +3875,18 @@ export default function CRM() {
                             <div style={{ fontSize: 12, color: "var(--q3)", fontWeight: 600 }}>✓ Disparo programado!</div>
                             <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 3 }}>Aura envia para {dest.length} cliente{dest.length !== 1 ? "s" : ""} com elegancia.</div>
                           </div>
-                          : <button className="btn-dis" onClick={disparo} disabled={dest.length === 0}>
+                          : <button className="btn-dis" onClick={() => {
+                            disparo();
+                            // Registrar no histórico de disparos
+                            const entrada = {
+                              data: new Date().toLocaleDateString("pt-BR"),
+                              hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+                              segmento: segSel ? (SEGS.find(s => s.id === segSel)?.label || segSel) : (DATAS.find(d => d.id === dateSel)?.label || dateSel),
+                              destinatarios: dest.length,
+                              preview: (msgEdit || pmsg || "").slice(0, 60)
+                            };
+                            setDisparosHist(p => [entrada, ...p.slice(0, 19)]);
+                          }} disabled={dest.length === 0}>
                             📣 Programar - {dest.length} cliente{dest.length !== 1 ? "s" : ""}
                           </button>
                         }
@@ -3766,6 +3895,29 @@ export default function CRM() {
                   }
                 </div>
               </div>
+              {/* Histórico de disparos */}
+              {disparosHist.length > 0 && (
+                <div className="dsec" style={{ marginTop: 0 }}>
+                  <div className="dsh">
+                    <div className="dst">📋 Histórico de Disparos</div>
+                    <div className="dss">Últimos programados nesta sessão</div>
+                  </div>
+                  <div className="dsb">
+                    {disparosHist.map((d, i) => (
+                      <div key={i} style={{ padding: "8px 10px", background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, marginBottom: 5 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+                          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--tx)" }}>{d.segmento}</span>
+                          <span style={{ fontSize: 10, color: "var(--tx3)" }}>{d.data} {d.hora}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: 11, color: "var(--tx2)", fontStyle: "italic" }}>{d.preview}...</span>
+                          <span style={{ fontSize: 10, color: "var(--q3)", fontWeight: 600, flexShrink: 0, marginLeft: 8 }}>✓ {d.destinatarios} env.</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -4169,11 +4321,45 @@ export default function CRM() {
                   </div>
                 </div>
 
+                {/* GARANTIA */}
+                {["tatuado","pos_venda"].includes(sc.etapa) && (() => {
+                  const proj = (sc.projetos || []).find((p: any) => p.status === "concluido");
+                  const dataConclusao = proj?.concluidoEm;
+                  if (!dataConclusao) return null;
+                  const partes = dataConclusao.split("/");
+                  const dataObj = partes.length === 3 ? new Date(Number(partes[2]), Number(partes[1])-1, Number(partes[0])) : null;
+                  if (!dataObj) return null;
+                  const hoje = new Date();
+                  const diasPassados = Math.floor((hoje.getTime() - dataObj.getTime()) / 86400000);
+                  const diasRestantes = 37 - diasPassados;
+                  const vencida = diasPassados > 37;
+                  const urgente = !vencida && diasPassados >= 30;
+                  return (
+                    <div>
+                      <div className="stit">🛡 Garantia de Retoque</div>
+                      <div style={{ background: vencida ? "rgba(192,57,43,.08)" : urgente ? "rgba(230,126,34,.08)" : "rgba(39,174,96,.08)", border: `1px solid ${vencida ? "rgba(192,57,43,.3)" : urgente ? "rgba(230,126,34,.3)" : "rgba(39,174,96,.3)"}`, borderRadius: 8, padding: "12px 14px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: vencida ? "var(--q1)" : urgente ? "#E67E22" : "#27AE60" }}>
+                              {vencida ? "🚫 Garantia vencida" : urgente ? `⚠️ Vence em ${diasRestantes} dia${diasRestantes !== 1 ? "s" : ""}` : `✅ ${diasRestantes} dias restantes`}
+                            </div>
+                            <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 2 }}>Sessão concluída em {dataConclusao} · D+{diasPassados}/37</div>
+                          </div>
+                          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--dk4)", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
+                            <span style={{ fontSize: 16, fontWeight: 700, color: vencida ? "var(--q1)" : urgente ? "#E67E22" : "#27AE60", lineHeight: 1 }}>{Math.min(diasPassados, 37)}</span>
+                            <span style={{ fontSize: 8, color: "var(--tx3)" }}>de 37</span>
+                          </div>
+                        </div>
+                        <div style={{ marginTop: 8, width: "100%", background: "var(--dk4)", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                          <div style={{ height: "100%", borderRadius: 4, background: vencida ? "var(--q1)" : urgente ? "#E67E22" : "#27AE60", width: Math.min(diasPassados / 37 * 100, 100) + "%" }} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 <div>
                   <div className="stit">Faltas e Ocorrências</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 13px", background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, color: "var(--tx)", fontWeight: 600 }}>Faltas registradas: {sc.faltas || 0}/3</div>
                       <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 2 }}>
                         {(sc.faltas || 0) === 0 ? "Nenhuma falta registrada"
                           : (sc.faltas || 0) === 1 ? "1ª falta — cobrança de R$100,00"
@@ -4244,6 +4430,41 @@ export default function CRM() {
                     </div>
                   </div>
                 </div>
+
+                {/* CHECKLIST DE SESSÃO */}
+                {["sessao_agend","tatuado"].includes(sc.etapa) && (() => {
+                  const checks = [
+                    { id: "contrato", l: "Contrato enviado e confirmado", ok: sc.contrato },
+                    { id: "sinal", l: "Sinal recebido", ok: fin.some((f: any) => f.cliente_id === sc.id && f.pgto === "Sinal") },
+                    { id: "referencia", l: "Fotos de referência recebidas", ok: !!(sc as any).refsRecebidas },
+                    { id: "valor", l: "Valor do projeto registrado", ok: (sc.projetos || []).some((p: any) => p.valorTotal > 0) },
+                  ];
+                  const ok = checks.filter(c => c.ok).length;
+                  return (
+                    <div>
+                      <div className="stit">✅ Checklist de Sessão</div>
+                      <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                          <span style={{ fontSize: 11, color: "var(--tx2)" }}>{ok}/{checks.length} itens concluídos</span>
+                          <div style={{ display: "flex", gap: 3 }}>
+                            {checks.map((c, i) => <div key={i} style={{ width: 8, height: 8, borderRadius: "50%", background: c.ok ? "#27AE60" : "var(--dk5)" }} />)}
+                          </div>
+                        </div>
+                        {checks.map(c => (
+                          <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12 }}>
+                            <span style={{ fontSize: 16, flexShrink: 0 }}>{c.ok ? "✅" : "⬜"}</span>
+                            <span style={{ color: c.ok ? "var(--tx2)" : "var(--tx)", textDecoration: c.ok ? "line-through" : "none" }}>{c.l}</span>
+                          </div>
+                        ))}
+                        {ok < checks.length && (
+                          <div style={{ marginTop: 4, fontSize: 11, color: "var(--q2)", background: "rgba(212,130,10,.08)", borderRadius: 6, padding: "6px 10px" }}>
+                            ⚠️ Confira os itens pendentes antes de iniciar a sessão.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* AGENDAMENTOS DO CLIENTE */}
                 {(() => {
