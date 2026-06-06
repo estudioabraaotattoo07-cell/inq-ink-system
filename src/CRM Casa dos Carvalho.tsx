@@ -4328,7 +4328,8 @@ export default function CRM() {
                   const proj = (sc.projetos || []).find((p: any) => p.status === "concluido");
                   const dataConclusao = proj?.concluidoEm;
                   if (!dataConclusao) return null;
-                  const partes = dataConclusao.split("/");
+                  const sep = "/";
+                  const partes = dataConclusao.split(sep);
                   const dataObj = partes.length === 3 ? new Date(Number(partes[2]), Number(partes[1])-1, Number(partes[0])) : null;
                   if (!dataObj) return null;
                   const hoje = new Date();
