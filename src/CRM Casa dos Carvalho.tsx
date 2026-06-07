@@ -6685,30 +6685,17 @@ export default function CRM() {
                     </div>
                   </div>
                   <div>
-                    <div className="stit">Perfil do Estúdio</div>
+                    <div className="stit">Identidade</div>
                     <div className="fg2">
                       <div className="fi2"><div className="fil">Nome do Estúdio</div><input className="ef" value={studioName} onChange={e => setStudioName(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Cidade</div><input className="ef" value={studioCity} onChange={e => setStudioCity(e.target.value)} /></div>
-                    <div className="stit">Endereço</div>
-                    <div className="fg2">
-                      <div className="fi2" style={{ gridColumn: "1 / -1" }}><div className="fil">Rua / Logradouro</div><input className="ef" value={studioRua} placeholder="Rua Aristides Navarro" onChange={e => setStudioRua(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Número</div><input className="ef" value={studioNumero} placeholder="165" onChange={e => setStudioNumero(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Complemento</div><input className="ef" value={studioComplemento} placeholder="Sala 2, Loja A..." onChange={e => setStudioComplemento(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Bairro</div><input className="ef" value={studioBairro} placeholder="Centro" onChange={e => setStudioBairro(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">CEP</div><input className="ef" value={studioCep} placeholder="29000-000" maxLength={9} onChange={e => {
-                        const raw = e.target.value.replace(/\D/g,"").slice(0,8);
-                        const fmt = raw.length > 5 ? raw.slice(0,5) + "-" + raw.slice(5) : raw;
-                        setStudioCep(fmt);
-                      }} /></div>
-                      <div className="fi2"><div className="fil">Cidade</div><input className="ef" value={studioCity} onChange={e => setStudioCity(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Estado</div>
-                        <select className="ef" value={studioEstado} onChange={e => setStudioEstado(e.target.value)} style={{ fontFamily: "'DM Sans',sans-serif" }}>
-                          {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map(uf => <option key={uf} value={uf}>{uf}</option>)}
-                        </select>
-                      </div>
-                      <div className="fi2"><div className="fil">País</div><input className="ef" value={studioPais} onChange={e => setStudioPais(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">Responsável</div><input className="ef" value={studioOwner} onChange={e => setStudioOwner(e.target.value)} /></div>
                     </div>
-                      <div className="fi2"><div className="fil">Email do Estúdio{!studioEmail && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={studioEmail} onChange={e => setStudioEmail(e.target.value)} style={{ borderColor: !studioEmail ? "rgba(212,130,10,.4)" : undefined }} /></div>
+                  </div>
+                  <div>
+                    <div className="stit">Contato</div>
+                    <div className="fg2">
+                      <div className="fi2"><div className="fil">Email do Estúdio{!studioEmail && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={studioEmail} placeholder="contato@estudio.com" onChange={e => setStudioEmail(e.target.value)} style={{ borderColor: !studioEmail ? "rgba(212,130,10,.4)" : undefined }} /></div>
+                      <div className="fi2"><div className="fil">WhatsApp do Estúdio</div><input className="ef" value={studioTel} placeholder="(27) 99999-9999" onChange={e => setStudioTel(maskTel(e.target.value))} /></div>
                       <div className="fi2"><div className="fil">CNPJ{!cnpj && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={cnpj} placeholder="00.000.000/0001-00" maxLength={18} onChange={e => {
                         const raw = e.target.value.replace(/\D/g,"").slice(0,14);
                         let fmt = raw;
@@ -6718,7 +6705,33 @@ export default function CRM() {
                         if (raw.length > 12) fmt = raw.slice(0,2) + "." + raw.slice(2,5) + "." + raw.slice(5,8) + "/" + raw.slice(8,12) + "-" + raw.slice(12);
                         setCnpj(fmt);
                       }} style={{ borderColor: !cnpj ? "rgba(212,130,10,.4)" : undefined }} /></div>
-                      <div className="fi2"><div className="fil">Link Google Meu Negócio{!googleLink && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={googleLink} onChange={e => setGoogleLink(e.target.value)} style={{ borderColor: !googleLink ? "rgba(212,130,10,.4)" : undefined }} /></div>
+                      <div className="fi2"><div className="fil">Link Google Meu Negócio{!googleLink && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={googleLink} placeholder="maps.app.goo.gl/..." onChange={e => setGoogleLink(e.target.value)} style={{ borderColor: !googleLink ? "rgba(212,130,10,.4)" : undefined }} /></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="stit">Endereço</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div className="fg2">
+                        <div className="fi2" style={{ gridColumn: "1 / -1" }}><div className="fil">Rua / Logradouro</div><input className="ef" value={studioRua} placeholder="Rua Aristides Navarro" onChange={e => setStudioRua(e.target.value)} /></div>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8 }}>
+                        <div className="fi2"><div className="fil">Número</div><input className="ef" value={studioNumero} placeholder="165" onChange={e => setStudioNumero(e.target.value)} /></div>
+                        <div className="fi2"><div className="fil">CEP</div><input className="ef" value={studioCep} placeholder="29000-000" maxLength={9} onChange={e => {
+                          const raw = e.target.value.replace(/\D/g,"").slice(0,8);
+                          setStudioCep(raw.length > 5 ? raw.slice(0,5) + "-" + raw.slice(5) : raw);
+                        }} /></div>
+                        <div className="fi2"><div className="fil">Bairro</div><input className="ef" value={studioBairro} placeholder="Centro" onChange={e => setStudioBairro(e.target.value)} /></div>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 80px 1fr", gap: 8 }}>
+                        <div className="fi2"><div className="fil">Cidade</div><input className="ef" value={studioCity} onChange={e => setStudioCity(e.target.value)} /></div>
+                        <div className="fi2"><div className="fil">Estado</div>
+                          <select className="ef" value={studioEstado} onChange={e => setStudioEstado(e.target.value)} style={{ fontFamily: "'DM Sans',sans-serif" }}>
+                            {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map(uf => <option key={uf} value={uf}>{uf}</option>)}
+                          </select>
+                        </div>
+                        <div className="fi2"><div className="fil">País</div><input className="ef" value={studioPais} onChange={e => setStudioPais(e.target.value)} /></div>
+                        <div className="fi2"><div className="fil">Complemento</div><input className="ef" value={studioComplemento} placeholder="Sala 2, Loja A..." onChange={e => setStudioComplemento(e.target.value)} /></div>
+                      </div>
                     </div>
                   </div>
                   <div>
