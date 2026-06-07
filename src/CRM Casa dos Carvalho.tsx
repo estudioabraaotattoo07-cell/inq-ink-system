@@ -1097,6 +1097,7 @@ export default function CRM() {
   const [confirmPresenca, setConfirmPresenca] = useState<{event: any} | null>(null);
   const [presencaMotivo, setPresencaMotivo] = useState("");
   const [nascDraft, setNascDraft] = useState<{dia: string; mes: string; ano: string}>({ dia: "", mes: "", ano: "" });
+  const [agPipelineOpen, setAgPipelineOpen] = useState(false);
   const [disparosHist, setDisparosHist] = useState<any[]>([]);
   const [sessoesExtras, setSessoesExtras] = useState<{date: string; start: number; end: number}[]>([]);
 
@@ -1939,9 +1940,9 @@ export default function CRM() {
   const aName = (id: string) => artists.find(a => a.id === id)?.nome || (id === "abraao" ? "Abraão" : "Camilla");
   const aColor = (id: string) => artists.find(a => a.id === id)?.cor || "#C9A84C";
   const aClass = (id: string) => "";
-  const aStyle = (id: string | undefined) => {
-    const a = artists.find(x => x.id === (id || ""));
-    const hex = (a?.cor && /^#[0-9a-fA-F]{6}$/.test(a.cor)) ? a.cor : "#C9A84C";
+  const aStyle = (id: string) => {
+    const a = artists.find(x => x.id === id);
+    const hex = a?.cor || "#C9A84C";
     const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
     return { background: "rgba("+r+","+g+","+b+",.15)", color: hex, border: "1px solid rgba("+r+","+g+","+b+",.3)", borderRadius: 9, padding: "2px 6px", fontSize: 10, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" as const };
   };
@@ -5302,7 +5303,7 @@ export default function CRM() {
                   <label className="fl">Cliente *</label>
                   {agClientVinc ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--dk3)", border: "1px solid var(--gold)", borderRadius: 5, padding: "7px 10px" }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: aStyle(agClientVinc?.artista).background || "var(--gold)", flexShrink: 0 }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: aStyle(agClientVinc.artista).background || "var(--gold)", flexShrink: 0 }} />
                       <span style={{ flex: 1, fontSize: 13, color: "var(--tx)", fontFamily: "'Cormorant Garamond',serif", fontWeight: 600 }}>{agClientVinc.nome}</span>
                       <span style={{ fontSize: 11, color: "var(--tx3)" }}>{agClientVinc.estilo || "—"}</span>
                       <button onClick={() => { setAgClientVinc(null); setAgClientSearch(""); setAgForm({ ...agForm, title: "" }); }}
@@ -5500,20 +5501,20 @@ export default function CRM() {
                   const cli = clients.find(c => c.id === agClientVinc.id);
                   if (!cli) return null;
                   const stage = STAGES.find(s => s.id === cli.etapa);
-                  const [pipelineOpen, setPipelineOpen] = React.useState(false);
+
                   return (
                     <div className="ff">
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
-                        onClick={() => setPipelineOpen(p => !p)}>
+                        onClick={() => setAgPipelineOpen(p => !p)}>
                         <label className="fl" style={{ cursor: "pointer", margin: 0 }}>Pipeline</label>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ fontSize: 11, color: stage?.color || "var(--tx2)", background: (stage?.color || "#888") + "22", border: "1px solid " + (stage?.color || "var(--br)"), borderRadius: 12, padding: "2px 8px", fontWeight: 600 }}>
                             {stage?.emoji} {stage?.label}
                           </span>
-                          <span style={{ fontSize: 11, color: "var(--tx3)" }}>{pipelineOpen ? "▲ ocultar" : "▼ alterar"}</span>
+                          <span style={{ fontSize: 11, color: "var(--tx3)" }}>{agPipelineOpen ? "▲ ocultar" : "▼ alterar"}</span>
                         </div>
                       </div>
-                      {pipelineOpen && (
+                      {agPipelineOpen && (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
                           {STAGES.filter(s => !["blacklist"].includes(s.id)).map(s => (
                             <div key={s.id}
@@ -6193,10 +6194,8 @@ export default function CRM() {
                       return;
                     }
                   }
-                  const cidToMove = confirmMover.cid;
-                  const stageToMove = confirmMover.stage.id;
                   setConfirmMover(null);
-                  move(cidToMove, stageToMove);
+                  move(confirmMover.cid, confirmMover.stage.id);
                 }}>
                   Confirmar
                 </button>
