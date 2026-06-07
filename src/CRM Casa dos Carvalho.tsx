@@ -940,13 +940,18 @@ export default function CRM() {
   const [studioEmail, setStudioEmail] = useState("");
   const [studioCity, setStudioCity] = useState("Vitoria - ES");
   const [studioInsta, setStudioInsta] = useState("@casadoscarvalho");
+  const [studioEndereco, setStudioEndereco] = useState("");
+  const [studioRedes, setStudioRedes] = useState<{plataforma: string; usuario: string}[]>([{ plataforma: "Instagram", usuario: "@casadoscarvalho" }]);
+  const [donoNome, setDonoNome] = useState("");
+  const [donoWhats, setDonoWhats] = useState("");
+  const [donoEmail, setDonoEmail] = useState("");
   const [auraName, setAuraName] = useState("Aura");
   const [auraFormalidade, setAuraFormalidade] = useState("Equilibrado");
   const [auraIdioma, setAuraIdioma] = useState("Português");
   const [metaSessoes, setMetaSessoes] = useState(10);
   const [metaLeads, setMetaLeads] = useState(20);
   const [metaNPS, setMetaNPS] = useState(5);
-  const [settingsTab, setSettingsTab] = useState<"estudio"|"ia"|"sistema">("estudio");
+  const [settingsTab, setSettingsTab] = useState<"estudio"|"dono"|"metas"|"ia"|"sistema">("estudio");
   const [googleLink, setGoogleLink] = useState("");
   const [cnpj, setCnpj] = useState("");
   const [metaMensal, setMetaMensal] = useState(15000);
@@ -6585,7 +6590,7 @@ export default function CRM() {
               </div>
               {/* ABAS */}
               <div style={{ display: "flex", borderBottom: "1px solid var(--br)" }}>
-                {([["estudio","🏠 Estúdio"],["ia","🤖 Editar IA"],["sistema","⚙️ Sistema"]] as const).map(([id, label]) => (
+                {([["estudio","🏠 Estúdio"],["dono","👤 Dono"],["metas","🎯 Metas"],["ia","🤖 IA"],["sistema","⚙️ Sistema"]] as const).map(([id, label]) => (
                   <div key={id} onClick={() => setSettingsTab(id)}
                     style={{ flex: 1, padding: "10px 8px", textAlign: "center", fontSize: 11, fontWeight: 600, cursor: "pointer", letterSpacing: ".04em",
                       color: settingsTab === id ? "var(--gold)" : "var(--tx3)",
@@ -6634,11 +6639,9 @@ export default function CRM() {
                     <div className="stit">Perfil do Estúdio</div>
                     <div className="fg2">
                       <div className="fi2"><div className="fil">Nome do Estúdio</div><input className="ef" value={studioName} onChange={e => setStudioName(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Responsável</div><input className="ef" value={studioOwner} onChange={e => setStudioOwner(e.target.value)} /></div>
                       <div className="fi2"><div className="fil">Cidade</div><input className="ef" value={studioCity} onChange={e => setStudioCity(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">WhatsApp</div><input className="ef" value={studioTel} onChange={e => setStudioTel(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Instagram{!studioInsta && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={studioInsta} onChange={e => setStudioInsta(e.target.value)} style={{ borderColor: !studioInsta ? "rgba(212,130,10,.4)" : undefined }} /></div>
-                      <div className="fi2"><div className="fil">Email{!studioEmail && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={studioEmail} onChange={e => setStudioEmail(e.target.value)} style={{ borderColor: !studioEmail ? "rgba(212,130,10,.4)" : undefined }} /></div>
+                      <div className="fi2"><div className="fil">Endereço Completo</div><input className="ef" value={studioEndereco} placeholder="Rua, número, bairro" onChange={e => setStudioEndereco(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">Email do Estúdio{!studioEmail && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={studioEmail} onChange={e => setStudioEmail(e.target.value)} style={{ borderColor: !studioEmail ? "rgba(212,130,10,.4)" : undefined }} /></div>
                       <div className="fi2"><div className="fil">CNPJ{!cnpj && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={cnpj} placeholder="00.000.000/0001-00" maxLength={18} onChange={e => {
                         const raw = e.target.value.replace(/\D/g,"").slice(0,14);
                         let fmt = raw;
@@ -6652,12 +6655,26 @@ export default function CRM() {
                     </div>
                   </div>
                   <div>
-                    <div className="stit">Metas Mensais</div>
-                    <div className="fg2">
-                      <div className="fi2"><div className="fil">Meta de Faturamento (R$)</div><input className="ef" type="text" placeholder="0" value={metaMensal ? Number(metaMensal).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : ""} onChange={e => { const raw = e.target.value.replace(/\D/g, ""); setMetaMensal(raw ? Number(raw) : 0); }} /></div>
-                      <div className="fi2"><div className="fil">Meta de Sessões</div><input className="ef" type="number" value={metaSessoes} onChange={e => setMetaSessoes(Number(e.target.value))} /></div>
-                      <div className="fi2"><div className="fil">Meta de Leads</div><input className="ef" type="number" value={metaLeads} onChange={e => setMetaLeads(Number(e.target.value))} /></div>
-                      <div className="fi2"><div className="fil">Meta NPS 9+</div><input className="ef" type="number" value={metaNPS} onChange={e => setMetaNPS(Number(e.target.value))} /></div>
+                    <div className="stit">Redes Sociais</div>
+                    <div style={{ fontSize: 11, color: "var(--tx2)", marginBottom: 10 }}>Aparecem nos contratos e comunicações da Aura.</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {studioRedes.map((rede, idx) => (
+                        <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          <select value={rede.plataforma} onChange={e => setStudioRedes(p => p.map((r, i) => i === idx ? { ...r, plataforma: e.target.value } : r))}
+                            style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", outline: "none", width: 130, flexShrink: 0 }}>
+                            {["Instagram","TikTok","YouTube","Facebook","Pinterest","Behance","LinkedIn","X/Twitter"].map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          <input className="ef" value={rede.usuario} placeholder="@usuario ou URL"
+                            onChange={e => setStudioRedes(p => p.map((r, i) => i === idx ? { ...r, usuario: e.target.value } : r))}
+                            style={{ flex: 1 }} />
+                          <button onClick={() => setStudioRedes(p => p.filter((_, i) => i !== idx))}
+                            style={{ background: "none", border: "1px solid rgba(192,57,43,.3)", borderRadius: 6, padding: "5px 9px", fontSize: 12, color: "var(--q1)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>✕</button>
+                        </div>
+                      ))}
+                      <button onClick={() => setStudioRedes(p => [...p, { plataforma: "Instagram", usuario: "" }])}
+                        style={{ background: "var(--dk3)", border: "1px dashed var(--br)", borderRadius: 6, padding: "7px", fontSize: 11, color: "var(--tx3)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                        + Adicionar rede social
+                      </button>
                     </div>
                   </div>
                   <div>
@@ -6683,6 +6700,111 @@ export default function CRM() {
                     ))}
                   </div>
                 </>}
+
+                {/* ── ABA DONO ── */}
+                {settingsTab === "dono" && <>
+                  <div>
+                    <div className="stit">Dados do Responsável</div>
+                    <div style={{ fontSize: 11, color: "var(--tx2)", marginBottom: 12, lineHeight: 1.6 }}>
+                      Estas informações são usadas pela {auraName} para alertas diretos e comunicação interna.
+                    </div>
+                    <div className="fg2">
+                      <div className="fi2"><div className="fil">Nome Completo</div><input className="ef" value={donoNome || studioOwner} placeholder="Seu nome completo" onChange={e => setDonoNome(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">WhatsApp Pessoal{!donoWhats && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={donoWhats} placeholder="(27) 99999-9999" onChange={e => setDonoWhats(maskTel(e.target.value))} style={{ borderColor: !donoWhats ? "rgba(212,130,10,.4)" : undefined }} /></div>
+                      <div className="fi2"><div className="fil">Email Pessoal{!donoEmail && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={donoEmail} placeholder="seu@email.com" onChange={e => setDonoEmail(e.target.value)} style={{ borderColor: !donoEmail ? "rgba(212,130,10,.4)" : undefined }} /></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="stit">Alertas Diretos</div>
+                    <div style={{ fontSize: 11, color: "var(--tx2)", marginBottom: 12, lineHeight: 1.6 }}>
+                      A {auraName} pode enviar notificações diretamente para você via WhatsApp pessoal.
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                      {[
+                        { id: "alerta_nova_mensagem", label: "Nova mensagem recebida via Aura", desc: "Quando um cliente enviar mensagem fora do horário comercial" },
+                        { id: "alerta_sessao_proxima", label: "Sessão em 2h", desc: "Lembrete antes de cada sessão agendada" },
+                        { id: "alerta_falta", label: "Falta registrada", desc: "Quando um cliente não comparecer" },
+                        { id: "alerta_novo_cliente", label: "Novo cliente cadastrado", desc: "Quando um lead entrar pelo WhatsApp via Aura" },
+                      ].map(alerta => (
+                        <div key={alerta.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", background: "var(--dk3)", borderRadius: 8, border: "1px solid var(--br)" }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)" }}>{alerta.label}</div>
+                            <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>{alerta.desc}</div>
+                          </div>
+                          <div style={{ width: 36, height: 20, borderRadius: 10, background: "var(--q3)", flexShrink: 0, position: "relative", cursor: "pointer" }}>
+                            <div style={{ position: "absolute", right: 2, top: 2, width: 16, height: 16, borderRadius: "50%", background: "#fff" }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--tx3)", marginTop: 10, fontStyle: "italic" }}>
+                      💡 Os alertas para artistas são configurados individualmente na aba Artistas.
+                    </div>
+                  </div>
+                </>}
+
+                {/* ── ABA METAS ── */}
+                {settingsTab === "metas" && <>
+                  <div>
+                    <div className="stit">Por que ter metas?</div>
+                    <div style={{ background: "rgba(201,168,76,.06)", border: "1px solid rgba(201,168,76,.15)", borderRadius: 8, padding: "12px 14px", marginBottom: 4 }}>
+                      <div style={{ fontSize: 12, color: "var(--tx2)", lineHeight: 1.7 }}>
+                        Metas não são cobranças — são <strong style={{ color: "var(--gold)" }}>bússolas</strong>. Elas te dizem se o estúdio está no caminho certo antes que o problema apareça na conta bancária. Você define os números, o sistema mostra o progresso em tempo real.
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="stit">Metas Mensais</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                      <div style={{ background: "var(--dk3)", borderRadius: 8, padding: "14px", border: "1px solid var(--br)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tx)" }}>💰 Faturamento</div>
+                            <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>Quanto o estúdio precisa faturar para ser sustentável e crescer</div>
+                          </div>
+                        </div>
+                        <input className="ef" type="text" placeholder="R$ 0" value={metaMensal ? "R$ " + Number(metaMensal).toLocaleString("pt-BR") : ""} onChange={e => { const raw = e.target.value.replace(/\D/g, ""); setMetaMensal(raw ? Number(raw) : 0); }} style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)" }} />
+                      </div>
+                      <div style={{ background: "var(--dk3)", borderRadius: 8, padding: "14px", border: "1px solid var(--br)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tx)" }}>🖤 Sessões</div>
+                            <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>Quantas tatuagens precisam ser feitas por mês. Se o faturamento está baixo, você descobre se é preço ou volume.</div>
+                          </div>
+                        </div>
+                        <input className="ef" type="number" min={0} value={metaSessoes} onChange={e => setMetaSessoes(Number(e.target.value))} style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)", width: 100 }} />
+                      </div>
+                      <div style={{ background: "var(--dk3)", borderRadius: 8, padding: "14px", border: "1px solid var(--br)" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tx)" }}>📥 Novos Leads</div>
+                            <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>Quantos contatos novos precisam entrar no pipeline para alimentar as sessões do mês seguinte.</div>
+                          </div>
+                        </div>
+                        <input className="ef" type="number" min={0} value={metaLeads} onChange={e => setMetaLeads(Number(e.target.value))} style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)", width: 100 }} />
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="stit">Calculado automaticamente</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {[
+                        { label: "Ticket Médio", desc: "Valor médio por sessão — calculado pelo financeiro", calc: true },
+                        { label: "Taxa de Conversão", desc: "% de leads que viram sessão — calculado pelo pipeline", calc: true },
+                        { label: "Receita por Artista", desc: "Faturamento individual — calculado pelos artistas", calc: true },
+                      ].map(item => (
+                        <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "var(--dk3)", borderRadius: 7, border: "1px solid var(--br)", opacity: 0.7 }}>
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)" }}>{item.label}</div>
+                            <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 1 }}>{item.desc}</div>
+                          </div>
+                          <span style={{ fontSize: 10, color: "var(--q3)", fontWeight: 700, background: "rgba(39,174,96,.1)", border: "1px solid rgba(39,174,96,.2)", borderRadius: 4, padding: "2px 7px" }}>AUTO</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>}
+
 
                 {/* ── ABA IA ── */}
                 {settingsTab === "ia" && <>
@@ -6779,6 +6901,23 @@ export default function CRM() {
                 {/* ── ABA SISTEMA ── */}
                 {settingsTab === "sistema" && <>
                   <div>
+                    <div className="stit">Status do Sistema</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {[
+                        { label: "Supabase", status: "Conectado", ok: true },
+                        { label: "In-Quadra Ink System", status: "v1.7.0", ok: true },
+                        { label: "Aura (WhatsApp)", status: "Verificar na Meta", ok: false },
+                      ].map(item => (
+                        <div key={item.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", background: "var(--dk3)", borderRadius: 7, border: "1px solid var(--br)" }}>
+                          <span style={{ fontSize: 12, color: "var(--tx)" }}>{item.label}</span>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: item.ok ? "var(--q3)" : "var(--q2)", background: item.ok ? "rgba(39,174,96,.1)" : "rgba(212,130,10,.1)", border: "1px solid " + (item.ok ? "rgba(39,174,96,.2)" : "rgba(212,130,10,.2)"), borderRadius: 4, padding: "2px 8px" }}>
+                            {item.ok ? "✓ " : "⚠ "}{item.status}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
                     <div className="stit">Tour Guiado</div>
                     <div style={{ fontSize: 12, color: "var(--tx2)", marginBottom: 10 }}>Refaça o tour de apresentação do sistema a qualquer momento.</div>
                     <button style={{ background: "rgba(52,152,219,.12)", border: "1px solid rgba(52,152,219,.3)", borderRadius: 7, padding: "8px 16px", fontSize: 12, color: "#3498DB", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
@@ -6787,8 +6926,26 @@ export default function CRM() {
                     </button>
                   </div>
                   <div>
-                    <div className="stit">Versão</div>
-                    <div style={{ fontSize: 12, color: "var(--tx3)" }}>In-Quadra Ink System <strong style={{ color: "var(--tx2)" }}>v1.6.0</strong></div>
+                    <div className="stit">Exportar Dados</div>
+                    <div style={{ fontSize: 12, color: "var(--tx2)", marginBottom: 10 }}>Baixe os dados do sistema em CSV para backup ou análise externa.</div>
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button onClick={() => {
+                        const rows = [["Nome","Telefone","Email","Artista","Etapa","Origem","Data"].join(","),
+                          ...clients.map(c => [c.nome, c.tel, c.email, c.artista, c.etapa, c.orig, c.data].map(v => `"${v||""}"`).join(","))];
+                        const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+                        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "clientes.csv"; a.click();
+                      }} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "8px 14px", fontSize: 12, color: "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                        📥 Exportar Clientes
+                      </button>
+                      <button onClick={() => {
+                        const rows = [["Descrição","Artista","Data","Valor","Forma","Status"].join(","),
+                          ...fin.map((f: any) => [f.cliente_nome, f.artista, f.data, f.val_a, f.pgto, f.status].map((v: any) => `"${v||""}"`).join(","))];
+                        const blob = new Blob([rows.join("\n")], { type: "text/csv;charset=utf-8;" });
+                        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "financeiro.csv"; a.click();
+                      }} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "8px 14px", fontSize: 12, color: "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                        📥 Exportar Financeiro
+                      </button>
+                    </div>
                   </div>
                   <div>
                     <div className="stit" style={{ color: "#C0392B" }}>Zona de Perigo</div>
@@ -6814,7 +6971,11 @@ export default function CRM() {
                 <div style={{ display: "flex", gap: 8 }}>
                   {settingsTab !== "sistema" && (
                     <button style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "8px 16px", fontSize: 12, color: "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
-                      onClick={() => setSettingsTab(settingsTab === "estudio" ? "ia" : "sistema")}>
+                      onClick={() => {
+                        const order = ["estudio","dono","metas","ia","sistema"];
+                        const idx = order.indexOf(settingsTab);
+                        if (idx < order.length - 1) setSettingsTab(order[idx + 1] as any);
+                      }}>
                       Próximo →
                     </button>
                   )}
