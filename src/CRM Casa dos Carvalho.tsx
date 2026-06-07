@@ -6513,22 +6513,51 @@ export default function CRM() {
 
         {/* ── MODAL CONFIRMAR LISTAS ── */}
         {confirmListas && (
-          <div className="ov" onClick={() => setConfirmListas(false)}>
+          <div className="ov" style={{ zIndex: 9999 }} onClick={() => setConfirmListas(false)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(420px, 92vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)", fontFamily: "'Cormorant Garamond',serif" }}>
                 Confirmar alterações
               </div>
-              <div style={{ fontSize: 12, color: "var(--tx2)", lineHeight: 1.6 }}>
-                As listas de estilos e regiões serão atualizadas. Essa ação afeta todos os cadastros do sistema.
-              </div>
-              <div style={{ background: "var(--dk3)", borderRadius: 8, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
-                <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".06em" }}>Estilos após salvar</div>
-                <div style={{ fontSize: 12, color: "var(--tx)" }}>{estiloOptsEdit.join(", ") || "—"}</div>
-              </div>
-              <div style={{ background: "var(--dk3)", borderRadius: 8, padding: "10px 14px", display: "flex", flexDirection: "column", gap: 4 }}>
-                <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".06em" }}>Regiões após salvar</div>
-                <div style={{ fontSize: 12, color: "var(--tx)" }}>{regiaoOptsEdit.join(", ") || "—"}</div>
-              </div>
+              {(() => {
+                const estilosAdicionados = estiloOptsEdit.filter(e => !estiloOpts.includes(e));
+                const estilosRemovidos = estiloOpts.filter(e => !estiloOptsEdit.includes(e));
+                const regioesAdicionadas = regiaoOptsEdit.filter(e => !regiaoOpts.includes(e));
+                const regioesRemovidas = regiaoOpts.filter(e => !regiaoOptsEdit.includes(e));
+                const temAlteracao = estilosAdicionados.length > 0 || estilosRemovidos.length > 0 || regioesAdicionadas.length > 0 || regioesRemovidas.length > 0;
+                if (!temAlteracao) return (
+                  <div style={{ fontSize: 12, color: "var(--tx2)", background: "var(--dk3)", borderRadius: 8, padding: "10px 14px" }}>
+                    Nenhuma alteração detectada.
+                  </div>
+                );
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {estilosRemovidos.length > 0 && (
+                      <div style={{ background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 8, padding: "10px 14px" }}>
+                        <div style={{ fontSize: 11, color: "var(--q1)", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 700 }}>🗑 Estilos removidos</div>
+                        <div style={{ fontSize: 12, color: "var(--tx)" }}>{estilosRemovidos.join(", ")}</div>
+                      </div>
+                    )}
+                    {estilosAdicionados.length > 0 && (
+                      <div style={{ background: "rgba(39,174,96,.1)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 8, padding: "10px 14px" }}>
+                        <div style={{ fontSize: 11, color: "#27AE60", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 700 }}>✚ Estilos adicionados</div>
+                        <div style={{ fontSize: 12, color: "var(--tx)" }}>{estilosAdicionados.join(", ")}</div>
+                      </div>
+                    )}
+                    {regioesRemovidas.length > 0 && (
+                      <div style={{ background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 8, padding: "10px 14px" }}>
+                        <div style={{ fontSize: 11, color: "var(--q1)", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 700 }}>🗑 Regiões removidas</div>
+                        <div style={{ fontSize: 12, color: "var(--tx)" }}>{regioesRemovidas.join(", ")}</div>
+                      </div>
+                    )}
+                    {regioesAdicionadas.length > 0 && (
+                      <div style={{ background: "rgba(39,174,96,.1)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 8, padding: "10px 14px" }}>
+                        <div style={{ fontSize: 11, color: "#27AE60", marginBottom: 4, textTransform: "uppercase", letterSpacing: ".06em", fontWeight: 700 }}>✚ Regiões adicionadas</div>
+                        <div style={{ fontSize: 12, color: "var(--tx)" }}>{regioesAdicionadas.join(", ")}</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                 <button className="btn-c" onClick={() => setConfirmListas(false)}>Cancelar</button>
                 <button className="btn-s" onClick={() => {
@@ -7312,7 +7341,8 @@ export default function CRM() {
                       Próximo →
                     </button>
                   )}
-                  <button className="btn-s" onClick={async () => {
+                  <button className="btn-s" disabled={editandoListas} title={editandoListas ? "Salve ou cancele as alterações de Estilos & Regiões primeiro" : ""} style={{ opacity: editandoListas ? 0.4 : 1, cursor: editandoListas ? "not-allowed" : "pointer" }} onClick={async () => {
+                  if (editandoListas) return;
                   const cfg = {
                     studio_name: studioName, studio_tel: studioTel,
                     studio_owner: studioOwner, studio_email: studioEmail,
