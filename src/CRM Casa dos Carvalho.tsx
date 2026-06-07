@@ -1361,7 +1361,8 @@ export default function CRM() {
           setEditingEvent(null);
           setAgClientVinc(cli || null);
           setAgClientSearch("");
-          setAgForm({ title: cli?.nome || "", desc: "", tipo: "cons_" + (cli?.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11 } as any);
+          setSessoesExtras([]);
+          setAgForm({ title: cli?.nome || "", desc: "", tipo: "cons_" + (cli?.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11, sinal: "", sinalPago: false } as any);
           setShowAgForm(true);
         }, 200);
       }
@@ -1376,7 +1377,8 @@ export default function CRM() {
           setEditingEvent(null);
           setAgClientVinc(cli || null);
           setAgClientSearch("");
-          setAgForm({ title: cli?.nome || "", desc: "", tipo: "sess_" + (cli?.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11 } as any);
+          setSessoesExtras([]);
+          setAgForm({ title: cli?.nome || "", desc: "", tipo: "sess_" + (cli?.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11, sinal: "", sinalPago: false } as any);
           setShowAgForm(true);
         }, 200);
       }
@@ -5386,25 +5388,27 @@ export default function CRM() {
 
                 {/* 6. PROJETO VINCULADO — valor vem do projeto do cliente */}
                 {agClientVinc && (() => {
-                  const projs = (agClientVinc.projetos || []).filter((p: any) => p.status === "ativo");
-                  if (projs.length === 0) return null;
-                  return (
-                    <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 13px" }}>
-                      <div style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Projeto(s) ativo(s)</div>
-                      {projs.map((p: any) => {
-                        const pago = (p.pagamentos || []).reduce((s: number, x: any) => s + (Number(x.valor)||0), 0);
-                        const saldo = (Number(p.valorTotal)||0) - pago;
-                        return (
-                          <div key={p.id} style={{ fontSize: 12, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ color: "var(--tx)" }}>{p.estilo || "Sem estilo"} — {p.tam}</span>
-                            <span>
-                              {p.valorTotal > 0 && <span style={{ color: saldo > 0 ? "var(--gold)" : "#27AE60", fontWeight: 600 }}>R$ {saldo > 0 ? saldo.toLocaleString("pt-BR",{minimumFractionDigits:2}) + " a pagar" : "Quitado"}</span>}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
+                  try {
+                    const projs = (agClientVinc.projetos || []).filter((p: any) => p && p.status === "ativo");
+                    if (projs.length === 0) return null;
+                    return (
+                      <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 13px" }}>
+                        <div style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 6 }}>Projeto(s) ativo(s)</div>
+                        {projs.map((p: any, idx: number) => {
+                          const pago = (p.pagamentos || []).reduce((s: number, x: any) => s + (Number(x.valor)||0), 0);
+                          const saldo = (Number(p.valorTotal)||0) - pago;
+                          return (
+                            <div key={p.id || idx} style={{ fontSize: 12, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ color: "var(--tx)" }}>{p.estilo || "Sem estilo"} — {p.tam || "—"}</span>
+                              <span>
+                                {p.valorTotal > 0 && <span style={{ color: saldo > 0 ? "var(--gold)" : "#27AE60", fontWeight: 600 }}>R$ {saldo > 0 ? saldo.toLocaleString("pt-BR",{minimumFractionDigits:2}) + " a pagar" : "Quitado"}</span>}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  } catch { return null; }
                 })()}
 
                 {/* 6b. SINAL — oculto para bloqueio */}
