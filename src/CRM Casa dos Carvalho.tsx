@@ -1722,7 +1722,7 @@ export default function CRM() {
         const cli = clients.find((c: any) => c.id === agClientVinc.id);
         if (tipoKey === "cons" && cli && ["lead", "qualificacao"].includes(cli.etapa)) {
           executarMove(agClientVinc.id, "cons_agendada");
-        } else if ((tipoKey === "sess" || tipoKey === "piercing") && cli && ["lead", "qualificacao", "cons_agendada", "hibernacao", "sessao_agend"].includes(cli.etapa)) {
+        } else if ((tipoKey === "sess" || tipoKey === "piercing") && cli && ["lead", "qualificacao", "cons_agendada", "hibernacao", "sessao_agend", "tatuado", "pos_venda"].includes(cli.etapa)) {
           executarMove(agClientVinc.id, "sessao_agend");
         }
       }
@@ -1792,7 +1792,7 @@ export default function CRM() {
         }
       } else if (tipoKey === "sess" || tipoKey === "piercing") {
         const cli = clients.find((c: any) => c.id === agClientVinc.id);
-        if (cli && ["lead", "qualificacao", "cons_agendada", "hibernacao", "sessao_agend"].includes(cli.etapa)) {
+        if (cli && ["lead", "qualificacao", "cons_agendada", "hibernacao", "sessao_agend", "tatuado", "pos_venda"].includes(cli.etapa)) {
           if (cli.etapa === "hibernacao" && (cli.faltas || 0) > 0) {
             setTimeout(() => setShowAviso(`⚠️ ${cli.nome} estava em hibernação por desmarcação. Lembre de cobrar R$100,00 de taxa — conforme política do estúdio.`), 500);
           }
@@ -6023,10 +6023,10 @@ export default function CRM() {
                               setEditingEvent(null);
                               setAgClientVinc(cliLocal);
                               setAgClientSearch("");
-                              setAgForm({ title: cliLocal.nome, desc: "", tipo: "sess_" + (cliLocal.artista || "abraao"), date: "", start: 9, end: 11 } as any);
+                              setAgForm({ title: cliLocal.nome, desc: "", tipo: "sess_" + (cliLocal.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11 } as any);
                               setSessoesExtras([]);
                               setShowAgForm(true);
-                            }, 400);
+                            }, 600);
                           }
                         }} style={{ flex: 1, background: "rgba(74,158,191,.15)", border: "1px solid rgba(74,158,191,.3)", borderRadius: 7, padding: "9px 12px", fontSize: 12, fontWeight: 600, color: "var(--ab)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                           📅 Agendar Nova Sessão
