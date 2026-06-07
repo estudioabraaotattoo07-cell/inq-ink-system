@@ -4841,7 +4841,7 @@ export default function CRM() {
                           style={sc.etapa === s.id ? { borderColor: s.color, color: s.color, background: s.color + "18" } : {}}
                           onClick={() => {
                             if (critica && sc.etapa !== s.id) {
-                              const evs = agEvents.filter(e => e.cliente_id === sc.id);
+                              const evs = agEvents.filter(e => e.cliente_id === sc.id && e.status !== "concluido" && e.status !== "cancelado");
                               setConfirmMover({ cid: sc.id, stage: s, agEvents: evs });
                             } else {
                               move(sc.id, s.id);
@@ -5486,7 +5486,7 @@ export default function CRM() {
                             <div key={s.id}
                               onMouseDown={() => {
                                 if (s.id !== cli.etapa) {
-                                  const evs = agEvents.filter(e => e.cliente_id === cli.id);
+                                  const evs = agEvents.filter(e => e.cliente_id === cli.id && e.status !== "concluido" && e.status !== "cancelado");
                                   const needsConfirm = ["cons_agendada","sessao_agend","tatuado"].includes(s.id);
                                   if (needsConfirm) {
                                     setConfirmMover({ cid: cli.id, stage: s, agEvents: evs });
