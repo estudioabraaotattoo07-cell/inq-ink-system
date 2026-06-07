@@ -2802,11 +2802,11 @@ export default function CRM() {
                 <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 11, color: "var(--tx3)" }}>Meta R$</span>
-                    <input type="text" value={metaMensal ? Number(metaMensal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}
-                      placeholder="0,00"
+                    <input type="text" value={metaMensal ? Number(metaMensal).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : ""}
+                      placeholder="0"
                       onChange={e => {
                         const raw = e.target.value.replace(/\D/g, "");
-                        const num = raw ? Number(raw) / 100 : 0;
+                        const num = raw ? Number(raw) : 0;
                         setMetaMensal(num);
                       }}
                       style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 9px", fontSize: 12, color: "var(--tx)", outline: "none", width: 110 }} />
@@ -3586,11 +3586,11 @@ export default function CRM() {
                       <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                         <span style={{ fontSize: 10, color: "var(--tx3)" }}>Faturamento (R$)</span>
                         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                          <input className="ci" type="text" value={a.meta_faturamento ? Number(a.meta_faturamento).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""}
-                            placeholder="0,00"
+                          <input className="ci" type="text" value={a.meta_faturamento ? Number(a.meta_faturamento).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : ""}
+                            placeholder="0"
                             onChange={e => {
                               const raw = e.target.value.replace(/\D/g, "");
-                              const num = raw ? Number(raw) / 100 : 0;
+                              const num = raw ? Number(raw) : 0;
                               const updated = { ...a, meta_faturamento: num };
                               setArtists(p => p.map(x => x.id === a.id ? updated : x));
                               setTimeout(() => dbUpsert("artistas", { id: a.id, meta_faturamento: num }), 500);
@@ -6324,7 +6324,7 @@ export default function CRM() {
                   <div>
                     <div className="stit">Metas Mensais</div>
                     <div className="fg2">
-                      <div className="fi2"><div className="fil">Meta de Faturamento (R$)</div><input className="ef" type="text" placeholder="0,00" value={metaMensal ? Number(metaMensal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} onChange={e => { const raw = e.target.value.replace(/\D/g, ""); setMetaMensal(raw ? Number(raw) / 100 : 0); }} /></div>
+                      <div className="fi2"><div className="fil">Meta de Faturamento (R$)</div><input className="ef" type="text" placeholder="0" value={metaMensal ? Number(metaMensal).toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : ""} onChange={e => { const raw = e.target.value.replace(/\D/g, ""); setMetaMensal(raw ? Number(raw) : 0); }} /></div>
                       <div className="fi2"><div className="fil">Meta de Sessões</div><input className="ef" type="number" value={metaSessoes} onChange={e => setMetaSessoes(Number(e.target.value))} /></div>
                       <div className="fi2"><div className="fil">Meta de Leads</div><input className="ef" type="number" value={metaLeads} onChange={e => setMetaLeads(Number(e.target.value))} /></div>
                       <div className="fi2"><div className="fil">Meta NPS 9+</div><input className="ef" type="number" value={metaNPS} onChange={e => setMetaNPS(Number(e.target.value))} /></div>
