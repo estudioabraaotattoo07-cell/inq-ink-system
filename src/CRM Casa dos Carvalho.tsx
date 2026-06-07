@@ -970,6 +970,9 @@ export default function CRM() {
   const [auraName, setAuraName] = useState("Aura");
   const [auraFormalidade, setAuraFormalidade] = useState("Equilibrado");
   const [auraIdioma, setAuraIdioma] = useState("Português");
+  const [auraTracos, setAuraTracos] = useState<string[]>([]);
+  const [auraRitmo, setAuraRitmo] = useState("");
+  const [auraEmojis, setAuraEmojis] = useState("");
   const [metaSessoes, setMetaSessoes] = useState(10);
   const [metaLeads, setMetaLeads] = useState(20);
   const [metaNPS, setMetaNPS] = useState(5);
@@ -1153,7 +1156,15 @@ export default function CRM() {
           if (cfg.studio_email) setStudioEmail(cfg.studio_email);
           if (cfg.studio_city) setStudioCity(cfg.studio_city);
           if (cfg.studio_insta) setStudioInsta(cfg.studio_insta);
+          if (cfg.studio_endereco) setStudioEndereco(cfg.studio_endereco);
+          if (cfg.studio_redes) setStudioRedes(cfg.studio_redes);
+          if (cfg.dono_nome) setDonoNome(cfg.dono_nome);
+          if (cfg.dono_whats) setDonoWhats(cfg.dono_whats);
+          if (cfg.dono_email) setDonoEmail(cfg.dono_email);
           if (cfg.aura_name) setAuraName(cfg.aura_name);
+          if (cfg.aura_tracos) setAuraTracos(cfg.aura_tracos);
+          if (cfg.aura_ritmo) setAuraRitmo(cfg.aura_ritmo);
+          if (cfg.aura_emojis) setAuraEmojis(cfg.aura_emojis);
           if (cfg.google_link) setGoogleLink(cfg.google_link);
           if (cfg.cnpj) setCnpj(cfg.cnpj);
           if (cfg.meta_mensal) setMetaMensal(cfg.meta_mensal);
@@ -5861,7 +5872,9 @@ export default function CRM() {
         {showAviso && (
           <div className="ov" onClick={() => setShowAviso(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(400px, 90vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)", fontFamily: "'Cormorant Garamond',serif" }}>⚠ Atenção</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: showAviso?.includes("sucesso") || showAviso?.includes("concluído") || showAviso?.includes("confirmada") || showAviso?.includes("registrado") ? "var(--q3)" : "var(--gold)", fontFamily: "'Cormorant Garamond',serif" }}>
+                {showAviso?.includes("sucesso") || showAviso?.includes("concluído") || showAviso?.includes("confirmada") || showAviso?.includes("registrado") ? "✅ Sucesso" : "⚠ Atenção"}
+              </div>
               <div style={{ fontSize: 13, color: "var(--tx)", lineHeight: 1.6 }}>{showAviso}</div>
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <button className="btn-s" onClick={() => setShowAviso(null)}>Entendido</button>
@@ -6871,13 +6884,11 @@ export default function CRM() {
                         <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 8, textTransform: "uppercase", letterSpacing: ".06em" }}>Traços de Personalidade <span style={{ color: "var(--tx3)", fontWeight: 400 }}>(escolha até 3)</span></div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                           {["Acolhedora","Sofisticada","Empática","Direta","Entusiasmada"].map(op => {
-                            const sel: string[] = (auraFormalidade as any).personalidade || [];
-                            const isOn = sel.includes(op);
+                            const isOn = auraTracos.includes(op);
                             return (
                               <button key={op} onClick={() => {
-                                const cur: string[] = (auraFormalidade as any).personalidade || [];
-                                const next = isOn ? cur.filter((x: string) => x !== op) : cur.length < 3 ? [...cur, op] : cur;
-                                setAuraFormalidade({ ...(auraFormalidade as any), personalidade: next } as any);
+                                const next = isOn ? auraTracos.filter(x => x !== op) : auraTracos.length < 3 ? [...auraTracos, op] : auraTracos;
+                                setAuraTracos(next);
                               }}
                                 style={{ padding: "7px 14px", borderRadius: 7, border: isOn ? "1px solid var(--gold)" : "1px solid var(--br)", background: isOn ? "rgba(201,168,76,.15)" : "var(--dk3)", color: isOn ? "var(--gold)" : "var(--tx2)", fontSize: 12, fontWeight: isOn ? 700 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" }}>
                                 {op}
@@ -6889,31 +6900,23 @@ export default function CRM() {
                       <div>
                         <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 8, textTransform: "uppercase", letterSpacing: ".06em" }}>Ritmo das Mensagens</div>
                         <div style={{ display: "flex", gap: 8 }}>
-                          {["Mensagens curtas","Mensagens elaboradas"].map(op => {
-                            const cur = typeof auraFormalidade === "string" ? auraFormalidade : (auraFormalidade as any).ritmo;
-                            const isOn = cur === op;
-                            return (
-                              <button key={op} onClick={() => setAuraFormalidade({ ...(auraFormalidade as any), ritmo: op } as any)}
-                                style={{ flex: 1, padding: "8px 4px", borderRadius: 7, border: isOn ? "1px solid var(--gold)" : "1px solid var(--br)", background: isOn ? "rgba(201,168,76,.15)" : "var(--dk3)", color: isOn ? "var(--gold)" : "var(--tx2)", fontSize: 12, fontWeight: isOn ? 700 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" }}>
-                                {op}
-                              </button>
-                            );
-                          })}
+                          {["Mensagens curtas","Mensagens elaboradas"].map(op => (
+                            <button key={op} onClick={() => setAuraRitmo(op)}
+                              style={{ flex: 1, padding: "8px 4px", borderRadius: 7, border: auraRitmo === op ? "1px solid var(--gold)" : "1px solid var(--br)", background: auraRitmo === op ? "rgba(201,168,76,.15)" : "var(--dk3)", color: auraRitmo === op ? "var(--gold)" : "var(--tx2)", fontSize: 12, fontWeight: auraRitmo === op ? 700 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" }}>
+                              {op}
+                            </button>
+                          ))}
                         </div>
                       </div>
                       <div>
                         <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 8, textTransform: "uppercase", letterSpacing: ".06em" }}>Uso de Emojis</div>
                         <div style={{ display: "flex", gap: 8 }}>
-                          {["Nenhum","Moderado","Expressivo"].map(op => {
-                            const cur = typeof auraFormalidade === "string" ? "" : (auraFormalidade as any).emojis;
-                            const isOn = cur === op;
-                            return (
-                              <button key={op} onClick={() => setAuraFormalidade({ ...(auraFormalidade as any), emojis: op } as any)}
-                                style={{ flex: 1, padding: "8px 4px", borderRadius: 7, border: isOn ? "1px solid var(--gold)" : "1px solid var(--br)", background: isOn ? "rgba(201,168,76,.15)" : "var(--dk3)", color: isOn ? "var(--gold)" : "var(--tx2)", fontSize: 12, fontWeight: isOn ? 700 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" }}>
-                                {op}
-                              </button>
-                            );
-                          })}
+                          {["Nenhum","Moderado","Expressivo"].map(op => (
+                            <button key={op} onClick={() => setAuraEmojis(op)}
+                              style={{ flex: 1, padding: "8px 4px", borderRadius: 7, border: auraEmojis === op ? "1px solid var(--gold)" : "1px solid var(--br)", background: auraEmojis === op ? "rgba(201,168,76,.15)" : "var(--dk3)", color: auraEmojis === op ? "var(--gold)" : "var(--tx2)", fontSize: 12, fontWeight: auraEmojis === op ? 700 : 400, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", transition: "all .15s" }}>
+                              {op}
+                            </button>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -7006,8 +7009,13 @@ export default function CRM() {
                     studio_name: studioName, studio_tel: studioTel,
                     studio_owner: studioOwner, studio_email: studioEmail,
                     studio_city: studioCity, studio_insta: studioInsta,
+                    studio_endereco: studioEndereco,
+                    studio_redes: studioRedes,
+                    dono_nome: donoNome, dono_whats: donoWhats, dono_email: donoEmail,
                     aura_name: auraName, aura_formalidade: auraFormalidade,
-                    aura_idioma: auraIdioma, google_link: googleLink,
+                    aura_idioma: auraIdioma, aura_tracos: auraTracos,
+                    aura_ritmo: auraRitmo, aura_emojis: auraEmojis,
+                    google_link: googleLink,
                     cnpj, meta_mensal: metaMensal,
                     meta_sessoes: metaSessoes, meta_leads: metaLeads, meta_nps: metaNPS,
                     desconto_aniversario: descontoAniversario,
