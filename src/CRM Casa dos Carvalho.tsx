@@ -1939,9 +1939,9 @@ export default function CRM() {
   const aName = (id: string) => artists.find(a => a.id === id)?.nome || (id === "abraao" ? "Abraão" : "Camilla");
   const aColor = (id: string) => artists.find(a => a.id === id)?.cor || "#C9A84C";
   const aClass = (id: string) => "";
-  const aStyle = (id: string) => {
-    const a = artists.find(x => x.id === id);
-    const hex = a?.cor || "#C9A84C";
+  const aStyle = (id: string | undefined) => {
+    const a = artists.find(x => x.id === (id || ""));
+    const hex = (a?.cor && /^#[0-9a-fA-F]{6}$/.test(a.cor)) ? a.cor : "#C9A84C";
     const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
     return { background: "rgba("+r+","+g+","+b+",.15)", color: hex, border: "1px solid rgba("+r+","+g+","+b+",.3)", borderRadius: 9, padding: "2px 6px", fontSize: 10, fontWeight: 600, letterSpacing: ".04em", textTransform: "uppercase" as const };
   };
@@ -5302,7 +5302,7 @@ export default function CRM() {
                   <label className="fl">Cliente *</label>
                   {agClientVinc ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--dk3)", border: "1px solid var(--gold)", borderRadius: 5, padding: "7px 10px" }}>
-                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: aStyle(agClientVinc.artista).background || "var(--gold)", flexShrink: 0 }} />
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: aStyle(agClientVinc?.artista).background || "var(--gold)", flexShrink: 0 }} />
                       <span style={{ flex: 1, fontSize: 13, color: "var(--tx)", fontFamily: "'Cormorant Garamond',serif", fontWeight: 600 }}>{agClientVinc.nome}</span>
                       <span style={{ fontSize: 11, color: "var(--tx3)" }}>{agClientVinc.estilo || "—"}</span>
                       <button onClick={() => { setAgClientVinc(null); setAgClientSearch(""); setAgForm({ ...agForm, title: "" }); }}
@@ -6193,8 +6193,10 @@ export default function CRM() {
                       return;
                     }
                   }
+                  const cidToMove = confirmMover.cid;
+                  const stageToMove = confirmMover.stage.id;
                   setConfirmMover(null);
-                  move(confirmMover.cid, confirmMover.stage.id);
+                  move(cidToMove, stageToMove);
                 }}>
                   Confirmar
                 </button>
