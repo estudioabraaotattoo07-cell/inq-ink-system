@@ -3968,191 +3968,250 @@ export default function CRM() {
 
         {/* ── DISPAROS ── */}
         {tab === "disparos" && (
-          <div className="disw">
-            <div className="disl">
-              <div className="dsec">
-                <div className="dsh">
-                  <div className="dst">📣 Disparar por Perfil</div>
-                  <div className="dss">Mensagens personalizadas por segmento</div>
+          <div style={{ flex: 1, padding: "16px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, maxWidth: 780, width: "100%" }}>
+
+            {/* Cabeçalho */}
+            <div style={{ marginBottom: 4 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: "var(--tx)" }}>Central de Comunicação</div>
+              <div style={{ fontSize: 12, color: "var(--tx3)", marginTop: 3 }}>A Aura envia cada mensagem personalizada com os dados reais do cliente. Nenhuma mensagem é genérica.</div>
+            </div>
+
+            {/* Alerta de data comemorativa próxima */}
+            {(() => {
+              const hoje = new Date();
+              const hojeMs = hoje.getTime();
+              const meses: Record<string,number> = {Jan:0,Fev:1,Mar:2,Abr:3,Mai:4,Jun:5,Jul:6,Ago:7,Set:8,Out:9,Nov:10,Dez:11};
+              const msDay = 1000 * 60 * 60 * 24;
+              let proximaData: any = null; let menorDiff = 999;
+              DATAS.forEach(d => {
+                const partes = d.data.split(" "); if (partes.length !== 2) return;
+                const m = meses[partes[1]]; if (m === undefined) return;
+                const dia = parseInt(partes[0]);
+                let data = new Date(hoje.getFullYear(), m, dia);
+                if (data.getTime() < hojeMs) data = new Date(hoje.getFullYear() + 1, m, dia);
+                const diff = Math.floor((data.getTime() - hojeMs) / msDay);
+                if (diff < menorDiff) { menorDiff = diff; proximaData = { ...d, diff }; }
+              });
+              if (!proximaData || proximaData.diff > 30) return null;
+              const qtd = clients.filter(c => ["lead","qualificacao"].includes(c.etapa)).length;
+              return (
+                <div style={{ background: "rgba(201,168,76,.08)", border: "1px solid rgba(201,168,76,.25)", borderRadius: 8, padding: "12px 16px", display: "flex", gap: 12, alignItems: "center" }}>
+                  <span style={{ fontSize: 22 }}>{proximaData.icon}</span>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gold)" }}>📅 {proximaData.label} em {proximaData.diff} dias</div>
+                    <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 2 }}>Você tem <strong style={{ color: "var(--tx)" }}>{qtd} clientes</strong> em nutrição que podem ser ativados agora.</div>
+                  </div>
                 </div>
-                <div className="dsb">
-                  {SEGS.map(sg => {
-                    const cnt = clients.filter(sg.f).length;
-                    return (
-                      <div key={sg.id} className={"seg" + (segSel === sg.id ? " on" : "")}
-                        onClick={() => { setSegSel(segSel === sg.id ? null : sg.id); setDateSel(null); setSent(false); setEditing(false); setMsgEdit(""); }}>
-                        <div>
-                          <div className="sn">{sg.icon} {sg.label}</div>
-                          <div className="sd">{sg.desc}</div>
+              );
+            })()}
+
+            {/* BLOCO: Segmentos por perfil */}
+            {(() => {
+              const grupos = [
+                {
+                  titulo: "🔥 Reativação", subtitulo: "Clientes que sumiram mas podem voltar",
+                  itens: [
+                    { id: "q2", icon: "🟡", label: "Q2 — Prontos para avançar", desc: "Manifestaram interesse mas ainda não agendaram", f: (c: any) => c.qual === "Q2" },
+                    { id: "retorno", icon: "🔄", label: "Retorno Sazonal", desc: "Tatuados há mais de 6 meses sem movimento", f: (c: any) => (c.etapa === "tatuado" || c.etapa === "pos_venda") && c.dias >= 180 },
+                    { id: "q1", icon: "🔴", label: "Q1 — Em nutrição", desc: "Ainda não estão prontos — mensagem de valor", f: (c: any) => c.qual === "Q1" },
+                  ]
+                },
+                {
+                  titulo: "🖤 Relacionamento", subtitulo: "Para quem já faz parte da história",
+                  itens: [
+                    { id: "tatuados", icon: "🖤", label: "Tatuados", desc: "Já fizeram sessão — maior chance de retorno", f: (c: any) => c.etapa === "tatuado" || c.etapa === "pos_venda" },
+                    { id: "primeira", icon: "✨", label: "Primeira Tattoo", desc: "Primeira vez — experiência especial", f: (c: any) => c.primeira },
+                    { id: "google", icon: "⭐", label: "Avaliação Google", desc: "Tatuados que ainda não deixaram avaliação", f: (c: any) => (c.etapa === "tatuado" || c.etapa === "pos_venda") && !c.googleReview },
+                  ]
+                },
+                {
+                  titulo: "🎨 Por Artista", subtitulo: "Comunicação personalizada de cada artista",
+                  itens: [
+                    { id: "abraao", icon: "🔵", label: "Clientes do Abraão", desc: "Mensagem com a voz do Abraão", f: (c: any) => c.artista === "abraao" },
+                    { id: "camilla", icon: "🟣", label: "Clientes da Camilla", desc: "Mensagem com a voz da Camilla", f: (c: any) => c.artista === "camilla" },
+                  ]
+                },
+                {
+                  titulo: "👥 Base completa", subtitulo: "Para toda a base cadastrada",
+                  itens: [
+                    { id: "todos", icon: "👥", label: "Todos os clientes", desc: "Mensagem institucional para toda a base", f: () => true },
+                    { id: "q0", icon: "🟣", label: "Q0 — Presenciais", desc: "Estiveram no atelier pessoalmente", f: (c: any) => c.qual === "Q0" },
+                  ]
+                },
+              ];
+              return grupos.map(grupo => (
+                <div key={grupo.titulo} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "12px 16px", background: "var(--dk3)", borderBottom: "1px solid var(--br)" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>{grupo.titulo}</div>
+                    <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>{grupo.subtitulo}</div>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                    {grupo.itens.map((item, idx) => {
+                      const cnt = clients.filter(item.f).length;
+                      const isOpen = segSel === item.id;
+                      const msg = MSGS[item.id] || "";
+                      return (
+                        <div key={item.id} style={{ borderBottom: idx < grupo.itens.length - 1 ? "1px solid var(--br)" : "none" }}>
+                          <div onClick={() => { setSegSel(isOpen ? null : item.id); setDateSel(null); setSent(false); setEditing(false); setMsgEdit(""); }}
+                            style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: isOpen ? "rgba(201,168,76,.06)" : "transparent" }}>
+                            <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: isOpen ? "var(--gold)" : "var(--tx)" }}>{item.label}</div>
+                              <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 1 }}>{item.desc}</div>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <span style={{ fontSize: 12, fontWeight: 700, color: cnt > 0 ? "var(--gold)" : "var(--tx3)", background: cnt > 0 ? "rgba(201,168,76,.1)" : "var(--dk4)", border: "1px solid " + (cnt > 0 ? "rgba(201,168,76,.2)" : "var(--br)"), borderRadius: 20, padding: "2px 10px" }}>{cnt}</span>
+                              <span style={{ fontSize: 12, color: "var(--tx3)" }}>{isOpen ? "▲" : "▼"}</span>
+                            </div>
+                          </div>
+                          {isOpen && (
+                            <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 10, borderTop: "1px solid var(--br)", paddingTop: 14 }}>
+                              <div style={{ fontSize: 11, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Instrução para a Aura</div>
+                              <textarea value={msgEdit || msg} onChange={e => setMsgEdit(e.target.value)}
+                                style={{ width: "100%", minHeight: 120, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 12px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", lineHeight: 1.7, outline: "none", resize: "vertical" }} />
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                                <span style={{ fontSize: 11, color: "var(--tx3)" }}>
+                                  📩 {cnt} destinatário{cnt !== 1 ? "s" : ""}{cnt > 0 ? " — " + clients.filter(item.f).map((c: any) => c.nome.split(" ")[0]).slice(0, 3).join(", ") + (cnt > 3 ? " +" + (cnt - 3) : "") : ""}
+                                </span>
+                                {sent && segSel === item.id
+                                  ? <div style={{ fontSize: 12, color: "var(--q3)", fontWeight: 600 }}>✓ Disparo programado!</div>
+                                  : <button onClick={() => { disparo(); setDisparosHist((p: any[]) => [{ data: new Date().toLocaleDateString("pt-BR"), hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), segmento: item.label, destinatarios: cnt, preview: (msgEdit || msg).slice(0, 60) }, ...p.slice(0, 19)]); }}
+                                      disabled={cnt === 0}
+                                      style={{ background: cnt === 0 ? "var(--dk4)" : "var(--gold)", color: cnt === 0 ? "var(--tx3)" : "#000", border: "none", borderRadius: 7, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: cnt === 0 ? "not-allowed" : "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                                      📣 Disparar via Aura
+                                    </button>
+                                }
+                              </div>
+                            </div>
+                          )}
                         </div>
-                        <div className="sc2">{cnt}</div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
+              ));
+            })()}
+
+            {/* BLOCO: Datas comemorativas */}
+            <div style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", background: "var(--dk3)", borderBottom: "1px solid var(--br)" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>📅 Datas Comemorativas</div>
+                <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>Mensagens emocionais para toda a base — cada uma com a assinatura da Casa dos Carvalho</div>
               </div>
-              <div className="dsec">
-                <div className="dsh">
-                  <div className="dst">📅 Datas Comemorativas</div>
-                  <div className="dss">Mensagens emocionais para toda a base</div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                {DATAS.filter(d => d.id !== "aniversario").map((d, idx) => {
+                  const isOpen = dateSel === d.id;
+                  const msg = MSGS[d.id] || "";
+                  const cnt = clients.length;
+                  return (
+                    <div key={d.id} style={{ borderBottom: idx < DATAS.filter(x => x.id !== "aniversario").length - 1 ? "1px solid var(--br)" : "none" }}>
+                      <div onClick={() => { setDateSel(isOpen ? null : d.id); setSegSel(null); setSent(false); setEditing(false); setMsgEdit(""); }}
+                        style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: isOpen ? "rgba(201,168,76,.06)" : "transparent" }}>
+                        <span style={{ fontSize: 18, flexShrink: 0 }}>{d.icon}</span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: isOpen ? "var(--gold)" : "var(--tx)" }}>{d.label}</div>
+                          <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 1 }}>{d.data}</div>
+                        </div>
+                        <span style={{ fontSize: 12, color: "var(--tx3)" }}>{isOpen ? "▲" : "▼"}</span>
+                      </div>
+                      {isOpen && (
+                        <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 10, borderTop: "1px solid var(--br)", paddingTop: 14 }}>
+                          <div style={{ fontSize: 11, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Mensagem via Aura</div>
+                          <textarea value={msgEdit || msg} onChange={e => setMsgEdit(e.target.value)}
+                            style={{ width: "100%", minHeight: 140, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 12px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", lineHeight: 1.7, outline: "none", resize: "vertical" }} />
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                            <span style={{ fontSize: 11, color: "var(--tx3)" }}>📩 {cnt} destinatário{cnt !== 1 ? "s" : ""}</span>
+                            {sent && dateSel === d.id
+                              ? <div style={{ fontSize: 12, color: "var(--q3)", fontWeight: 600 }}>✓ Disparo programado!</div>
+                              : <button onClick={() => { disparo(); setDisparosHist((p: any[]) => [{ data: new Date().toLocaleDateString("pt-BR"), hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), segmento: d.label, destinatarios: cnt, preview: (msgEdit || msg).slice(0, 60) }, ...p.slice(0, 19)]); }}
+                                  style={{ background: "var(--gold)", color: "#000", border: "none", borderRadius: 7, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                                  📣 Disparar via Aura
+                                </button>
+                            }
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* BLOCO: Programa Aniversariante */}
+            <div style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", background: "var(--dk3)", borderBottom: "1px solid var(--br)" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>🎂 Programa Aniversariante</div>
+                <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>Disparo automático às 9h do dia do aniversário — cada mensagem personalizada com nome e estilo do cliente</div>
+              </div>
+              {(() => {
+                const isOpen = dateSel === "aniversario";
+                const anivMes = clients.filter(c => isAniversMes((c as any).nascimento || ""));
+                const anivHoje = clients.filter(c => isAniversHoje((c as any).nascimento || ""));
+                return (
+                  <div>
+                    <div onClick={() => { setDateSel(isOpen ? null : "aniversario"); setSegSel(null); setSent(false); setEditing(false); setMsgEdit(""); }}
+                      style={{ padding: "12px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", background: isOpen ? "rgba(201,168,76,.06)" : "transparent" }}>
+                      <span style={{ fontSize: 18 }}>🎂</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: isOpen ? "var(--gold)" : "var(--tx)" }}>Configurar programa</div>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 1 }}>
+                          {anivMes.length > 0 ? anivMes.length + " aniversariante" + (anivMes.length > 1 ? "s" : "") + " este mês" : "Nenhum aniversariante este mês"}
+                          {anivHoje.length > 0 && " · 🎉 Hoje: " + anivHoje.map(c => c.nome.split(" ")[0]).join(", ")}
+                        </div>
+                      </div>
+                      <span style={{ fontSize: 12, color: "var(--gold)", fontWeight: 700, background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.2)", borderRadius: 20, padding: "2px 10px" }}>{descontoAniversario}% desc.</span>
+                      <span style={{ fontSize: 12, color: "var(--tx3)" }}>{isOpen ? "▲" : "▼"}</span>
+                    </div>
+                    {isOpen && (
+                      <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 12, borderTop: "1px solid var(--br)", paddingTop: 14 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                            <label style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Desconto (%)</label>
+                            <input type="number" min={0} max={50} value={descontoAniversario} onChange={e => setDescontoAniversario(Number(e.target.value))}
+                              style={{ background: "var(--dk3)", border: "1px solid var(--gold)", borderRadius: 6, padding: "7px 11px", fontSize: 16, fontWeight: 700, color: "var(--gold)", outline: "none", width: 80, fontFamily: "'DM Sans',sans-serif", textAlign: "center" }} />
+                          </div>
+                          <div style={{ flex: 1, background: "rgba(201,168,76,.06)", border: "1px solid rgba(201,168,76,.15)", borderRadius: 7, padding: "10px 12px", fontSize: 11, color: "var(--tx2)", lineHeight: 1.6 }}>
+                            🎂 <strong style={{ color: "var(--gold)" }}>{anivMes.length}</strong> cliente{anivMes.length !== 1 ? "s" : ""} fazem aniversário este mês
+                            {anivHoje.length > 0 && <><br/>🎉 <strong style={{ color: "var(--gold)" }}>Hoje:</strong> {anivHoje.map(c => c.nome.split(" ")[0]).join(", ")}</>}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          <label style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Instrução para a Aura</label>
+                          <textarea defaultValue={"Enviar no dia do aniversário do cliente. Usar o nome do cliente. Parabenizar pelo aniversário de forma calorosa e personalizada. Mencionar o estilo de tatuagem favorito do cliente se disponível. Oferecer " + descontoAniversario + "% de desconto em qualquer sessão realizada durante o mês do aniversário. Tom: caloroso e pessoal, não promocional. Finalizar com convite para agendar."}
+                            style={{ width: "100%", minHeight: 110, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 12px", fontSize: 11, color: "var(--tx2)", fontFamily: "'DM Sans',sans-serif", resize: "vertical", outline: "none", lineHeight: 1.6 }} />
+                          <div style={{ fontSize: 10, color: "var(--tx3)" }}>A Aura usa estas instruções para compor cada mensagem — personalizada com nome, estilo e artista do cliente.</div>
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", fontStyle: "italic" }}>💡 O disparo acontece automaticamente às 9h do dia do aniversário — sem precisar lembrar.</div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Histórico de disparos */}
+            {disparosHist.length > 0 && (
+              <div style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ padding: "12px 16px", background: "var(--dk3)", borderBottom: "1px solid var(--br)" }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>📋 Histórico desta sessão</div>
                 </div>
-                <div className="dsb">
-                  {DATAS.map(d => (
-                    <div key={d.id} className={"di" + (dateSel === d.id ? " on" : "")}
-                      onClick={() => { setDateSel(dateSel === d.id ? null : d.id); setSegSel(null); setSent(false); setEditing(false); setMsgEdit(""); }}>
-                      <div style={{ fontSize: 12, fontWeight: 500, color: "var(--tx)", display: "flex", alignItems: "center", gap: 6 }}>{d.icon} {d.label}</div>
-                      <div style={{ fontSize: 11, color: "var(--tx2)" }}>{d.data}</div>
+                <div style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+                  {disparosHist.map((d: any, i: number) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: i < disparosHist.length - 1 ? "1px solid var(--br)" : "none" }}>
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)" }}>{d.segmento}</div>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2, fontStyle: "italic" }}>{d.preview}...</div>
+                      </div>
+                      <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 12 }}>
+                        <div style={{ fontSize: 10, color: "var(--q3)", fontWeight: 700 }}>✓ {d.destinatarios} env.</div>
+                        <div style={{ fontSize: 10, color: "var(--tx3)" }}>{d.hora}</div>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div className="dsec">
-                <div className="dsh">
-                  <div className="dst">🎂 Programa Aniversariante</div>
-                  <div className="dss">Disparo automático no dia do aniversário</div>
-                </div>
-                <div className="dsb" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  <div style={{ fontSize: 12, color: "var(--tx2)", lineHeight: 1.6 }}>
-                    Clientes que fazem aniversário recebem mensagem automática da Aura com oferta de desconto. O disparo ocorre às 9h do dia do aniversário.
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Desconto oferecido (%)</label>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <input type="number" min={0} max={50} value={descontoAniversario}
-                        onChange={e => setDescontoAniversario(Number(e.target.value))}
-                        style={{ background: "var(--dk3)", border: "1px solid var(--gold)", borderRadius: 6, padding: "7px 11px", fontSize: 14, fontWeight: 700, color: "var(--gold)", outline: "none", width: 80, fontFamily: "'DM Sans',sans-serif" }} />
-                      <span style={{ fontSize: 12, color: "var(--tx2)" }}>% de desconto na próxima sessão</span>
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <label style={{ fontSize: 10, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Instrução para a Aura</label>
-                    <textarea
-                      defaultValue={"Enviar no dia do aniversário do cliente. Usar o nome do cliente. Parabenizar pelo aniversário de forma calorosa e personalizada. Mencionar o estilo de tatuagem favorito do cliente se disponível. Oferecer " + descontoAniversario + "% de desconto em qualquer sessão realizada durante o mês do aniversário. Tom: caloroso e pessoal, não promocional. Finalizar com convite para agendar."}
-                      style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "10px 12px", fontSize: 11, color: "var(--tx2)", fontFamily: "'DM Sans',sans-serif", resize: "vertical", minHeight: 100, outline: "none", lineHeight: 1.6 }} />
-                    <div style={{ fontSize: 10, color: "var(--tx3)" }}>A Aura usa estas instruções para compor a mensagem — cada envio é personalizado com os dados do cliente.</div>
-                  </div>
-                  <div style={{ background: "rgba(201,168,76,.08)", border: "1px solid rgba(201,168,76,.2)", borderRadius: 7, padding: "10px 12px", fontSize: 11, color: "var(--tx2)" }}>
-                    {(() => {
-                      const anivMes = clients.filter(c => isAniversMes((c as any).nascimento || ""));
-                      const anivHoje = clients.filter(c => isAniversHoje((c as any).nascimento || ""));
-                      return <>
-                        <div>🎂 <strong style={{ color: "var(--gold)" }}>{anivMes.length}</strong> cliente{anivMes.length !== 1 ? "s" : ""} fazem aniversário este mês</div>
-                        {anivHoje.length > 0 && <div style={{ marginTop: 4, color: "var(--gold)", fontWeight: 600 }}>🎉 Hoje: {anivHoje.map(c => c.nome.split(" ")[0]).join(", ")}</div>}
-                      </>;
-                    })()}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="disr">
-              {/* Alerta de sazonalidade */}
-              {(() => {
-                const hoje = new Date();
-                const hojeMs = hoje.getTime();
-                const meses: Record<string,number> = {Jan:0,Fev:1,Mar:2,Abr:3,Mai:4,Jun:5,Jul:6,Ago:7,Set:8,Out:9,Nov:10,Dez:11};
-                const msDay = 1000 * 60 * 60 * 24;
-                let proximaData: any = null;
-                let menorDiff = 999;
-                DATAS.forEach(d => {
-                  const partes = d.data.split(" ");
-                  if (partes.length !== 2) return;
-                  const m = meses[partes[1]];
-                  if (m === undefined) return;
-                  const dia = parseInt(partes[0]);
-                  let data = new Date(hoje.getFullYear(), m, dia);
-                  if (data.getTime() < hojeMs) data = new Date(hoje.getFullYear() + 1, m, dia);
-                  const diff = Math.floor((data.getTime() - hojeMs) / msDay);
-                  if (diff < menorDiff) { menorDiff = diff; proximaData = { ...d, diff }; }
-                });
-                if (!proximaData || proximaData.diff > 30) return null;
-                const qtd = clients.filter(c => ["lead","qualificacao"].includes(c.etapa)).length;
-                return (
-                  <div style={{ background: "rgba(201,168,76,.08)", border: "1px solid rgba(201,168,76,.25)", borderRadius: 8, padding: "12px 14px", marginBottom: 12, display: "flex", gap: 10 }}>
-                    <span style={{ fontSize: 20 }}>{proximaData.icon}</span>
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--gold)" }}>📅 {proximaData.label} em {proximaData.diff} dias</div>
-                      <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 3 }}>Você tem <strong style={{ color: "var(--tx)" }}>{qtd} clientes</strong> em nutrição que podem ser ativados.</div>
-                    </div>
-                  </div>
-                );
-              })()}
+            )}
 
-              <div className="dsec">
-                <div className="dsh">
-                  <div className="dst">📱 Preview da Mensagem</div>
-                  <div className="dss">A palavra final é sempre sua</div>
-                </div>
-                <div className="dsb">
-                  {!pmsg
-                    ? <div style={{ textAlign: "center", padding: "24px 0", color: "var(--tx3)", fontSize: 12 }}>Selecione um segmento ou data</div>
-                    : (
-                      <>
-                        <div className="prev">
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 7 }}>
-                            <div className="prevl" style={{ margin: 0 }}>Mensagem via Aura</div>
-                            <button onClick={() => { if (!editing) setMsgEdit(pmsg); setEditing(!editing); }}
-                              style={{ background: editing ? "var(--gold-d)" : "var(--dk4)", border: "1px solid " + (editing ? "var(--gold)" : "var(--br)"), borderRadius: 4, color: editing ? "var(--gold)" : "var(--tx2)", padding: "3px 8px", fontSize: 11, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: 600 }}>
-                              {editing ? "✓ Ok" : "✏ Editar"}
-                            </button>
-                          </div>
-                          {editing
-                            ? <textarea value={msgEdit} onChange={e => setMsgEdit(e.target.value)}
-                              style={{ width: "100%", minHeight: 170, background: "var(--dk4)", border: "1px solid var(--gold)", borderRadius: 7, padding: 11, fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", lineHeight: 1.7, outline: "none", resize: "vertical" }} />
-                            : <div className="prevm">{msgEdit || pmsg}</div>
-                          }
-                          <div className="prevc">
-                            📩 {dest.length} destinatário{dest.length !== 1 ? "s" : ""}
-                            {dest.length > 0 && " " + dest.map((c: any) => c.nome.split(" ")[0]).slice(0, 3).join(", ") + (dest.length > 3 ? " +" + (dest.length - 3) : "")}
-                          </div>
-                        </div>
-                        {sent
-                          ? <div className="dis-ok">
-                            <div style={{ fontSize: 12, color: "var(--q3)", fontWeight: 600 }}>✓ Disparo programado!</div>
-                            <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 3 }}>Aura envia para {dest.length} cliente{dest.length !== 1 ? "s" : ""} com elegancia.</div>
-                          </div>
-                          : <button className="btn-dis" onClick={() => {
-                            disparo();
-                            // Registrar no histórico de disparos
-                            const entrada = {
-                              data: new Date().toLocaleDateString("pt-BR"),
-                              hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-                              segmento: segSel ? (SEGS.find(s => s.id === segSel)?.label || segSel) : (DATAS.find(d => d.id === dateSel)?.label || dateSel),
-                              destinatarios: dest.length,
-                              preview: (msgEdit || pmsg || "").slice(0, 60)
-                            };
-                            setDisparosHist(p => [entrada, ...p.slice(0, 19)]);
-                          }} disabled={dest.length === 0}>
-                            📣 Programar - {dest.length} cliente{dest.length !== 1 ? "s" : ""}
-                          </button>
-                        }
-                      </>
-                    )
-                  }
-                </div>
-              </div>
-              {disparosHist.length > 0 && (
-                <div className="dsec" style={{ marginTop: 12 }}>
-                  <div className="dsh">
-                    <div className="dst">📋 Histórico de Disparos</div>
-                    <div className="dss">Programados nesta sessão</div>
-                  </div>
-                  <div className="dsb">
-                    {disparosHist.map((d, i) => (
-                      <div key={i} style={{ padding: "8px 10px", background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, marginBottom: 5 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: "var(--tx)" }}>{d.segmento}</span>
-                          <span style={{ fontSize: 10, color: "var(--tx3)" }}>{d.data} {d.hora}</span>
-                        </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontSize: 11, color: "var(--tx2)", fontStyle: "italic" }}>{d.preview}...</span>
-                          <span style={{ fontSize: 10, color: "var(--q3)", fontWeight: 600, marginLeft: 8, flexShrink: 0 }}>✓ {d.destinatarios} env.</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         )}
 
