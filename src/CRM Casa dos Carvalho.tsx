@@ -6589,25 +6589,45 @@ export default function CRM() {
               <input className="fi" autoFocus placeholder={novoEstiloModal.tipo === "estilo" ? "Ex: Neo Tradicional" : "Ex: Coxa"}
                 value={novoEstiloInput}
                 onChange={e => setNovoEstiloInput(e.target.value)}
-                onKeyDown={e => {
+                onKeyDown={async e => {
                   if (e.key === "Enter") {
                     const raw = novoEstiloInput.trim();
                     const val = raw.charAt(0).toUpperCase() + raw.slice(1);
                     if (!val) return;
-                    if (novoEstiloModal.tipo === "estilo") { if (!estiloOpts.includes(val)) setEstiloOpts(p => [...p, val]); }
-                    else { if (!regiaoOpts.includes(val)) setRegiaoOpts(p => [...p, val]); }
+                    let novaLista: string[];
+                    if (novoEstiloModal.tipo === "estilo") {
+                      novaLista = estiloOpts.includes(val) ? estiloOpts : [...estiloOpts, val];
+                      setEstiloOpts(novaLista);
+                      const { data: cfgEx } = await sb.from("configuracoes").select("id").limit(1).single();
+                      if (cfgEx?.id) await sb.from("configuracoes").update({ estilo_opts: novaLista }).eq("id", cfgEx.id);
+                    } else {
+                      novaLista = regiaoOpts.includes(val) ? regiaoOpts : [...regiaoOpts, val];
+                      setRegiaoOpts(novaLista);
+                      const { data: cfgEx } = await sb.from("configuracoes").select("id").limit(1).single();
+                      if (cfgEx?.id) await sb.from("configuracoes").update({ regiao_opts: novaLista }).eq("id", cfgEx.id);
+                    }
                     novoEstiloModal.callback(val);
                     setNovoEstiloModal(null);
                   }
                 }} />
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                 <button className="btn-c" onClick={() => setNovoEstiloModal(null)}>Cancelar</button>
-                <button className="btn-s" onClick={() => {
+                <button className="btn-s" onClick={async () => {
                   const raw = novoEstiloInput.trim();
                   const val = raw.charAt(0).toUpperCase() + raw.slice(1);
                   if (!val) return;
-                  if (novoEstiloModal.tipo === "estilo") { if (!estiloOpts.includes(val)) setEstiloOpts(p => [...p, val]); }
-                  else { if (!regiaoOpts.includes(val)) setRegiaoOpts(p => [...p, val]); }
+                  let novaLista: string[];
+                  if (novoEstiloModal.tipo === "estilo") {
+                    novaLista = estiloOpts.includes(val) ? estiloOpts : [...estiloOpts, val];
+                    setEstiloOpts(novaLista);
+                    const { data: cfgEx } = await sb.from("configuracoes").select("id").limit(1).single();
+                    if (cfgEx?.id) await sb.from("configuracoes").update({ estilo_opts: novaLista }).eq("id", cfgEx.id);
+                  } else {
+                    novaLista = regiaoOpts.includes(val) ? regiaoOpts : [...regiaoOpts, val];
+                    setRegiaoOpts(novaLista);
+                    const { data: cfgEx } = await sb.from("configuracoes").select("id").limit(1).single();
+                    if (cfgEx?.id) await sb.from("configuracoes").update({ regiao_opts: novaLista }).eq("id", cfgEx.id);
+                  }
                   novoEstiloModal.callback(val);
                   setNovoEstiloModal(null);
                 }}>Confirmar</button>
@@ -6828,14 +6848,14 @@ export default function CRM() {
         {showSettings && (() => {
           // Snapshot para cancelar
           return (
-          <div className="ov" onClick={e => { if (e.target === e.currentTarget) setShowSettings(false); }}>
+          <div className="ov" onClick={e => { if (e.target === e.currentTarget && !editandoListas) setShowSettings(false); }}>
             <div className="settings-modal">
               <div className="mh">
                 <div>
                   <div className="mn">{studioName}</div>
                   <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 3 }}>In-Quadra Ink System</div>
                 </div>
-                <button className="mc" onClick={() => setShowSettings(false)}>✕</button>
+                <button className="mc" onClick={() => { if (!editandoListas) setShowSettings(false); }}>✕</button>
               </div>
               {/* ABAS */}
               <div style={{ display: "flex", borderBottom: "1px solid var(--br)" }}>
@@ -7335,8 +7355,13 @@ export default function CRM() {
 
               </div>
 
-              <div className="fmf">
-                <button className="btn-c" onClick={() => setShowSettings(false)}>Cancelar</button>
+              <div className="fmf" style={{ position: "relative" }}>
+                {editandoListas && (
+                  <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,.7)", borderRadius: 8, zIndex: 10, display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(2px)" }}>
+                    <span style={{ fontSize: 11, color: "var(--tx2)", fontStyle: "italic", textAlign: "center", padding: "0 16px" }}>Salve ou cancele as alterações de Estilos & Regiões primeiro</span>
+                  </div>
+                )}
+                <button className="btn-c" onClick={() => { if (!editandoListas) setShowSettings(false); }}>Cancelar</button>
                 <div style={{ display: "flex", gap: 8 }}>
                   {settingsTab !== "sistema" && (
                     <button style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 7, padding: "8px 16px", fontSize: 12, color: "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}
