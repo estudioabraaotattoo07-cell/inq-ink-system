@@ -422,8 +422,6 @@ const SEGS = [
   { id: "q2", label: "Q2 - Quentes", desc: "Prontos para avancar", icon: "🟡", f: (c: any) => c.qual === "Q2" },
   { id: "tatuados", label: "Tatuados", desc: "Ja fizeram sessao", icon: "🖤", f: (c: any) => c.etapa === "tatuado" || c.etapa === "pos_venda" },
   { id: "primeira", label: "Primeira Tattoo", desc: "Primeira vez", icon: "✨", f: (c: any) => c.primeira },
-  { id: "abraao", label: "Clientes Abraão", desc: "Direcionados ao Abraão", icon: "🔵", f: (c: any) => c.artista === "abraao" },
-  { id: "camilla", label: "Clientes Camilla", desc: "Direcionados a Camilla", icon: "🟣", f: (c: any) => c.artista === "camilla" },
   { id: "google", label: "Avaliacao Google", desc: "Tatuados sem avaliacao", icon: "⭐", f: (c: any) => (c.etapa === "tatuado" || c.etapa === "pos_venda") && !c.googleReview },
   { id: "retorno", label: "Retorno Sazonal", desc: "Tatuados ha mais de 6 meses", icon: "🔄", f: (c: any) => (c.etapa === "tatuado" || c.etapa === "pos_venda") && c.dias >= 180 },
 ];
@@ -581,172 +579,9 @@ In-Quadra Ink System`;
 }
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
-const ARTISTS_INIT = [
-  {
-    id: "abraao", nome: "Abraão Carvalho", role: "residente", com: 60,
-    cor: "#4A9EBF", ativo: true, insta: "@abraaotattoo",
-    email: "", tel: ""
-  },
-  {
-    id: "camilla", nome: "Camilla Carvalho", role: "residente", com: 60,
-    cor: "#9B6BB5", ativo: true, insta: "@camillatattoo",
-    email: "", tel: ""
-  },
-];
+const ARTISTS_INIT: any[] = [];
 
-const CLIENTS_INIT = [
-  {
-    id: 1, nome: "Marina Alves", tel: "(27) 99812-3456", email: "marina@email.com",
-    insta: "@marina.ink", qual: "Q3", artista: "abraao", etapa: "cons_agendada",
-    estilo: "Fine Line Floral", regiao: "Antebr", tam: "Medio", orig: "Instagram Organico",
-    cri: "Post Portfolio", data: "28/05/2026", dias: 2, intencao: "Homenagem a mae",
-    primeira: false, cob: false, desc: "Rosa delicada com nomes em caligrafia",
-    stars: 0, starReason: "", consent: null, nps: null, obs: "", val_a: 0, val_c: 0,
-    pgto: "", orcamento: false, contrato: false, faltas: 0, indicacoes: 0, credito: 0,
-    hist: [
-      { t: "Aura iniciou atendimento", d: "28/05 14h" },
-      { t: "Q3 definido", d: "28/05 14h22" },
-      { t: "Consultoria agendada 04/06 as 14h", d: "28/05 14h35" }
-    ],
-    pv: []
-  },
-  {
-    id: 2, nome: "Carlos Mendes", tel: "(27) 99723-9900", email: "", insta: "@c.mendes",
-    qual: "Q2", artista: "camilla", etapa: "qualificacao", estilo: "Black Work",
-    regiao: "Costela", tam: "Grande", orig: "Trafego Pago", cri: "Stories",
-    data: "27/05/2026", dias: 3, intencao: "Estetica pura", primeira: true, cob: false,
-    desc: "Mandala geometrica fechando costela", stars: 0, starReason: "", consent: null,
-    nps: null, obs: "", val_a: 0, val_c: 0, pgto: "", orcamento: false, contrato: false,
-    faltas: 0, indicacoes: 0, credito: 0,
-    hist: [
-      { t: "Aura iniciou atendimento", d: "27/05 10h" },
-      { t: "Q2 definido", d: "27/05 10h40" }
-    ],
-    pv: []
-  },
-  {
-    id: 3, nome: "Fernanda Costa", tel: "(27) 99600-4411", email: "fer@email.com",
-    insta: "", qual: "Q1", artista: "abraao", etapa: "qualificacao", estilo: "Realismo",
-    regiao: "Panturrilha", tam: "Grande", orig: "Indicação", cri: "",
-    data: "25/05/2026", dias: 5, intencao: "Estetica pura", primeira: false, cob: false,
-    desc: "Retrato realista de cachorro", stars: 0, starReason: "", consent: null,
-    nps: null, obs: "", val_a: 0, val_c: 0, pgto: "", orcamento: false, contrato: false,
-    faltas: 0, indicacoes: 0, credito: 0,
-    hist: [
-      { t: "Aura iniciou atendimento", d: "25/05 09h" },
-      { t: "Q1 nutricao iniciada", d: "25/05 09h30" }
-    ],
-    pv: []
-  },
-  {
-    id: 4, nome: "Rafael Sousa", tel: "(27) 99501-7788", email: "rafa@email.com",
-    insta: "@rafa.s", qual: "Q3", artista: "abraao", etapa: "sessao_agend",
-    estilo: "Surrealismo", regiao: "Braco inteiro", tam: "Fechamento", orig: "Trafego Pago",
-    cri: "Reels", data: "20/05/2026", dias: 10, intencao: "Autoral", primeira: false,
-    cob: false, desc: "Manga surrealista com relogio derretido", stars: 0, starReason: "",
-    consent: null, nps: null, obs: "", val_a: 0, val_c: 0, pgto: "", orcamento: true,
-    contrato: false, faltas: 0, indicacoes: 0, credito: 0,
-    hist: [
-      { t: "Aura iniciou atendimento", d: "20/05 16h" },
-      { t: "Q3 definido", d: "20/05 16h45" },
-      { t: "Consultoria realizada", d: "23/05 15h" },
-      { t: "Sessão 1 agendada: 10/06 as 09h", d: "23/05 15h30" }
-    ],
-    pv: []
-  },
-  {
-    id: 5, nome: "Juliana Ferreira", tel: "(27) 99388-2255", email: "ju@email.com",
-    insta: "@ju.ferro", qual: "Q3", artista: "camilla", etapa: "tatuado",
-    estilo: "Fine Line Botanico", regiao: "Clavicula", tam: "Medio", orig: "Instagram Organico",
-    cri: "Post", data: "10/05/2026", dias: 20, intencao: "Autoestima", primeira: true,
-    cob: false, desc: "Ramo de lavanda com traco fino", stars: 5, starReason: "Excelente",
-    consent: true, nps: 10, obs: "Cliente incrivel", val_a: 800, val_c: 800, pgto: "Pix",
-    orcamento: false, contrato: true, faltas: 0, indicacoes: 0, credito: 0,
-    hist: [
-      { t: "Aura iniciou atendimento", d: "10/05 11h" },
-      { t: "Q3", d: "10/05 11h30" },
-      { t: "Consultoria realizada", d: "14/05 10h" },
-      { t: "Sessão realizada", d: "22/05 09h" },
-      { t: "NPS: 10", d: "23/05" }
-    ],
-    pv: [
-      { l: "Dia da sessao", s: "done" },
-      { l: "D+1 Cicatrizacao", s: "done" },
-      { l: "D+7 Saude", s: "pending" },
-      { l: "D+30 Garantia", s: "future" },
-      { l: "1 Ano", s: "future" }
-    ]
-  },
-  {
-    id: 6, nome: "Pedro Araujo", tel: "(27) 99200-6644", email: "pedro@email.com",
-    insta: "@pedro.a", qual: "Q2", artista: "abraao", etapa: "lead", estilo: "Tribal",
-    regiao: "Ombro", tam: "Medio", orig: "Google", cri: "", data: "29/05/2026", dias: 1,
-    intencao: "Identidade", primeira: false, cob: true, desc: "Tribal cobrindo tattoo antiga",
-    stars: 0, starReason: "", consent: null, nps: null, obs: "", val_a: 0, val_c: 0,
-    pgto: "", orcamento: false, contrato: false, faltas: 0, indicacoes: 0, credito: 0,
-    hist: [{ t: "Aura iniciou atendimento - cobertura", d: "29/05 08h" }],
-    pv: []
-  },
-  {
-    id: 7, nome: "Amanda Oliveira", tel: "(27) 99111-3377", email: "amanda@email.com",
-    insta: "@amanda.o", qual: "Q3", artista: "camilla", etapa: "pos_venda",
-    estilo: "Aquarela", regiao: "Costas", tam: "Grande", orig: "Trafego Pago",
-    cri: "Feed", data: "01/05/2026", dias: 29, intencao: "Transformacao", primeira: false,
-    cob: false, desc: "Borboleta em aquarela nas costas", stars: 4, starReason: "Boa experiencia",
-    consent: true, nps: 9, obs: "", val_a: 2200, val_c: 2200, pgto: "Cartao",
-    orcamento: false, contrato: true, faltas: 0, indicacoes: 0, credito: 0,
-    hist: [
-      { t: "Aura iniciou atendimento", d: "01/05 13h" },
-      { t: "Sessão realizada", d: "15/05 10h" }
-    ],
-    pv: [
-      { l: "Dia da sessao", s: "done" },
-      { l: "D+1 Cicatrizacao", s: "done" },
-      { l: "D+7 Saude", s: "done" },
-      { l: "D+30 Garantia", s: "pending" },
-      { l: "1 Ano", s: "future" }
-    ]
-  },
-  {
-    id: 8, nome: "Lucas Barros", tel: "(27) 99044-8811", email: "lucas@email.com",
-    insta: "@lucasb", qual: "Q1", artista: "abraao", etapa: "hibernacao",
-    estilo: "Geometrico", regiao: "Pescoco", tam: "Pequeno", orig: "Instagram Organico",
-    cri: "", data: "15/04/2026", dias: 45, intencao: "Estetica", primeira: false, cob: false,
-    desc: "Figura geometrica no pescoco", stars: 0, starReason: "", consent: null,
-    nps: null, obs: "", val_a: 0, val_c: 0, pgto: "", orcamento: false, contrato: false,
-    faltas: 0, indicacoes: 0, credito: 0,
-    hist: [
-      { t: "Aura iniciou atendimento", d: "15/04 17h" },
-      { t: "Q1", d: "15/04 17h20" },
-      { t: "Hibernação", d: "14/05" }
-    ],
-    pv: []
-  },
-  {
-    id: 9, nome: "Beatriz Souza", tel: "(27) 99777-5544", email: "bia@email.com",
-    insta: "@bia.souza", qual: "Q3", artista: "camilla", etapa: "lista_espera",
-    estilo: "Fine Line", regiao: "Costela", tam: "Medio", orig: "Indicação", cri: "",
-    data: "28/05/2026", dias: 2, intencao: "Autoestima", primeira: true, cob: false,
-    desc: "Frase minimalista em fine line", stars: 0, starReason: "", consent: null,
-    nps: null, obs: "Agenda lotada", val_a: 0, val_c: 0, pgto: "", orcamento: false,
-    contrato: false, faltas: 0, indicacoes: 0, credito: 0,
-    hist: [
-      { t: "Aura iniciou atendimento", d: "28/05 15h" },
-      { t: "Q3 - lista de espera", d: "28/05 15h40" }
-    ],
-    pv: []
-  },
-  {
-    id: 10, nome: "Sofia Martins", tel: "(27) 99888-1122", email: "", insta: "",
-    qual: "Q0", artista: "camilla", etapa: "qualificacao", estilo: "", regiao: "",
-    tam: "", orig: "Presencial", cri: "", data: "29/05/2026", dias: 1, intencao: "",
-    primeira: true, cob: false, desc: "Veio acompanhar a amiga.", stars: 0, starReason: "",
-    consent: null, nps: null, obs: "Acompanhou sessao da Juliana", val_a: 0, val_c: 0,
-    pgto: "", orcamento: false, contrato: false, faltas: 0, indicacoes: 0, credito: 0,
-    hist: [{ t: "Cadastro manual - acompanhante", d: "29/05 11h" }],
-    pv: []
-  },
-];
+const CLIENTS_INIT: any[] = [];
 
 const FIN_INIT: any[] = [];
 
@@ -931,13 +766,12 @@ function isAniversMes(nasc: string): boolean {
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 export default function CRM() {
   // ── LOGIN ──
-  const [logado, setLogado] = useState(() => {
-    const t = localStorage.getItem("inq_auth");
-    if (!t) return false;
-    return (Date.now() - Number(t)) < 8 * 60 * 60 * 1000;
-  });
-  const [loginSenha, setLoginSenha] = useState("");
-  const [loginErro, setLoginErro] = useState(false);
+  const [logado, setLogado] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
 
   // ── TOUR ──
   const [tourAtivo, setTourAtivo] = useState(false);
@@ -1026,16 +860,16 @@ export default function CRM() {
   const [agView, setAgView] = useState("week");
   const [agDate, setAgDate] = useState(new Date());
   const [horarios, setHorarios] = useState([
-    { dia: "Segunda", aberto: true, ini: "09:00", fim: "19:00" },
-    { dia: "Terca", aberto: true, ini: "09:00", fim: "19:00" },
-    { dia: "Quarta", aberto: true, ini: "09:00", fim: "19:00" },
-    { dia: "Quinta", aberto: true, ini: "09:00", fim: "19:00" },
-    { dia: "Sexta", aberto: true, ini: "09:00", fim: "19:00" },
-    { dia: "Sabado", aberto: true, ini: "10:00", fim: "17:00" },
-    { dia: "Domingo", aberto: false, ini: "", fim: "" },
+    { dia: "Segunda", aberto: true, ini: "09:00", fim: "19:00", almoco: false, almoco_ini: "12:00", almoco_fim: "13:00" },
+    { dia: "Terca", aberto: true, ini: "09:00", fim: "19:00", almoco: false, almoco_ini: "12:00", almoco_fim: "13:00" },
+    { dia: "Quarta", aberto: true, ini: "09:00", fim: "19:00", almoco: false, almoco_ini: "12:00", almoco_fim: "13:00" },
+    { dia: "Quinta", aberto: true, ini: "09:00", fim: "19:00", almoco: false, almoco_ini: "12:00", almoco_fim: "13:00" },
+    { dia: "Sexta", aberto: true, ini: "09:00", fim: "19:00", almoco: false, almoco_ini: "12:00", almoco_fim: "13:00" },
+    { dia: "Sabado", aberto: true, ini: "10:00", fim: "17:00", almoco: false, almoco_ini: "12:00", almoco_fim: "13:00" },
+    { dia: "Domingo", aberto: false, ini: "", fim: "", almoco: false, almoco_ini: "", almoco_fim: "" },
   ]);
   const [form, setForm] = useState({
-    nome: "", tel: "", email: "", insta: "", artista: artists.find(a => a.ativo)?.id || "abraao",
+    nome: "", tel: "", email: "", insta: "", artista: artists.find(a => a.ativo)?.id || "",
     estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico",
     qual: "Q2", primeira: false, cob: false, intencao: "", nascimento: ""
   });
@@ -1044,14 +878,14 @@ export default function CRM() {
     nome: "", role: "guest", com: 50, cor: "#C9A84C", insta: "", email: "", tel: ""
   });
   const [agForm, setAgForm] = useState({
-    title: "", tipo: "cons_abraao", date: new Date().toISOString().split("T")[0], start: 9, end: 11, desc: ""
+    title: "", tipo: "cons_" + (artists[0]?.id || ""), date: new Date().toISOString().split("T")[0], start: 9, end: 11, desc: ""
   });
   const [editingEvent, setEditingEvent] = useState<any>(null);
   const [agClientSearch, setAgClientSearch] = useState("");
   const [agClientVinc, setAgClientVinc] = useState<any>(null);
   const [agClientDropdown, setAgClientDropdown] = useState(false);
   const [showQuickClient, setShowQuickClient] = useState(false);
-  const [quickClientForm, setQuickClientForm] = useState({ nome: "", tel: "", artista: "abraao", estilo: "", regiao: "" });
+  const [quickClientForm, setQuickClientForm] = useState({ nome: "", tel: "", artista: artists[0]?.id || "", estilo: "", regiao: "" });
   const [showPostAg, setShowPostAg] = useState(false);
   const [postAgNome, setPostAgNome] = useState("");
   const [showEstiloDD, setShowEstiloDD] = useState(false);
@@ -1116,6 +950,17 @@ export default function CRM() {
     el.textContent = S;
     document.head.appendChild(el);
     return () => document.head.removeChild(el);
+  }, []);
+
+  // ─── SUPABASE AUTH ────────────────────────────────────────────────────────
+  useEffect(() => {
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session) setLogado(true);
+    });
+    const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+      setLogado(!!session);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   // ─── CARREGAR DADOS DO SUPABASE ──────────────────────────────────────────
@@ -1254,8 +1099,8 @@ export default function CRM() {
       artists.forEach(a => {
         if (a.cor) root.style.setProperty("--artist-" + a.id, a.cor);
       });
-      const ab = artists.find(a => a.id === "abraao")?.cor || "#4A9EBF";
-      const ca = artists.find(a => a.id === "camilla")?.cor || "#9B6BB5";
+      const ab = artists[0]?.cor || "#4A9EBF";
+      const ca = artists[1]?.cor || "#9B6BB5";
       root.style.setProperty("--ab", ab);
       root.style.setProperty("--ca", ca);
     }
@@ -1367,7 +1212,7 @@ export default function CRM() {
           setAgClientVinc(cli || null);
           setAgClientSearch("");
           setSessoesExtras([]);
-          setAgForm({ title: cli?.nome || "", desc: "", tipo: "cons_" + (cli?.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11, sinal: "", sinalPago: false } as any);
+          setAgForm({ title: cli?.nome || "", desc: "", tipo: "cons_" + (cli?.artista || artists[0]?.id || ""), date: new Date().toISOString().split("T")[0], start: 9, end: 11, sinal: "", sinalPago: false } as any);
           setShowAgForm(true);
         }, 200);
       }
@@ -1383,7 +1228,7 @@ export default function CRM() {
           setAgClientVinc(cli || null);
           setAgClientSearch("");
           setSessoesExtras([]);
-          setAgForm({ title: cli?.nome || "", desc: "", tipo: "sess_" + (cli?.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11, sinal: "", sinalPago: false } as any);
+          setAgForm({ title: cli?.nome || "", desc: "", tipo: "sess_" + (cli?.artista || artists[0]?.id || ""), date: new Date().toISOString().split("T")[0], start: 9, end: 11, sinal: "", sinalPago: false } as any);
           setShowAgForm(true);
         }, 200);
       }
@@ -1656,7 +1501,7 @@ export default function CRM() {
     }
     setShowForm(false);
     setFormAg({ agendar: false, data: "", hora: "09:00", tipo: "cons" });
-    setForm({ nome: "", tel: "", email: "", insta: "", artista: "abraao", estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico", qual: "Q2", primeira: false, cob: false, intencao: "", nascimento: "" });
+    setForm({ nome: "", tel: "", email: "", insta: "", artista: "", estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico", qual: "Q2", primeira: false, cob: false, intencao: "", nascimento: "" });
     addLog(`Cliente "${nc.nome}" cadastrado`);
   };
 
@@ -1667,7 +1512,8 @@ export default function CRM() {
       role: artForm.role,
       com: artForm.com,
       cor: artForm.cor,
-      insta: artForm.insta || ""
+      insta: artForm.insta || "",
+      ativo: true
     };
     const { data: artData, error: artError } = await sb.from("artistas").insert(row).select().single();
     if (artError) {
@@ -1704,7 +1550,7 @@ export default function CRM() {
     }
     const row: any = {
       titulo: agForm.title,
-      artista: agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || "abraao",
+      artista: agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || artists[0]?.id || "",
       data: agForm.date,
       hora: String(agForm.start).padStart(2, "0") + ":00",
       hora_fim: String(agForm.end).padStart(2, "0") + ":00",
@@ -1745,7 +1591,7 @@ export default function CRM() {
       const sinalPagoEdit = !!(agForm as any).sinalPago;
       const sinalJaLancado = !!(editingEvent as any).sinal_pago;
       if (sinalValEdit > 0 && sinalPagoEdit && !sinalJaLancado && agClientVinc) {
-        const artistaSinalEdit = agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || "abraao";
+        const artistaSinalEdit = agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || artists[0]?.id || "";
         const artistaObjEdit = artists.find(a => a.id === artistaSinalEdit);
         const comSinalEdit = artistaObjEdit?.com || 0;
         const { data: fdSinalEdit, error: errSinalEdit } = await sb.from("financeiro").insert({
@@ -1815,7 +1661,7 @@ export default function CRM() {
       }
       // Lançar sinal no financeiro se já pago
       if (sinalVal > 0 && sinalPago) {
-        const artistaSinal = agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || "abraao";
+        const artistaSinal = agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || artists[0]?.id || "";
         const artistaObjSinal = artists.find(a => a.id === artistaSinal);
         const comSinal = artistaObjSinal?.com || 0;
         const { data: fdSinal, error: errSinal } = await sb.from("financeiro").insert({
@@ -1834,7 +1680,7 @@ export default function CRM() {
       }
       // Salvar sessões extras (2ª, 3ª...)
       if (sessoesExtras.length > 0) {
-        const artId = agForm.tipo.replace("cons_","").replace("sess_","") || "abraao";
+        const artId = agForm.tipo.replace("cons_","").replace("sess_","") || artists[0]?.id || "";
         for (let i = 0; i < sessoesExtras.length; i++) {
           const sx = sessoesExtras[i];
           if (!sx.date) continue;
@@ -1878,7 +1724,7 @@ export default function CRM() {
       // Reinsere no banco
       const row = {
         titulo: undoEvento.title,
-        artista: undoEvento.artista || undoEvento.tipo?.replace("cons_","").replace("sess_","").replace("bloq_","") || "abraao",
+        artista: undoEvento.artista || undoEvento.tipo?.replace("cons_","").replace("sess_","").replace("bloq_","") || artists[0]?.id || "",
         data: undoEvento.date,
         hora: String(undoEvento.start || 9).padStart(2,"0") + ":00",
         tipo: undoEvento.tipo,
@@ -1900,12 +1746,17 @@ export default function CRM() {
 
   const pk = dateSel || segSel;
   const pmsg = pk ? MSGS[pk] : null;
+  const artistSegs = useMemo(() =>
+    artists.map((a: any) => ({ id: a.id, label: "Clientes de " + a.nome, desc: "Direcionados a " + a.nome.split(" ")[0], icon: "🎨", f: (c: any) => c.artista === a.id })),
+    [artists]
+  );
+  const segsAll = useMemo(() => [...SEGS, ...artistSegs], [artistSegs]);
   const dest = useMemo(() => {
     if (!segSel && !dateSel) return [];
     if (dateSel) return clients;
-    const sg = SEGS.find(x => x.id === segSel);
+    const sg = segsAll.find((x: any) => x.id === segSel);
     return sg ? clients.filter(sg.f) : [];
-  }, [segSel, dateSel, clients]);
+  }, [segSel, dateSel, clients, segsAll]);
 
   const sc = sel ? clients.find((c: any) => c.id === sel.id) : null;
   const stats = {
@@ -1954,7 +1805,7 @@ export default function CRM() {
     }
     return MONTHS[agDate.getMonth()] + " " + agDate.getFullYear();
   };
-  const aName = (id: string) => artists.find(a => a.id === id)?.nome || (id === "abraao" ? "Abraão" : "Camilla");
+  const aName = (id: string) => artists.find(a => a.id === id)?.nome || id;
   const aColor = (id: string) => artists.find(a => a.id === id)?.cor || "#C9A84C";
   const aClass = (id: string) => "";
   const aStyle = (id: string) => {
@@ -1978,13 +1829,29 @@ export default function CRM() {
 
   // ── LOGIN ──
   if (!logado) {
-    const senha = import.meta.env.VITE_APP_PASSWORD || "";
+    const handleAuth = async () => {
+      setAuthError("");
+      setAuthLoading(true);
+      try {
+        if (authMode === "login") {
+          const { error } = await sb.auth.signInWithPassword({ email: authEmail, password: authPassword });
+          if (error) setAuthError(error.message);
+        } else {
+          const { error } = await sb.auth.signUp({ email: authEmail, password: authPassword });
+          if (error) setAuthError(error.message);
+          else setAuthError("Verifique seu e-mail para confirmar o cadastro.");
+        }
+      } catch (e: any) {
+        setAuthError(e.message || "Erro inesperado.");
+      }
+      setAuthLoading(false);
+    };
     return (
       <div style={{ minHeight: "100vh", background: "#0E0E0E", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 32, fontFamily: "'DM Sans',sans-serif" }}>
         <style>{S}</style>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
           <div style={{ width: 80, height: 80, borderRadius: "50%", background: "#C9A84C", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Cormorant Garamond',serif", fontSize: 36, fontWeight: 700, color: "#000", boxShadow: "0 0 40px rgba(201,168,76,.25)" }}>
-            {studioName ? studioName[0].toUpperCase() : "C"}
+            {studioName ? studioName[0].toUpperCase() : "S"}
           </div>
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: "#C9A84C", letterSpacing: ".08em" }}>{studioName}</div>
@@ -1992,42 +1859,53 @@ export default function CRM() {
           </div>
         </div>
         <div style={{ background: "#161616", border: "1px solid rgba(201,168,76,0.15)", borderRadius: 12, padding: "28px 32px", width: "min(360px, 90vw)", display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: "#E8E2D9", textAlign: "center" }}>Acesso Restrito</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>Senha</label>
-            <input
-              className="fi"
-              type="password"
-              placeholder="••••••••"
-              value={loginSenha}
-              onChange={e => { setLoginSenha(e.target.value); setLoginErro(false); }}
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  if (loginSenha === senha) {
-                    localStorage.setItem("inq_auth", String(Date.now()));
-                    setLogado(true);
-                  } else {
-                    setLoginErro(true);
-                  }
-                }
-              }}
-              autoFocus
-              style={{ fontSize: 16, letterSpacing: ".1em" }}
-            />
-            {loginErro && <div style={{ fontSize: 11, color: "#C0392B", marginTop: 2 }}>Senha incorreta. Tente novamente.</div>}
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#E8E2D9", textAlign: "center" }}>
+            {authMode === "login" ? "Acesso Restrito" : "Criar Conta"}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>E-mail</label>
+              <input
+                className="fi"
+                type="email"
+                placeholder="seu@email.com"
+                value={authEmail}
+                onChange={e => { setAuthEmail(e.target.value); setAuthError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") handleAuth(); }}
+                autoFocus
+                style={{ fontSize: 14 }}
+              />
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>Senha</label>
+              <input
+                className="fi"
+                type="password"
+                placeholder="••••••••"
+                value={authPassword}
+                onChange={e => { setAuthPassword(e.target.value); setAuthError(""); }}
+                onKeyDown={e => { if (e.key === "Enter") handleAuth(); }}
+                style={{ fontSize: 16, letterSpacing: ".1em" }}
+              />
+            </div>
+            {authError && (
+              <div style={{ fontSize: 11, color: authError.includes("Verifique") ? "#27AE60" : "#C0392B", marginTop: 2 }}>
+                {authError}
+              </div>
+            )}
           </div>
           <button
-            onClick={() => {
-              if (loginSenha === senha) {
-                localStorage.setItem("inq_auth", String(Date.now()));
-                setLogado(true);
-              } else {
-                setLoginErro(true);
-              }
-            }}
-            style={{ background: "#C9A84C", color: "#000", border: "none", borderRadius: 8, padding: "11px 0", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: ".04em" }}>
-            Entrar →
+            onClick={handleAuth}
+            disabled={authLoading}
+            style={{ background: authLoading ? "#666" : "#C9A84C", color: "#000", border: "none", borderRadius: 8, padding: "11px 0", fontSize: 13, fontWeight: 700, cursor: authLoading ? "not-allowed" : "pointer", fontFamily: "'DM Sans',sans-serif", letterSpacing: ".04em" }}>
+            {authLoading ? "Aguarde..." : authMode === "login" ? "Entrar →" : "Criar Conta →"}
           </button>
+          <div style={{ textAlign: "center" }}>
+            <button onClick={() => { setAuthMode(authMode === "login" ? "signup" : "login"); setAuthError(""); }}
+              style={{ background: "none", border: "none", fontSize: 12, color: "#8A8070", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textDecoration: "underline" }}>
+              {authMode === "login" ? "Criar nova conta" : "Já tenho conta — entrar"}
+            </button>
+          </div>
         </div>
         <div style={{ fontSize: 10, color: "#303030", letterSpacing: ".1em", textTransform: "uppercase" }}>© {new Date().getFullYear()} {studioName}</div>
       </div>
@@ -2310,6 +2188,7 @@ export default function CRM() {
             )}
             <button className="theme-btn" onClick={() => setDark(d => !d)}>{dark ? "☀️" : "🌙"}</button>
             <button className="theme-btn" onClick={() => setShowHistorico(true)} title="Histórico de ações">📋</button>
+            <button className="theme-btn" title="Sair" onClick={async () => { await sb.auth.signOut(); setLogado(false); }} style={{ fontSize: 13 }}>🚪</button>
             <button className="btn-new" onClick={() => setShowForm(true)}>+ Novo Cliente</button>
           </div>
         </div>
@@ -2668,7 +2547,7 @@ export default function CRM() {
                   </button>
                 ))}
               </div>
-              <button className="btn-new" style={{ marginLeft: "auto" }} onClick={() => { setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); setSessoesExtras([]); setAgForm({ title: "", desc: "", tipo: "cons_abraao", date: new Date().toISOString().split("T")[0], start: 9, end: 11, sinal: "", sinalPago: false } as any); setShowAgForm(true); }}>+ Evento</button>
+              <button className="btn-new" style={{ marginLeft: "auto" }} onClick={() => { setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); setSessoesExtras([]); setAgForm({ title: "", desc: "", tipo: "cons_" + (artists[0]?.id || ""), date: new Date().toISOString().split("T")[0], start: 9, end: 11, sinal: "", sinalPago: false } as any); setShowAgForm(true); }}>+ Evento</button>
             </div>
             <div className="ag-leg">
               {artists.filter(a => a.ativo).map(a => (
@@ -2732,7 +2611,7 @@ export default function CRM() {
                       const occupied = agEvents.some(e => e.date === ds && e.start < h && e.end > h);
                       return (
                         <div key={h + "-" + di} className="wc" style={{ position: "relative", overflow: "visible" }}
-                          onClick={() => { setAgDate(d); setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); setSessoesExtras([]); setAgForm({ title: "", desc: "", tipo: "cons_abraao", date: ds, start: h, end: h + 2, sinal: "", sinalPago: false } as any); setShowAgForm(true); }}>
+                          onClick={() => { setAgDate(d); setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); setSessoesExtras([]); setAgForm({ title: "", desc: "", tipo: "cons_" + (artists[0]?.id || ""), date: ds, start: h, end: h + 2, sinal: "", sinalPago: false } as any); setShowAgForm(true); }}>
                           {evs.map((e, ei) => {
                             const eStart = isNaN(e.start) || e.start == null ? 9 : Number(e.start);
                             const eEnd = isNaN(e.end) || e.end == null ? eStart + 2 : Number(e.end);
@@ -2789,7 +2668,7 @@ export default function CRM() {
                       <div key={h} className="dr">
                         <div className="dtime">{h}:00</div>
                         <div className="dslot" style={{ position: "relative", minHeight: 46 }}
-                          onClick={() => { if (!evs.length && !occupied) { setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); setSessoesExtras([]); setAgForm({ title: "", desc: "", tipo: "cons_abraao", date: ds, start: h, end: h + 2, sinal: "", sinalPago: false } as any); setShowAgForm(true); } }}>
+                          onClick={() => { if (!evs.length && !occupied) { setEditingEvent(null); setAgClientVinc(null); setAgClientSearch(""); setSessoesExtras([]); setAgForm({ title: "", desc: "", tipo: "cons_" + (artists[0]?.id || ""), date: ds, start: h, end: h + 2, sinal: "", sinalPago: false } as any); setShowAgForm(true); } }}>
                           {evs.map(e => {
                             const eStart = isNaN(e.start) || e.start == null ? 9 : Number(e.start);
                             const eEnd = isNaN(e.end) || e.end == null ? eStart + 2 : Number(e.end);
@@ -4104,10 +3983,7 @@ export default function CRM() {
                 },
                 {
                   titulo: "🎨 Por Artista", subtitulo: "Comunicação personalizada de cada artista",
-                  itens: [
-                    { id: "abraao", icon: "🔵", label: "Clientes do Abraão", desc: "Mensagem com a voz do Abraão", f: (c: any) => c.artista === "abraao" },
-                    { id: "camilla", icon: "🟣", label: "Clientes da Camilla", desc: "Mensagem com a voz da Camilla", f: (c: any) => c.artista === "camilla" },
-                  ]
+                  itens: artists.map((a: any) => ({ id: a.id, icon: "🎨", label: "Clientes de " + a.nome, desc: "Mensagem com a voz de " + a.nome.split(" ")[0], f: (c: any) => c.artista === a.id }))
                 },
                 {
                   titulo: "👥 Base completa", subtitulo: "Para toda a base cadastrada",
@@ -5383,7 +5259,7 @@ export default function CRM() {
                               style={{ padding: "9px 12px", cursor: "pointer", borderBottom: "1px solid var(--br)", display: "flex", justifyContent: "space-between", alignItems: "center" }}
                               onMouseDown={() => {
                                 const tipoBase = agForm.tipo.startsWith("sess") ? "sess_" : agForm.tipo.startsWith("cons") ? "cons_" : "sess_";
-                                const artId = c.artista || artists[0]?.id || "abraao";
+                                const artId = c.artista || artists[0]?.id || "";
                                 setAgClientVinc(c);
                                 setAgForm({ ...agForm, title: c.nome, tipo: tipoBase + artId });
                                 setAgClientSearch("");
@@ -5503,7 +5379,7 @@ export default function CRM() {
                       const active = agForm.tipo.startsWith(t);
                       return (
                         <div key={t} onMouseDown={() => {
-                          const artist = artists.find(a => agForm.tipo.includes(a.id))?.id || (artists[0]?.id || "abraao");
+                          const artist = artists.find(a => agForm.tipo.includes(a.id))?.id || (artists[0]?.id || "");
                           const novoTipo = t === "piercing" ? "piercing" : t + "_" + artist;
                           const novaEtapa = t === "cons" ? "cons_agendada" : t === "sess" ? "sessao_agend" : null;
                           setAgForm({ ...agForm, tipo: novoTipo });
@@ -6115,7 +5991,7 @@ export default function CRM() {
                               setEditingEvent(null);
                               setAgClientVinc(cliLocal);
                               setAgClientSearch("");
-                              setAgForm({ title: cliLocal.nome, desc: "", tipo: "sess_" + (cliLocal.artista || "abraao"), date: new Date().toISOString().split("T")[0], start: 9, end: 11 } as any);
+                              setAgForm({ title: cliLocal.nome, desc: "", tipo: "sess_" + (cliLocal.artista || artists[0]?.id || ""), date: new Date().toISOString().split("T")[0], start: 9, end: 11 } as any);
                               setSessoesExtras([]);
                               setShowAgForm(true);
                             }, 600);
@@ -6226,7 +6102,7 @@ export default function CRM() {
                 <div style={{ display: "flex", gap: 6 }}>
                   <button onClick={() => {
                     const cli = clients.find(c => c.id === confirmMover.cid);
-                    const artId = cli?.artista || artists[0]?.id || "abraao";
+                    const artId = cli?.artista || artists[0]?.id || "";
                     const tipoDefault = confirmMover.stage.id === "cons_agendada" ? "cons_" + artId : "sess_" + artId;
                     setConfirmMover(null);
                     setEditingEvent(null);
@@ -6667,7 +6543,7 @@ export default function CRM() {
                   const v = Number(orcamentoModal.valor.replace(/\./g,"").replace(",","."));
                   if (v > 0) {
                     const cliente = clients.find(c => c.id === orcamentoModal.cid);
-                    const artista = cliente?.artista || "abraao";
+                    const artista = cliente?.artista || artists[0]?.id || "";
                     const artObj = artists.find(a => a.id === artista);
                     const comPct = artObj?.com || 60;
                     // Atualiza val_a e valorTotal dentro do projeto ativo
@@ -6934,6 +6810,9 @@ export default function CRM() {
                     <div className="stit">Endereço</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                       <div className="fg2">
+                        <div className="fi2" style={{ gridColumn: "1 / -1" }}><div className="fil">Endereço Completo</div><input className="ef" value={studioEndereco} placeholder="Endereço completo" onChange={e => setStudioEndereco(e.target.value)} /></div>
+                      </div>
+                      <div className="fg2">
                         <div className="fi2" style={{ gridColumn: "1 / -1" }}><div className="fil">Rua / Logradouro</div><input className="ef" value={studioRua} placeholder="Rua Principal" onChange={e => { const v = e.target.value; setStudioRua(v.replace(/(^|\s)(\S)/g, (_: string, sp: string, ch: string) => sp + ch.toUpperCase())); }} /></div>
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 2fr", gap: 8 }}>
@@ -6955,10 +6834,10 @@ export default function CRM() {
                             } catch {}
                           }
                         }} /></div>
-                        <div className="fi2"><div className="fil">Bairro</div><input className="ef" value={studioBairro} placeholder="Centro" onChange={e => setStudioBairro(e.target.value)} /></div>
+                        <div className="fi2"><div className="fil">Bairro</div><input className="ef" value={studioBairro} placeholder="Centro" onChange={e => { const v = e.target.value; setStudioBairro(v.charAt(0).toUpperCase() + v.slice(1)); }} /></div>
                       </div>
                       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 80px 1fr", gap: 8 }}>
-                        <div className="fi2"><div className="fil">Cidade</div><input className="ef" value={studioCity} onChange={e => setStudioCity(e.target.value)} /></div>
+                        <div className="fi2"><div className="fil">Cidade</div><input className="ef" value={studioCity} onChange={e => { const v = e.target.value; setStudioCity(v.charAt(0).toUpperCase() + v.slice(1)); }} /></div>
                         <div className="fi2"><div className="fil">Estado</div>
                           <select className="ef" value={studioEstado} onChange={e => setStudioEstado(e.target.value)} style={{ fontFamily: "'DM Sans',sans-serif" }}>
                             <option value="">UF</option>
@@ -6966,7 +6845,7 @@ export default function CRM() {
                           </select>
                         </div>
                         <div className="fi2"><div className="fil">País</div><input className="ef" value={studioPais} onChange={e => setStudioPais(e.target.value)} /></div>
-                        <div className="fi2"><div className="fil">Complemento</div><input className="ef" value={studioComplemento} placeholder="Sala 2, Loja A..." onChange={e => setStudioComplemento(e.target.value)} /></div>
+                        <div className="fi2"><div className="fil">Complemento</div><input className="ef" value={studioComplemento} placeholder="Sala 2, Loja A..." onChange={e => { const v = e.target.value; setStudioComplemento(v.charAt(0).toUpperCase() + v.slice(1)); }} /></div>
                       </div>
                     </div>
                   </div>
@@ -6981,6 +6860,11 @@ export default function CRM() {
                             {["Instagram","TikTok","YouTube","Facebook","Pinterest","Behance","LinkedIn","X/Twitter"].map(p => <option key={p} value={p}>{p}</option>)}
                           </select>
                           <input className="ef" value={rede.usuario} placeholder={["Instagram","TikTok","X/Twitter","Pinterest"].includes(rede.plataforma) ? "@usuario" : "URL ou usuário"}
+                            onFocus={() => {
+                              if (["Instagram","TikTok","X/Twitter","Pinterest"].includes(rede.plataforma) && !rede.usuario) {
+                                setStudioRedes(p => p.map((r, i) => i === idx ? { ...r, usuario: "@" } : r));
+                              }
+                            }}
                             onChange={e => {
                               let val = e.target.value;
                               if (["Instagram","TikTok","X/Twitter","Pinterest"].includes(rede.plataforma)) {
@@ -7001,22 +6885,40 @@ export default function CRM() {
                   </div>
                   <div>
                     <div className="stit">Horários de Funcionamento</div>
-                    <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 8 }}>A agente de IA trabalha 24 horas. Selecione os horários em que a agente pode marcar seus clientes.</div>
+                    <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 8 }}>A agente de IA trabalha 24h — selecione os horários em que ela pode agendar seus clientes.</div>
                     {horarios.map((h, i) => (
-                      <div key={h.dia} className="hr-row">
-                        <div className="hr-dia">{h.dia}</div>
-                        <div className="hr-toggle" style={{ background: h.aberto ? "var(--q3)" : "var(--dk5)" }}
-                          onClick={() => setHorarios(p => p.map((x, j) => j === i ? { ...x, aberto: !x.aberto } : x))}>
-                          <div className="hr-toggle-dot" style={{ left: h.aberto ? "18px" : "2px" }} />
-                        </div>
-                        {h.aberto ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-                            <input className="fi" type="time" value={h.ini} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, ini: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
-                            <span style={{ fontSize: 12, color: "var(--tx2)" }}>às</span>
-                            <input className="fi" type="time" value={h.fim} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, fim: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
+                      <div key={h.dia} style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 4 }}>
+                        <div className="hr-row">
+                          <div className="hr-dia">{h.dia}</div>
+                          <div className="hr-toggle" style={{ background: h.aberto ? "var(--q3)" : "var(--dk5)" }}
+                            onClick={() => setHorarios(p => p.map((x, j) => j === i ? { ...x, aberto: !x.aberto } : x))}>
+                            <div className="hr-toggle-dot" style={{ left: h.aberto ? "18px" : "2px" }} />
                           </div>
-                        ) : (
-                          <span style={{ fontSize: 12, color: "var(--tx3)", fontStyle: "italic", flex: 1 }}>Fechado</span>
+                          {h.aberto ? (
+                            <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
+                              <input className="fi" type="time" value={h.ini} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, ini: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
+                              <span style={{ fontSize: 12, color: "var(--tx2)" }}>às</span>
+                              <input className="fi" type="time" value={h.fim} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, fim: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
+                            </div>
+                          ) : (
+                            <span style={{ fontSize: 12, color: "var(--tx3)", fontStyle: "italic", flex: 1 }}>Fechado</span>
+                          )}
+                        </div>
+                        {h.aberto && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, paddingLeft: 72 }}>
+                            <div style={{ width: 32, height: 18, borderRadius: 9, background: h.almoco ? "var(--q3)" : "var(--dk5)", cursor: "pointer", position: "relative", flexShrink: 0 }}
+                              onClick={() => setHorarios(p => p.map((x, j) => j === i ? { ...x, almoco: !x.almoco } : x))}>
+                              <div style={{ position: "absolute", top: 2, left: h.almoco ? "16px" : "2px", width: 14, height: 14, borderRadius: "50%", background: "#fff", transition: "left .15s" }} />
+                            </div>
+                            <span style={{ fontSize: 11, color: "var(--tx3)" }}>Pausa almoço</span>
+                            {h.almoco && (
+                              <>
+                                <input className="fi" type="time" value={h.almoco_ini} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, almoco_ini: e.target.value } : x))} style={{ width: 82, padding: "3px 6px", fontSize: 11 }} />
+                                <span style={{ fontSize: 11, color: "var(--tx3)" }}>às</span>
+                                <input className="fi" type="time" value={h.almoco_fim} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, almoco_fim: e.target.value } : x))} style={{ width: 82, padding: "3px 6px", fontSize: 11 }} />
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}
@@ -7239,7 +7141,7 @@ export default function CRM() {
                     <div className="stit">Identidade</div>
                     <div className="fi2">
                       <div className="fil">Nome da IA</div>
-                      <input className="ef" value={auraName} placeholder="Aura"
+                      <input className="ef" value={auraName} placeholder="Escolha o nome da sua agente"
                         onChange={e => setAuraName(e.target.value.replace(/(^|\s)(\S)/g, (_: string, sp: string, ch: string) => sp + ch.toUpperCase()))} />
                     </div>
                   </div>
