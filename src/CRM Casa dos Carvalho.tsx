@@ -3544,7 +3544,7 @@ export default function CRM() {
                       </div>
                     )}
                     <div className="fr">
-                      <div className="ff"><label className="fl">Data</label><input className="fi" type="date" value={entradaForm.data} onChange={e => setEntradaForm({ ...entradaForm, data: e.target.value })} /></div>
+                      <div className="ff"><DateScroller label="Data" value={entradaForm.data} onChange={val => setEntradaForm({ ...entradaForm, data: val })} /></div>
                       <div className="ff"><label className="fl">Competência</label><input className="fi" type="month" value={entradaForm.competencia} onChange={e => setEntradaForm({ ...entradaForm, competencia: e.target.value })} /></div>
                     </div>
                     <div className="ff"><label className="fl">Cliente (opcional)</label><input className="fi" placeholder="Nome do cliente" value={entradaForm.cliente_nome} onChange={e => setEntradaForm({ ...entradaForm, cliente_nome: e.target.value })} /></div>
@@ -3601,7 +3601,7 @@ export default function CRM() {
                         <input className="fi" type="text" placeholder="0,00" value={equipForm.valor_aquisicao}
                           onChange={e => { const raw = e.target.value.replace(/\D/g,""); const num = raw ? (Number(raw)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : ""; setEquipForm({ ...equipForm, valor_aquisicao: num }); }} />
                       </div>
-                      <div className="ff"><label className="fl">Data de Compra *</label><input className="fi" type="date" value={equipForm.data_compra} onChange={e => setEquipForm({ ...equipForm, data_compra: e.target.value })} /></div>
+                      <div className="ff"><DateScroller label="Data de Compra" value={equipForm.data_compra} onChange={val => setEquipForm({ ...equipForm, data_compra: val })} /></div>
                     </div>
                     <div className="ff"><label className="fl">Vida Útil (meses) — padrão 48</label>
                       <input className="fi" type="number" min={1} value={equipForm.vida_util_meses} onChange={e => setEquipForm({ ...equipForm, vida_util_meses: Number(e.target.value) })} />
@@ -3633,7 +3633,7 @@ export default function CRM() {
                       <div className="ff"><label className="fl">Categoria</label><select className="fs" value={saidaForm.categoria} onChange={e => setSaidaForm({ ...saidaForm, categoria: e.target.value })}>{categorias.map(c => <option key={c}>{c}</option>)}</select></div>
                       <div className="ff"><label className="fl">Valor (R$)</label><input className="fi" type="number" min={0} value={saidaForm.valor} onChange={e => setSaidaForm({ ...saidaForm, valor: Number(e.target.value) })} /></div>
                     </div>
-                    <div className="ff"><label className="fl">Data</label><input className="fi" type="date" onChange={e => { const p = e.target.value.split("-"); setSaidaForm({ ...saidaForm, data: p[2]+"/"+p[1]+"/"+p[0] }); }} /></div>
+                    <div className="ff"><DateScroller label="Data" value={saidaForm.data ? saidaForm.data.split("/").reverse().join("-") : ""} onChange={val => { const p = val.split("-"); setSaidaForm({ ...saidaForm, data: p[2]+"/"+p[1]+"/"+p[0] }); }} /></div>
                   </div>
                   <div className="fmf">
                     <button className="btn-c" onClick={() => setShowSaidaForm(false)}>Cancelar</button>
@@ -6056,7 +6056,7 @@ export default function CRM() {
 
         {/* ── AVISO GENÉRICO ── */}
         {showAviso && (
-          <div className="ov" onClick={() => setShowAviso(null)}>
+          <div className="ov" style={{ zIndex: 9999 }} onClick={() => setShowAviso(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(400px, 90vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: showAviso?.includes("sucesso") || showAviso?.includes("concluído") || showAviso?.includes("confirmada") || showAviso?.includes("registrado") ? "var(--q3)" : "var(--gold)", fontFamily: "'Cormorant Garamond',serif" }}>
                 {showAviso?.includes("sucesso") || showAviso?.includes("concluído") || showAviso?.includes("confirmada") || showAviso?.includes("registrado") ? "✅ Sucesso" : "⚠ Atenção"}
