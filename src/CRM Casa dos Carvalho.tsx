@@ -725,6 +725,14 @@ function ColorPicker({ value, onChange }: { value: string; onChange: (c: string)
 }
 
 // ─── MÁSCARA TELEFONE ────────────────────────────────────────────────────────
+function maskCNPJ(v: string) {
+  v = v.replace(/\D/g,"").slice(0,14);
+  if (v.length <= 2) return v;
+  if (v.length <= 5) return v.slice(0,2)+"."+v.slice(2);
+  if (v.length <= 8) return v.slice(0,2)+"."+v.slice(2,5)+"."+v.slice(5);
+  if (v.length <= 12) return v.slice(0,2)+"."+v.slice(2,5)+"."+v.slice(5,8)+"/"+v.slice(8);
+  return v.slice(0,2)+"."+v.slice(2,5)+"."+v.slice(5,8)+"/"+v.slice(8,12)+"-"+v.slice(12);
+}
 function maskTel(v: string) {
   v = v.replace(/\D/g, "").slice(0, 11);
   if (v.length <= 2) return v.length ? "(" + v : v;
@@ -901,6 +909,11 @@ export default function CRM() {
   const [resetUndo, setResetUndo] = useState(false);
   const [resetTimer, setResetTimer] = useState<any>(null);
   const [formStep, setFormStep] = useState(1);
+  const [emailError, setEmailError] = useState("");
+  const [addingEstilo, setAddingEstilo] = useState(false);
+  const [novoEstilo, setNovoEstilo] = useState("");
+  const [addingRegiao, setAddingRegiao] = useState(false);
+  const [novoRegiao, setNovoRegiao] = useState("");
   const [confirmMover, setConfirmMover] = useState<{cid: any; stage: any; agEvents: any[]} | null>(null);
   const [confirmPagamento, setConfirmPagamento] = useState<{cid: any; agEvent: any} | null>(null);
   const [projParaConcluir, setProjParaConcluir] = useState<{clienteId: any; projetoId: any} | null>(null);
@@ -965,6 +978,7 @@ export default function CRM() {
 
   // ─── CARREGAR DADOS DO SUPABASE ──────────────────────────────────────────
   useEffect(() => {
+    if (!logado) return;
     async function loadAll() {
       if (!sb) { setDbReady(true); return; }
       try {
@@ -1050,7 +1064,7 @@ export default function CRM() {
       setDbReady(true);
     }
     loadAll();
-  }, []);
+  }, [logado]);
 
   // ─── SALVAR CLIENTE NO SUPABASE ──────────────────────────────────────────
   const saveClientDb = useCallback(async (c: any) => {
@@ -1452,7 +1466,7 @@ export default function CRM() {
     if (sb) {
       const { data, error } = await sb.from("clientes").insert({
         nome: nc.nome, insta: nc.insta || "", tel: nc.tel || "",
-        qual: nc.qual, artista: nc.artista,
+        qual: nc.qual, artista: nc.artista || null,
         etapa: nc.qual === "Q1" ? "lead" : "qualificacao",
         orig: nc.orig || "Instagram Organico",
         email: nc.email || "",
@@ -1512,8 +1526,7 @@ export default function CRM() {
       role: artForm.role,
       com: artForm.com,
       cor: artForm.cor,
-      insta: artForm.insta || "",
-      ativo: true
+      insta: artForm.insta || ""
     };
     const { data: artData, error: artError } = await sb.from("artistas").insert(row).select().single();
     if (artError) {
@@ -1962,7 +1975,7 @@ export default function CRM() {
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>Nome do Estúdio *</label>
-                  <input className="fi" value={studioName} onChange={e => setStudioName(e.target.value)} placeholder="Casa dos Carvalho" />
+                  <input className="fi" value={studioName} onChange={e => setStudioName(e.target.value)} placeholder="Nome do seu estúdio" />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>Nome do Responsável *</label>
@@ -1970,7 +1983,7 @@ export default function CRM() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>WhatsApp da {auraName} *</label>
-                  <input className="fi" value={studioTel} onChange={e => setStudioTel(e.target.value)} placeholder="(27) 99999-0000" />
+                  <input className="fi" value={studioTel} onChange={e => setStudioTel(maskTel(e.target.value))} placeholder="(27) 99999-0000" />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>Email do Estudio</label>
@@ -1978,11 +1991,13 @@ export default function CRM() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>Cidade e Estado</label>
-                  <input className="fi" value={studioCity} onChange={e => setStudioCity(e.target.value)} placeholder="Vitoria - ES" />
+                  <input className="fi" value={studioCity} onChange={e => setStudioCity(e.target.value)} placeholder="Cidade - UF" />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>Instagram do Estudio</label>
-                  <input className="fi" value={studioInsta} onChange={e => setStudioInsta(e.target.value)} placeholder="@estudio" />
+                  <input className="fi" value={studioInsta} placeholder="@estudio"
+                    onFocus={() => { if (!studioInsta) setStudioInsta("@"); }}
+                    onChange={e => { const v = e.target.value; setStudioInsta(v && !v.startsWith("@") ? "@" + v : v); }} />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>Nome da IA de Atendimento</label>
@@ -1994,7 +2009,7 @@ export default function CRM() {
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   <label style={{ fontSize: 10, letterSpacing: ".07em", textTransform: "uppercase", color: "#8A8070" }}>CNPJ</label>
-                  <input className="fi" value={cnpj} onChange={e => setCnpj(e.target.value)} placeholder="00.000.000/0001-00" />
+                  <input className="fi" value={cnpj} onChange={e => setCnpj(maskCNPJ(e.target.value))} placeholder="00.000.000/0001-00" />
                 </div>
               </div>
               {/* Logo upload */}
@@ -2049,10 +2064,27 @@ export default function CRM() {
                     <div style={{ width: 16, height: 16, background: "#fff", borderRadius: "50%", position: "absolute", top: 2, transition: "left .2s", left: h.aberto ? "18px" : "2px" }} />
                   </div>
                   {h.aberto ? (
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-                      <input className="fi" type="time" value={h.ini} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, ini: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
-                      <span style={{ fontSize: 12, color: "#8A8070" }}>as</span>
-                      <input className="fi" type="time" value={h.fim} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, fim: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <input className="fi" type="time" value={h.ini} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, ini: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
+                        <span style={{ fontSize: 12, color: "#8A8070" }}>as</span>
+                        <input className="fi" type="time" value={h.fim} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, fim: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
+                        <div style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: 8 }}>
+                          <div style={{ width: 30, height: 16, borderRadius: 8, cursor: "pointer", position: "relative", flexShrink: 0, transition: "background .2s", background: h.almoco ? "#C9A84C" : "#303030" }}
+                            onClick={() => setHorarios(p => p.map((x, j) => j === i ? { ...x, almoco: !x.almoco } : x))}>
+                            <div style={{ width: 12, height: 12, background: "#fff", borderRadius: "50%", position: "absolute", top: 2, transition: "left .2s", left: h.almoco ? "16px" : "2px" }} />
+                          </div>
+                          <span style={{ fontSize: 10, color: "#8A8070" }}>Almoço</span>
+                        </div>
+                      </div>
+                      {h.almoco && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: 4 }}>
+                          <span style={{ fontSize: 11, color: "#8A8070", width: 50 }}>Início:</span>
+                          <input className="fi" type="time" value={h.almoco_ini} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, almoco_ini: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
+                          <span style={{ fontSize: 11, color: "#8A8070" }}>Fim:</span>
+                          <input className="fi" type="time" value={h.almoco_fim} onChange={e => setHorarios(p => p.map((x, j) => j === i ? { ...x, almoco_fim: e.target.value } : x))} style={{ width: 90, padding: "4px 7px" }} />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <span style={{ fontSize: 12, color: "#555045", fontStyle: "italic", flex: 1 }}>Fechado</span>
@@ -2111,7 +2143,6 @@ export default function CRM() {
           )}
           {onbStep === 4 && (
             <div style={{ padding: "32px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
-              <div style={{ fontSize: 40 }}>🖤</div>
               <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 600, color: "#C9A84C" }}>Tudo pronto!</div>
               <div style={{ fontSize: 13, color: "#8A8070", lineHeight: 1.7 }}>
                 O <strong style={{ color: "#E8E2D9" }}>{studioName}</strong> esta configurado.<br />Bem-vindo ao In-Quadra Ink System.
@@ -2127,7 +2158,7 @@ export default function CRM() {
                   {onbStep === 3 ? "Concluir" : "Continuar"}
                 </button>
               )}
-              {onbStep === 4 && <button className="btn-s" onClick={() => { setOnboardingDone(true); setShowSplash(false); localStorage.setItem("inq_onb", "1"); if (!localStorage.getItem("inq_tour")) { setTimeout(() => { setTourStep(0); setTourAtivo(true); }, 800); } }}>Entrar no Sistema →</button>}
+              {onbStep === 4 && <button className="btn-s" onClick={() => { setOnboardingDone(true); setShowSplash(false); localStorage.setItem("inq_onb", "1"); if (!localStorage.getItem("inq_tour")) { setTimeout(() => { if (showLogoCrop) return; setTourStep(0); setTourAtivo(true); }, 800); } }}>Entrar no Sistema →</button>}
             </div>
           </div>
         </div>
@@ -2175,7 +2206,7 @@ export default function CRM() {
             <div style={{ cursor: "pointer" }} onClick={() => setShowSettings(true)}>
               <div className="bname">{studioName}</div>
               <div className="bsub">In-Quadra Ink System</div>
-              {cnpj && <div style={{ fontSize: 9, color: "var(--tx3)", letterSpacing: ".08em" }}>CNPJ: {cnpj}</div>}
+              {(() => { const cnpjDigits = (cnpj || "").replace(/\D/g,""); return cnpjDigits.length === 14 ? <div style={{ fontSize: 9, color: "var(--tx3)", letterSpacing: ".08em" }}>CNPJ: {cnpj}</div> : null; })()}
             </div>
           </div>
           <div className="tbr">
@@ -4964,10 +4995,10 @@ export default function CRM() {
                       <div className="ff">
                         <label className="fl">Email</label>
                         <input className="fi" placeholder="email@email.com" value={form.email}
-                          onChange={e => setForm({ ...form, email: e.target.value })}
-                          style={{ borderColor: form.email && !validarEmail(form.email) ? "var(--q1)" : undefined }} />
-                        {form.email && !validarEmail(form.email) && (
-                          <span style={{ fontSize: 10, color: "var(--q1)", marginTop: 3, display: "block" }}>Email inválido</span>
+                          onChange={e => { setForm({ ...form, email: e.target.value }); setEmailError(""); }}
+                          style={{ borderColor: emailError ? "var(--q1)" : undefined }} />
+                        {emailError && (
+                          <span style={{ fontSize: 10, color: "var(--q1)", marginTop: 3, display: "block" }}>{emailError}</span>
                         )}
                       </div>
                       <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={form.insta} onChange={e => { const v = e.target.value; setForm({ ...form, insta: v && !v.startsWith("@") ? "@" + v : v }); }} /></div>
@@ -5081,6 +5112,28 @@ export default function CRM() {
                                 + Adicionar "{form.estilo}"
                               </div>
                             )}
+                            {addingEstilo ? (
+                              <div style={{ padding: "6px 8px", borderTop: "1px solid var(--br)", display: "flex", gap: 4 }}>
+                                <input autoFocus className="fi" style={{ flex: 1, padding: "4px 7px", fontSize: 12 }} placeholder="Novo estilo..." value={novoEstilo} onChange={e => setNovoEstilo(e.target.value)}
+                                  onKeyDown={async e => {
+                                    if (e.key === "Enter" && novoEstilo.trim()) {
+                                      const novaLista = [...estiloOpts, novoEstilo.trim()];
+                                      setEstiloOpts(novaLista);
+                                      setForm({ ...form, estilo: novoEstilo.trim() });
+                                      setNovoEstilo(""); setAddingEstilo(false); setShowEstiloDD(false);
+                                      const { data: cfgEx } = await sb.from("configuracoes").select("id").limit(1).single();
+                                      if (cfgEx?.id) await sb.from("configuracoes").update({ estilo_opts: novaLista }).eq("id", cfgEx.id);
+                                    } else if (e.key === "Escape") { setAddingEstilo(false); setNovoEstilo(""); }
+                                  }} />
+                                <button onMouseDown={async e => { e.preventDefault(); if (novoEstilo.trim()) { const novaLista = [...estiloOpts, novoEstilo.trim()]; setEstiloOpts(novaLista); setForm({ ...form, estilo: novoEstilo.trim() }); setNovoEstilo(""); setAddingEstilo(false); setShowEstiloDD(false); const { data: cfgEx } = await sb.from("configuracoes").select("id").limit(1).single(); if (cfgEx?.id) await sb.from("configuracoes").update({ estilo_opts: novaLista }).eq("id", cfgEx.id); } }} style={{ background: "var(--gold)", border: "none", borderRadius: 4, padding: "4px 8px", fontSize: 11, fontWeight: 700, color: "#000", cursor: "pointer" }}>OK</button>
+                                <button onMouseDown={e => { e.preventDefault(); setAddingEstilo(false); setNovoEstilo(""); }} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 4, padding: "4px 8px", fontSize: 11, color: "var(--tx2)", cursor: "pointer" }}>✕</button>
+                              </div>
+                            ) : (
+                              <div onMouseDown={e => { e.preventDefault(); setAddingEstilo(true); setNovoEstilo(""); }}
+                                style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: "var(--gold)", borderTop: "1px solid var(--br)", fontWeight: 600 }}>
+                                + Adicionar novo
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -5111,6 +5164,28 @@ export default function CRM() {
                               }}
                                 style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: "var(--gold)", borderTop: "1px solid var(--br)", fontWeight: 600 }}>
                                 + Adicionar "{form.regiao}"
+                              </div>
+                            )}
+                            {addingRegiao ? (
+                              <div style={{ padding: "6px 8px", borderTop: "1px solid var(--br)", display: "flex", gap: 4 }}>
+                                <input autoFocus className="fi" style={{ flex: 1, padding: "4px 7px", fontSize: 12 }} placeholder="Nova região..." value={novoRegiao} onChange={e => setNovoRegiao(e.target.value)}
+                                  onKeyDown={async e => {
+                                    if (e.key === "Enter" && novoRegiao.trim()) {
+                                      const novaLista = [...regiaoOpts, novoRegiao.trim()];
+                                      setRegiaoOpts(novaLista);
+                                      setForm({ ...form, regiao: novoRegiao.trim() });
+                                      setNovoRegiao(""); setAddingRegiao(false); setShowRegiaoDD(false);
+                                      const { data: cfgEx } = await sb.from("configuracoes").select("id").limit(1).single();
+                                      if (cfgEx?.id) await sb.from("configuracoes").update({ regiao_opts: novaLista }).eq("id", cfgEx.id);
+                                    } else if (e.key === "Escape") { setAddingRegiao(false); setNovoRegiao(""); }
+                                  }} />
+                                <button onMouseDown={async e => { e.preventDefault(); if (novoRegiao.trim()) { const novaLista = [...regiaoOpts, novoRegiao.trim()]; setRegiaoOpts(novaLista); setForm({ ...form, regiao: novoRegiao.trim() }); setNovoRegiao(""); setAddingRegiao(false); setShowRegiaoDD(false); const { data: cfgEx } = await sb.from("configuracoes").select("id").limit(1).single(); if (cfgEx?.id) await sb.from("configuracoes").update({ regiao_opts: novaLista }).eq("id", cfgEx.id); } }} style={{ background: "var(--gold)", border: "none", borderRadius: 4, padding: "4px 8px", fontSize: 11, fontWeight: 700, color: "#000", cursor: "pointer" }}>OK</button>
+                                <button onMouseDown={e => { e.preventDefault(); setAddingRegiao(false); setNovoRegiao(""); }} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 4, padding: "4px 8px", fontSize: 11, color: "var(--tx2)", cursor: "pointer" }}>✕</button>
+                              </div>
+                            ) : (
+                              <div onMouseDown={e => { e.preventDefault(); setAddingRegiao(true); setNovoRegiao(""); }}
+                                style={{ padding: "8px 12px", fontSize: 12, cursor: "pointer", color: "var(--gold)", borderTop: "1px solid var(--br)", fontWeight: 600 }}>
+                                + Adicionar novo
                               </div>
                             )}
                           </div>
@@ -5165,7 +5240,7 @@ export default function CRM() {
                   {formStep === 1 ? "Cancelar" : "← Voltar"}
                 </button>
                 {formStep === 1 && (
-                  <button className="btn-s" disabled={!form.nome || !form.tel} onClick={() => setFormStep(2)}>Próximo →</button>
+                  <button className="btn-s" disabled={!form.nome || !form.tel} onClick={() => { if (form.email && !validarEmail(form.email)) { setEmailError("Email inválido"); return; } setEmailError(""); setFormStep(2); }}>Próximo →</button>
                 )}
                 {formStep === 2 && (
                   <button className="btn-s" onClick={() => { saveClient(); setFormStep(1); }}>Salvar Cliente</button>
