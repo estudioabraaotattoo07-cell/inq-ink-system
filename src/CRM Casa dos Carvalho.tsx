@@ -89,14 +89,14 @@ body{background:var(--dk);color:var(--tx);font-family:'DM Sans',sans-serif;}
 .btn-new{background:var(--gold);color:#000;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;}
 .btn-new:hover{background:var(--gold-l);}
 .alert-btn{background:rgba(212,130,10,.15);border:1px solid rgba(212,130,10,.3);border-radius:6px;padding:4px 10px;font-size:11px;color:#D4820A;font-weight:600;cursor:pointer;}
-.alert-drop{position:absolute;top:calc(100% + 8px);right:0;width:min(360px,calc(100vw - 16px));background:var(--dk2);border:1px solid var(--br);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:9999;}
+.alert-drop{position:fixed;top:64px;right:16px;width:min(360px,calc(100vw - 16px));background:var(--dk2);border:1px solid var(--br);border-radius:10px;box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:9999;}
 .ad-hdr{padding:10px 14px;background:var(--dk3);border-bottom:1px solid var(--br);border-radius:10px 10px 0 0;font-size:12px;font-weight:600;color:var(--tx);}
 .ad-body{max-height:320px;overflow-y:auto;padding:8px;}
 .ad-item{padding:8px 10px;background:var(--dk3);border:1px solid var(--br);border-radius:7px;margin-bottom:5px;cursor:pointer;}
 .ad-item:hover{border-color:var(--brh);}
 .ad-name{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:600;color:var(--tx);margin-bottom:3px;}
 .ad-tags{display:flex;gap:3px;flex-wrap:wrap;}
-.tabs{background:var(--dk2);border-bottom:1px solid var(--br);display:flex;padding:0 20px;overflow-x:auto;}
+.tabs{background:var(--dk2);border-bottom:1px solid var(--br);display:flex;padding:0 20px;overflow-x:auto;position:sticky;top:56px;z-index:99;}
 .tab{padding:12px 13px;font-size:12px;font-weight:500;color:var(--tx2);cursor:pointer;border:none;background:none;font-family:'DM Sans',sans-serif;border-bottom:2px solid transparent;white-space:nowrap;display:flex;align-items:center;gap:5px;}
 .tab.on{color:var(--gold);border-bottom-color:var(--gold);}
 .stats{display:flex;gap:1px;background:var(--br);border-bottom:1px solid var(--br);}
@@ -643,7 +643,7 @@ function DateScroller({ value, onChange, label }: { value: string; onChange: (v:
   const maxD = daysInMonth(selM, selY);
   const DAYS = Array.from({ length: maxD }, (_, i) => i + 1);
   const MNAMES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
-  const YEARS = [curYear, curYear + 1];
+  const YEARS = [curYear, curYear+1, curYear+2, curYear+3, curYear+4];
   const safeD = Math.min(selD, maxD);
   const confirm = (d: number, m: number, y: number) => {
     const safe = Math.min(d, daysInMonth(m, y));
@@ -2762,6 +2762,7 @@ export default function CRM() {
                                 overflow: "hidden", fontSize: 10, fontWeight: 600, color: e.status === "cancelado" ? "#aaa" : "#fff",
                                 cursor: "pointer", display: "flex", alignItems: "flex-start", justifyContent: "space-between",
                                 opacity: e.status === "concluido" ? 0.45 : e.status === "cancelado" ? 0.55 : 1,
+                                filter: e.status === "concluido" ? "saturate(0.4)" : "none",
                                 textDecoration: e.status === "cancelado" ? "line-through" : "none"
                               }}
                               onClick={ev => { ev.stopPropagation(); const eDate2 = e.date; const hoje2 = new Date(); hoje2.setHours(0,0,0,0); const evData2 = eDate2 ? new Date(eDate2 + "T12:00:00") : null; const isPast2 = evData2 && evData2 < hoje2; const semStatus2 = !e.status || e.status === ""; if (isPast2 && semStatus2 && !e.tipo?.startsWith("bloq")) { setConfirmPresenca({ event: e }); setPresencaMotivo(""); } else { setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinalPago: !!e.sinal_pago } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); } }}>
@@ -2816,7 +2817,8 @@ export default function CRM() {
                                   zIndex: 5, borderRadius: 5, padding: "5px 10px",
                                   display: "flex", alignItems: "flex-start", justifyContent: "space-between",
                                   cursor: "pointer",
-                                  opacity: e.status === "concluido" ? 0.45 : e.status === "cancelado" ? 0.55 : 1
+                                  opacity: e.status === "concluido" ? 0.45 : e.status === "cancelado" ? 0.55 : 1,
+                                  filter: e.status === "concluido" ? "saturate(0.4)" : "none"
                                 }}
                                 onClick={ev => { ev.stopPropagation(); setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinalPago: !!e.sinal_pago } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); }}>
                                 <span style={{ fontWeight: 600 }}>
