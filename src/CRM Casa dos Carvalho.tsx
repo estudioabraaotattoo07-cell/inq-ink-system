@@ -1001,6 +1001,7 @@ export default function CRM() {
   const [pipelineMotivo, setPipelineMotivo] = useState<{cid: any; stage: any; motivo: string; dias?: string} | null>(null);
   const [confirmCancelarEvento, setConfirmCancelarEvento] = useState<{event: any; motivo: string} | null>(null);
   const [showHistoricoModal, setShowHistoricoModal] = useState(false);
+  const [showSaidaCatsModal, setShowSaidaCatsModal] = useState(false);
   const [showAvisoPastDate, setShowAvisoPastDate] = useState(false);
   const [proximaSessaoModal, setProximaSessaoModal] = useState<{cid: any} | null>(null);
   const [cancelProjetoModal, setCancelProjetoModal] = useState<{clienteId: any; projetoId: any; motivo: string} | null>(null);
@@ -3263,6 +3264,7 @@ export default function CRM() {
                 <div className="fth" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <span>Saídas e Despesas</span>
                   <button className="btn-new" style={{ fontSize: 11, padding: "5px 12px" }} onClick={() => setShowSaidaForm(true)}>+ Lançar</button>
+                <button onClick={() => setShowSaidaCatsModal(true)} style={{ background: "none", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "var(--tx3)", cursor: "pointer" }}>⚙️ Categorias</button>
                 </div>
                 <table className="ft">
                   <thead><tr><th>Descrição</th><th>Categoria</th><th>Data</th><th>Valor</th><th></th></tr></thead>
@@ -3685,7 +3687,53 @@ export default function CRM() {
               </div>
             </>)}
 
-            {/* ── MODAL ENTRADA MANUAL ── */}
+            {/* ── MODAL CATEGORIAS DESPESA ── */}
+        {showSaidaCatsModal && (
+          <div className="ov" style={{ zIndex: 9999 }} onClick={() => setShowSaidaCatsModal(false)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(420px, 90vw)", padding: "24px", display: "flex", flexDirection: "column", gap: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--gold)" }}>⚙️ Categorias de Despesa</div>
+                <button className="mc" onClick={() => setShowSaidaCatsModal(false)}>✕</button>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--tx2)" }}>Categorias usadas no registro de saídas e despesas do estúdio.</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {saidaCats.map(cat => (
+                  <div key={cat} style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--dk3)", borderRadius: 6, padding: "7px 10px" }}>
+                    <span style={{ flex: 1, fontSize: 13, color: "var(--tx)" }}>{cat}</span>
+                    <button onClick={async () => {
+                      const updated = saidaCats.filter(c => c !== cat);
+                      setSaidaCats(updated);
+                      const { data: cfgEx } = await sb.from("configuracoes").select("id").eq("user_id", userId).limit(1).single();
+                      if (cfgEx?.id) await sb.from("configuracoes").update({ saida_cats: updated }).eq("id", cfgEx.id);
+                    }} style={{ background: "none", border: "none", color: "var(--q1)", cursor: "pointer", fontSize: 14 }}>🗑</button>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input className="ef" style={{ flex: 1 }} placeholder="Nova categoria..." value={novaSaidaCatInput}
+                  onChange={e => setNovaSaidaCatInput(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key === "Enter" && novaSaidaCatInput.trim() && !saidaCats.includes(novaSaidaCatInput.trim())) {
+                      const updated = [...saidaCats, novaSaidaCatInput.trim()];
+                      setSaidaCats(updated); setNovaSaidaCatInput("");
+                      const { data: cfgEx } = await sb.from("configuracoes").select("id").eq("user_id", userId).limit(1).single();
+                      if (cfgEx?.id) await sb.from("configuracoes").update({ saida_cats: updated }).eq("id", cfgEx.id);
+                    }
+                  }} />
+                <button className="btn-s" onClick={async () => {
+                  if (novaSaidaCatInput.trim() && !saidaCats.includes(novaSaidaCatInput.trim())) {
+                    const updated = [...saidaCats, novaSaidaCatInput.trim()];
+                    setSaidaCats(updated); setNovaSaidaCatInput("");
+                    const { data: cfgEx } = await sb.from("configuracoes").select("id").eq("user_id", userId).limit(1).single();
+                    if (cfgEx?.id) await sb.from("configuracoes").update({ saida_cats: updated }).eq("id", cfgEx.id);
+                  }
+                }}>+</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL ENTRADA MANUAL ── */}
             {showEntradaForm && (
               <div className="fov" onClick={e => { if (e.target === e.currentTarget) setShowEntradaForm(false); }}>
                 <div className="fmod" style={{ maxWidth: 460 }}>
@@ -4641,7 +4689,7 @@ export default function CRM() {
                         {artists.filter(a => a.ativo).map(a => <option key={a.id} value={a.id}>{a.nome}</option>)}
                       </select>
                     </div>
-                    {[{ l: "Origem", v: sc.orig }, { l: "Criativo", v: sc.cri }].map((fd, i) => (
+                    {[{ l: "Origem", v: sc.orig }, { l: "Observações", v: sc.cri }].map((fd, i) => (
                       <div className="fi2" key={i}><div className="fil">{fd.l}</div><div className="fiv">{fd.v || "—"}</div></div>
                     ))}
                     <div className="fi2">
@@ -5621,7 +5669,7 @@ export default function CRM() {
                           const saldo = (Number(p.valorTotal)||0) - pago;
                           return (
                             <div key={p.id || idx} style={{ fontSize: 12, padding: "4px 0", borderBottom: "1px solid rgba(255,255,255,.04)", display: "flex", justifyContent: "space-between" }}>
-                              <span style={{ color: "var(--tx)" }}>{p.estilo || "Sem estilo"} — {p.tam || "—"}</span>
+                              {p.desc && <span style={{ color: "var(--tx)", fontSize: 11 }}>{p.desc.substring(0,35)}{p.desc.length > 35 ? "..." : ""}</span>}
                               <span>
                                 {p.valorTotal > 0 && <span style={{ color: saldo > 0 ? "var(--gold)" : "#27AE60", fontWeight: 600 }}>R$ {saldo > 0 ? saldo.toLocaleString("pt-BR",{minimumFractionDigits:2}) + " a pagar" : "Quitado"}</span>}
                               </span>
