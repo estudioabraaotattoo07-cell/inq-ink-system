@@ -2261,9 +2261,9 @@ export default function CRM() {
                   {h.aberto ? (
                     <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <TimeScroller value={h.ini ? parseInt(h.ini.split(":")[0]) : 8} onChange={v => setHorarios(p => p.map((x, j) => j === i ? { ...x, ini: String(v).padStart(2,"0") + ":00" } : x))} />
+                        <TimeScroller label="Abertura" value={h.ini ? parseInt(h.ini.split(":")[0]) : 8} onChange={v => setHorarios(p => p.map((x, j) => j === i ? { ...x, ini: String(v).padStart(2,"0") + ":00" } : x))} />
                         <span style={{ fontSize: 12, color: "#8A8070" }}>às</span>
-                        <TimeScroller value={h.fim ? parseInt(h.fim.split(":")[0]) : 18} onChange={v => setHorarios(p => p.map((x, j) => j === i ? { ...x, fim: String(v).padStart(2,"0") + ":00" } : x))} />
+                        <TimeScroller label="Fechamento" value={h.fim ? parseInt(h.fim.split(":")[0]) : 18} onChange={v => setHorarios(p => p.map((x, j) => j === i ? { ...x, fim: String(v).padStart(2,"0") + ":00" } : x))} />
                         <div style={{ display: "flex", alignItems: "center", gap: 5, marginLeft: 8 }}>
                           <div style={{ width: 30, height: 16, borderRadius: 8, cursor: "pointer", position: "relative", flexShrink: 0, transition: "background .2s", background: h.almoco ? "#C9A84C" : "#303030" }}
                             onClick={() => setHorarios(p => p.map((x, j) => j === i ? { ...x, almoco: !x.almoco } : x))}>
@@ -5757,7 +5757,7 @@ export default function CRM() {
                       if (!isBloq) setAgForm({ ...agForm, tipo: "bloq_geral" });
                     }} style={{ padding: "6px 14px", borderRadius: 20, cursor: "pointer", fontSize: 12, fontWeight: 600,
                       background: (agForm.tipo || "").startsWith("bloq") ? "rgba(192,57,43,.15)" : "var(--dk3)",
-                      border: "1px solid " + ((agForm.tipo || "").startsWith("bloq") ? "var(--q1)" : "var(--br)"),
+                      border: "1px solid " + (agForm.tipo || "").startsWith("bloq") ? "var(--q1)" : "var(--br)",
                       color: (agForm.tipo || "").startsWith("bloq") ? "var(--q1)" : "var(--tx2)" }}>
                       🔒 Bloqueio
                     </div>
