@@ -2018,7 +2018,7 @@ export default function CRM() {
     }
     return MONTHS[agDate.getMonth()] + " " + agDate.getFullYear();
   };
-  const aName = (id: string) => artists.find(a => a.id === id)?.nome || id;
+  const aName = (id: string) => artists.find(a => a.id === id)?.nome || id || "";
   const aColor = (id: string) => artists.find(a => a.id === id)?.cor || "#C9A84C";
   const aClass = (id: string) => "";
   const aStyle = (id: string) => {
