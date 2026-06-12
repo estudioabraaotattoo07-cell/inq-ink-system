@@ -3809,6 +3809,9 @@ export default function CRM() {
             )}
 
           </div>
+          </div>
+          </div>
+          </div>
           );
         })()}
 
@@ -4223,6 +4226,7 @@ export default function CRM() {
               ))
             }
           </div>
+        </div>
         )}
 
         {/* ── DISPAROS ── */}
@@ -5149,6 +5153,7 @@ export default function CRM() {
               </div>
             </div>
           </div>
+        </div>
         )}
 
         {/* ── MODAL CONTRATO ── */}
@@ -7675,6 +7680,8 @@ export default function CRM() {
           </div>
           );
         })()}
+      </div>
+      </div>
       </div>
 
         {/* ── MODAL CATEGORIAS DE LANÇAMENTO ── */}
