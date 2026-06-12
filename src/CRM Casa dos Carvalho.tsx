@@ -4752,7 +4752,6 @@ export default function CRM() {
                             </div>
                           </div>
                         </div>
-                      </div>
                         ))}
                         {projetos.filter((p: any) => p.status === "cancelado").length > 0 && (
                           <div style={{ borderTop: "1px solid var(--br)", paddingTop: 8, marginTop: 2 }}>
