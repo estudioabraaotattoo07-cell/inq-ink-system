@@ -3660,7 +3660,7 @@ export default function CRM() {
                     <div className="fr">
                       <div className="ff"><label className="fl">Valor (R$) *</label>
                         <input className="fi" type="text" placeholder="0,00" value={entradaForm.valor}
-                          onChange={e => { const raw = e.target.value.replace(/[^0-9]/g,""); const num = raw ? (Number(raw)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : ""; setEntradaForm({ ...entradaForm, valor: num }); }} />
+                          onChange={e => { const raw = e.target.value.replace(/\D/g,""); const num = raw ? (Number(raw)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : ""; setEntradaForm({ ...entradaForm, valor: num }); }} />
                       </div>
                       <div className="ff"><label className="fl">Forma</label>
                         <select className="fs" value={entradaForm.forma_pgto} onChange={e => setEntradaForm({ ...entradaForm, forma_pgto: e.target.value })}>
@@ -3751,7 +3751,7 @@ export default function CRM() {
                     <div className="fr">
                       <div className="ff"><label className="fl">Valor de Aquisição (R$) *</label>
                         <input className="fi" type="text" placeholder="0,00" value={equipForm.valor_aquisicao}
-                          onChange={e => { const raw = e.target.value.replace(/[^0-9]/g,""); const num = raw ? (Number(raw)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : ""; setEquipForm({ ...equipForm, valor_aquisicao: num }); }} />
+                          onChange={e => { const raw = e.target.value.replace(/\D/g,""); const num = raw ? (Number(raw)/100).toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}) : ""; setEquipForm({ ...equipForm, valor_aquisicao: num }); }} />
                       </div>
                       <div className="ff"><DateScroller label="Data de Compra" value={equipForm.data_compra} onChange={val => setEquipForm({ ...equipForm, data_compra: val })} /></div>
                     </div>
@@ -4745,7 +4745,6 @@ export default function CRM() {
                               }} style={{ resize: "vertical", minHeight: 55, width: "100%", fontFamily: "inherit" }} />
                             </div>
                           </div>
-                        </div>
                         ))}
                         {projetos.filter((p: any) => p.status === "cancelado").length > 0 && (
                           <div style={{ borderTop: "1px solid var(--br)", paddingTop: 8, marginTop: 2 }}>
