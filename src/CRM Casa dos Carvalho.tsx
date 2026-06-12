@@ -1460,7 +1460,7 @@ export default function CRM() {
       const taxaPct = f.forma === "Cartão" ? (parseFloat(((f as any).taxa || "0").replace(",", ".")) || 0) : 0;
       const valLiquido = taxaPct > 0 ? val * (1 - taxaPct / 100) : val;
       const nParcelas = f.forma === "Cartão" ? (parseInt(f.parcelas) || 1) : 1;
-      const { error } = await sb.from("financeiro").insert({
+      const finRowPag = {
         cliente_id: cid,
         cliente_nome: cliente?.nome || "",
         artista: artistaId,
@@ -1472,9 +1472,13 @@ export default function CRM() {
         parcelas: nParcelas,
         com_base: comSess,
         com_sess: comSess,
+        categoria: "sessao",
+        tipo: "entrada",
         user_id: userId,
-      });
+      };
+      const { data: fdPag, error } = await sb.from("financeiro").insert(finRowPag).select().single();
       if (error) console.error("financeiro insert (sessão):", error);
+      if (fdPag) setFin(p => [...p, { ...finRowPag, id: fdPag.id, cliente: cliente?.nome || "" }]);
     }
     // Registrar no histórico do cliente
     const formasTexto = pagFormas.filter(f => parseFloat(f.valor) > 0).map(f => `${f.forma} R$${parseFloat(f.valor).toFixed(2)}${f.forma === "Cartão" ? ` ${f.parcelas}x` : ""}`).join(" + ");
@@ -6211,7 +6215,9 @@ export default function CRM() {
                   if (sinalValNum2 > 0 && agClientVinc) {
                     const artSinal2 = agForm.tipo === "piercing" ? ((agForm as any).artista_exec || "") : (agForm.tipo.split("_").slice(1).join("_") || agClientVinc?.artista || "");
                     const pgtoSinal2 = formaSinal === "Crédito" ? "Cartão " + parcelasSinal + "x" : formaSinal;
-                    await sb.from("financeiro").insert({ cliente_id: agClientVinc.id, cliente_nome: agClientVinc.nome, artista: artSinal2, data: agForm.date, val_a: sinalValNum2, val_c: sinalValNum2, pgto: pgtoSinal2, com_base: 0, com_sess: 0, categoria: "sinal", tipo: "entrada", user_id: userId });
+                    const finRowSinal2 = { cliente_id: agClientVinc.id, cliente_nome: agClientVinc.nome, artista: artSinal2, data: agForm.date, val_a: sinalValNum2, val_c: sinalValNum2, pgto: pgtoSinal2, com_base: 0, com_sess: 0, categoria: "sinal", tipo: "entrada", user_id: userId };
+                  const { data: fdSinal2 } = await sb.from("financeiro").insert(finRowSinal2).select().single();
+                  if (fdSinal2) setFin(p => [...p, { ...finRowSinal2, id: fdSinal2.id, cliente: agClientVinc.nome }]);
                   }
                   addLog("Agenda: evento com sinal criado — " + agForm.title);
                   // Registrar no histórico do cliente
