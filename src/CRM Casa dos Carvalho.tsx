@@ -1706,6 +1706,7 @@ export default function CRM() {
       const agDateStr = agForm.date + "T" + String(agForm.start).padStart(2,"0") + ":00:00";
       const agDateTime = new Date(agDateStr);
       const agora = new Date();
+      agora.setMinutes(agora.getMinutes() - 30);
       if (agDateTime < agora) {
         setShowAviso("Não é possível agendar para datas ou horários passados.");
         return;
@@ -4717,8 +4718,8 @@ export default function CRM() {
                                 <div style={{ display: "flex", gap: 12, padding: "6px 10px", background: "var(--dk4)", borderRadius: 6, fontSize: 12 }}>
                                   <span style={{ color: "var(--tx2)" }}>Total: <strong style={{ color: "var(--tx)" }}>R$ {valorTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>
                                   <span style={{ color: "var(--tx2)" }}>Pago: <strong style={{ color: "#27AE60" }}>R$ {totalPagoReal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>
-                                  {saldo > 0 && totalPagoReal > 0 && <span style={{ color: "var(--tx2)" }}>Saldo: <strong style={{ color: "var(--gold)" }}>R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>}
-                                  {saldo <= 0 && totalPagoReal > 0 && <span style={{ color: "#27AE60", fontWeight: 700 }}>✅ Quitado</span>}
+                                  {saldo > 0 && <span style={{ color: "#E74C3C", fontWeight: 700, fontSize: 13, background: "rgba(231,76,60,0.1)", padding: "2px 8px", borderRadius: 6 }}>Saldo: <strong>R$ {saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong></span>}
+                                  {saldo <= 0 && totalPagoReal > 0 && <span style={{ color: "#27AE60", fontWeight: 700 }}>✓ Quitado</span>}
                                 </div>
                               ) : null;
                             })()}
@@ -5203,7 +5204,7 @@ export default function CRM() {
               <div className="fmh">
                 <div>
                   <div className="fmt">Novo Cliente</div>
-                  <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>Etapa {formStep} de 2 — {formStep === 1 ? "Dados Pessoais" : "Projeto Artístico"}</div>
+                  <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>Etapa {formStep} de 2 — {formStep === 1 ? "Dados Pessoais" : "Solicitação"}</div>
                 </div>
                 <button className="mc" onClick={() => { setShowForm(false); setFormStep(1); }}>✕</button>
               </div>
