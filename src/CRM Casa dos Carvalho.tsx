@@ -2401,7 +2401,7 @@ export default function CRM() {
             <div style={{ cursor: "pointer" }} onClick={() => setShowSettings(true)}>
               <div className="bname">{studioName}</div>
               <div className="bsub">In-Quadra Ink System</div>
-              {(() => { const cnpjDigits = (cnpj || "").replace(/\D/g,""); return cnpjDigits.length === 14 ? <div style={{ fontSize: 9, color: "var(--tx3)", letterSpacing: ".08em" }}>CNPJ: {cnpj}</div> : null; })()}
+              {(() => { const cnpjDigits = (cnpj || "").replace(/[^0-9]/g,""); return cnpjDigits.length === 14 ? <div style={{ fontSize: 9, color: "var(--tx3)", letterSpacing: ".08em" }}>CNPJ: {cnpj}</div> : null; })()}
             </div>
           </div>
           <div className="tbr">
@@ -7665,7 +7665,7 @@ export default function CRM() {
                             <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 2 }}>Quanto o estúdio precisa faturar para ser sustentável e crescer</div>
                           </div>
                         </div>
-                        <input className="ef" type="text" placeholder="R$ 0,00" value={metaMensal ? "R$ " + Number(metaMensal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} onChange={e => { const raw = e.target.value.replace(/\D/g, ""); setMetaMensal(raw ? Number(raw) / 100 : 0); }} style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)" }} />
+                        <input className="ef" type="text" placeholder="R$ 0,00" value={metaMensal ? "R$ " + Number(metaMensal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""} onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ""); setMetaMensal(raw ? Number(raw) / 100 : 0); }} style={{ fontSize: 16, fontWeight: 700, color: "var(--gold)" }} />
                       </div>
                       <div style={{ background: "var(--dk3)", borderRadius: 8, padding: "14px", border: "1px solid var(--br)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
