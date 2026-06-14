@@ -1053,9 +1053,8 @@ export default function CRM() {
   const [resendApiKey, setResendApiKey] = useState("");
   const [emailRemetente, setEmailRemetente] = useState("");
   const [nomeRemetente, setNomeRemetente] = useState("");
-  const [twilioAccountSid, setTwilioAccountSid] = useState("");
-  const [twilioAuthToken, setTwilioAuthToken] = useState("");
-  const [twilioNumero, setTwilioNumero] = useState("");
+  const [zenviaApiKey, setZenviaApiKey] = useState("");
+  const [zenviaNumero, setZenviaNumero] = useState("");
   const [auraApiKey, setAuraApiKey] = useState("");
   const [showAuraChat, setShowAuraChat] = useState(false);
   const [auraChatMessages, setAuraChatMessages] = useState<{role: string; content: string}[]>([]);
@@ -1226,9 +1225,8 @@ export default function CRM() {
           if (cfg.resend_api_key) setResendApiKey(cfg.resend_api_key);
           if (cfg.email_remetente) setEmailRemetente(cfg.email_remetente);
           if (cfg.nome_remetente) setNomeRemetente(cfg.nome_remetente);
-          if (cfg.twilio_account_sid) setTwilioAccountSid(cfg.twilio_account_sid);
-          if (cfg.twilio_auth_token) setTwilioAuthToken(cfg.twilio_auth_token);
-          if (cfg.twilio_numero) setTwilioNumero(cfg.twilio_numero);
+          if (cfg.zenvia_api_key) setZenviaApiKey(cfg.zenvia_api_key);
+          if (cfg.zenvia_numero) setZenviaNumero(cfg.zenvia_numero);
           if (cfg.aura_api_key) setAuraApiKey(cfg.aura_api_key);
           setDark(cfg.dark_mode !== false);
           // [X2] onboarding_done from Supabase (source of truth); localStorage as cache
@@ -2024,10 +2022,11 @@ export default function CRM() {
     for (const cliente of clientesAlvo) {
       if (cliente.email && resendApiKey && emailRemetente) {
         try {
-          await fetch("https://api.resend.com/emails", {
+          await fetch("/api/resend", {
             method: "POST",
-            headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
+              apiKey: resendApiKey,
               from: (nomeRemetente || studioName) + " <" + emailRemetente + ">",
               to: [cliente.email],
               subject: "Mensagem de " + (studioName || "seu estúdio"),
@@ -2037,17 +2036,19 @@ export default function CRM() {
           emailOk++;
         } catch {}
       }
-      if (cliente.tel && twilioAccountSid && twilioAuthToken && twilioNumero) {
+      if (cliente.tel && zenviaApiKey && zenviaNumero) {
         try {
           const smsBody = mensagem.slice(0, 160);
           const telLimpo = cliente.tel.replace(/[^0-9]/g, "");
-          await fetch("https://api.twilio.com/2010-04-01/Accounts/" + twilioAccountSid + "/Messages.json", {
+          await fetch("/api/zenvia", {
             method: "POST",
-            headers: {
-              "Authorization": "Basic " + btoa(twilioAccountSid + ":" + twilioAuthToken),
-              "Content-Type": "application/x-www-form-urlencoded"
-            },
-            body: new URLSearchParams({ From: twilioNumero, To: "+55" + telLimpo, Body: smsBody }).toString()
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              apiKey: zenviaApiKey,
+              from: zenviaNumero,
+              to: "+55" + telLimpo,
+              text: smsBody
+            })
           });
           smsOk++;
         } catch {}
@@ -7994,11 +7995,10 @@ export default function CRM() {
                       <div className="fi2"><div className="fil">Email Remetente</div><input className="ef" type="email" placeholder="ia@seuestudio.com.br" value={emailRemetente} onChange={e => setEmailRemetente(e.target.value)} /></div>
                       <div className="fi2"><div className="fil">Nome Remetente</div><input className="ef" placeholder="Nome do seu estúdio" value={nomeRemetente} onChange={e => setNomeRemetente(e.target.value)} /></div>
                     </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx2)", marginBottom: 6 }}>SMS — Twilio</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx2)", marginBottom: 6 }}>SMS — Zenvia</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                      <div className="fi2"><div className="fil">Account SID</div><input className="ef" placeholder="ACxxxxxxxxxxxxxxx" value={twilioAccountSid} onChange={e => setTwilioAccountSid(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Auth Token</div><input className="ef" type="password" placeholder="••••••••••••••••" value={twilioAuthToken} onChange={e => setTwilioAuthToken(e.target.value)} /></div>
-                      <div className="fi2"><div className="fil">Número de Envio</div><input className="ef" placeholder="+55DDD999999999" value={twilioNumero} onChange={e => setTwilioNumero(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">Zenvia API Key</div><input className="ef" type="password" placeholder="Sua chave de API da Zenvia" value={zenviaApiKey} onChange={e => setZenviaApiKey(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">Número de Envio</div><input className="ef" placeholder="+55DDD999999999" value={zenviaNumero} onChange={e => setZenviaNumero(e.target.value)} /></div>
                     </div>
                   </div>
                   <div>
@@ -8200,9 +8200,8 @@ export default function CRM() {
                     resend_api_key: resendApiKey,
                     email_remetente: emailRemetente,
                     nome_remetente: nomeRemetente,
-                    twilio_account_sid: twilioAccountSid,
-                    twilio_auth_token: twilioAuthToken,
-                    twilio_numero: twilioNumero,
+                    zenvia_api_key: zenviaApiKey,
+                    zenvia_numero: zenviaNumero,
                     aura_api_key: auraApiKey,
                     user_id: userId,
                     updated_at: new Date().toISOString()
