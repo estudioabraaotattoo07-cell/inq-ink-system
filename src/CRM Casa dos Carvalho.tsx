@@ -1050,6 +1050,17 @@ export default function CRM() {
   const [editandoListas, setEditandoListas] = useState(false);
   const [agPipelineOpen, setAgPipelineOpen] = useState(false);
   const [disparosHist, setDisparosHist] = useState<any[]>([]);
+  const [resendApiKey, setResendApiKey] = useState("");
+  const [emailRemetente, setEmailRemetente] = useState("");
+  const [nomeRemetente, setNomeRemetente] = useState("");
+  const [twilioAccountSid, setTwilioAccountSid] = useState("");
+  const [twilioAuthToken, setTwilioAuthToken] = useState("");
+  const [twilioNumero, setTwilioNumero] = useState("");
+  const [auraApiKey, setAuraApiKey] = useState("");
+  const [showAuraChat, setShowAuraChat] = useState(false);
+  const [auraChatMessages, setAuraChatMessages] = useState<{role: string; content: string}[]>([]);
+  const [auraChatInput, setAuraChatInput] = useState("");
+  const [auraChatLoading, setAuraChatLoading] = useState(false);
   const [alertaConfig, setAlertaConfig] = useState({ alerta_nova_mensagem: true, alerta_sessao_proxima: true, alerta_sessao_antecedencia: "2h", alerta_falta: true, alerta_aniversario: true, alerta_sem_retorno: true, alerta_sem_retorno_dias: "30", alerta_sinal_pendente: true, alerta_projeto_sem_valor: true, alerta_novo_cliente_aura: true });
   const [sessoesExtras, setSessoesExtras] = useState<{date: string; start: number; end: number}[]>([]);
   const [entradaCats, setEntradaCats] = useState<string[]>(["sessao","sinal","prolabore","outro"]);
@@ -1212,6 +1223,13 @@ export default function CRM() {
           if (cfg.entrada_cats && Array.isArray(cfg.entrada_cats) && cfg.entrada_cats.length) setEntradaCats(cfg.entrada_cats);
           if (cfg.saida_cats && Array.isArray(cfg.saida_cats) && cfg.saida_cats.length) setSaidaCats(cfg.saida_cats);
           if (cfg.servico_opts && Array.isArray(cfg.servico_opts) && cfg.servico_opts.length) setServicoOpts(cfg.servico_opts);
+          if (cfg.resend_api_key) setResendApiKey(cfg.resend_api_key);
+          if (cfg.email_remetente) setEmailRemetente(cfg.email_remetente);
+          if (cfg.nome_remetente) setNomeRemetente(cfg.nome_remetente);
+          if (cfg.twilio_account_sid) setTwilioAccountSid(cfg.twilio_account_sid);
+          if (cfg.twilio_auth_token) setTwilioAuthToken(cfg.twilio_auth_token);
+          if (cfg.twilio_numero) setTwilioNumero(cfg.twilio_numero);
+          if (cfg.aura_api_key) setAuraApiKey(cfg.aura_api_key);
           setDark(cfg.dark_mode !== false);
           // [X2] onboarding_done from Supabase (source of truth); localStorage as cache
           if (cfg.onboarding_done) {
@@ -1572,6 +1590,18 @@ export default function CRM() {
       }));
       setProjParaConcluir(null);
     }
+    try {
+      const cliPag = clients.find(c => c.id === cid);
+      const agEvPag = confirmPagamento.agEvent;
+      const artistaNomePag = agEvPag ? (artists.find((a: any) => (agEvPag.tipo || "").includes(a.id))?.nome || "") : "";
+      if (cliPag) {
+        fetch("https://casadoscarvalho.app.n8n.cloud/webhook/sessao-realizada", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studio_id: userId, cliente_id: cid, cliente_nome: cliPag.nome, cliente_email: cliPag.email || "", cliente_telefone: cliPag.tel || "", artista: artistaNomePag, data_sessao: new Date().toISOString() })
+        });
+      }
+    } catch {}
     setConfirmPagamento(null);
     executarMove(cid, "tatuado");
   };
@@ -1732,6 +1762,13 @@ export default function CRM() {
     setFormAg({ agendar: false, data: "", hora: "09:00", tipo: "cons" });
     setForm({ nome: "", tel: "", email: "", insta: "", artista: "", estilo: "", regiao: "", tam: "Medio", desc: "", orig: "Instagram Organico", qual: "Q2", primeira: false, cob: false, intencao: "", nascimento: "" });
     addLog(`Cliente "${nc.nome}" cadastrado`);
+    try {
+      fetch("https://casadoscarvalho.app.n8n.cloud/webhook/cliente-cadastrado", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studio_id: userId, cliente_id: data?.id, cliente_nome: nc.nome, cliente_email: nc.email || "", cliente_telefone: nc.tel || "", data_cadastro: new Date().toISOString() })
+      });
+    } catch {}
   };
 
   const saveArtist = async () => {
@@ -1877,6 +1914,15 @@ export default function CRM() {
     setAgClientVinc(null);
     setAgClientSearch("");
     addLog("📅 Agendado: " + agForm.title + " — " + servicoNome + " em " + dataFmt + " às " + agForm.start + "h" + (artistaNome ? " com " + artistaNome : ""));
+    try {
+      const artistaNomeN8n = artists.find((a: any) => (agForm.tipo || "").includes(a.id))?.nome || "";
+      const clienteObjN8n = agClientVinc ? clients.find(c => c.id === agClientVinc.id) : null;
+      fetch("https://casadoscarvalho.app.n8n.cloud/webhook/agendamento-confirmado", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studio_id: userId, cliente_nome: agForm.title, cliente_email: clienteObjN8n?.email || "", cliente_telefone: clienteObjN8n?.tel || "", data_evento: agForm.date, hora_evento: String(agForm.start).padStart(2,"0") + ":00", tipo: agForm.tipo, artista: artistaNomeN8n })
+      });
+    } catch {}
     // Registrar no histórico e mover pipeline automaticamente
     if (agClientVinc) {
       const dataFmt = agForm.date ? agForm.date.split("-").reverse().join("/") : agForm.date;
@@ -1966,6 +2012,58 @@ export default function CRM() {
   };
 
   const disparo = () => { setSent(true); setTimeout(() => setSent(false), 4000); };
+
+  const disparar = async (clientesAlvo: any[], mensagem: string, segmentoLabel: string) => {
+    setSent(true);
+    setTimeout(() => setSent(false), 4000);
+    const agora = new Date();
+    const dataHora = agora.toLocaleDateString("pt-BR");
+    const horaStr = agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    let emailOk = 0;
+    let smsOk = 0;
+    for (const cliente of clientesAlvo) {
+      if (cliente.email && resendApiKey && emailRemetente) {
+        try {
+          await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + resendApiKey, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              from: (nomeRemetente || studioName) + " <" + emailRemetente + ">",
+              to: [cliente.email],
+              subject: "Mensagem de " + (studioName || "seu estúdio"),
+              html: "<p>" + mensagem.replace(/\n/g, "<br/>") + "</p><br/><p style='font-size:11px;color:#888'>— " + (studioName || "") + "</p>"
+            })
+          });
+          emailOk++;
+        } catch {}
+      }
+      if (cliente.tel && twilioAccountSid && twilioAuthToken && twilioNumero) {
+        try {
+          const smsBody = mensagem.slice(0, 160);
+          const telLimpo = cliente.tel.replace(/[^0-9]/g, "");
+          await fetch("https://api.twilio.com/2010-04-01/Accounts/" + twilioAccountSid + "/Messages.json", {
+            method: "POST",
+            headers: {
+              "Authorization": "Basic " + btoa(twilioAccountSid + ":" + twilioAuthToken),
+              "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: new URLSearchParams({ From: twilioNumero, To: "+55" + telLimpo, Body: smsBody }).toString()
+          });
+          smsOk++;
+        } catch {}
+      }
+    }
+    const novoItem = { data: dataHora, hora: horaStr, segmento: segmentoLabel, destinatarios: clientesAlvo.length, preview: mensagem.slice(0, 60) };
+    setDisparosHist(p => [novoItem, ...p.slice(0, 19)]);
+    const emailCount = clientesAlvo.filter(c => c.email).length;
+    const smsCount = clientesAlvo.filter(c => c.tel).length;
+    if (emailCount > 0) {
+      try { await sb.from("historico").insert({ data: dataHora, hora: horaStr, acao: "Disparo Email — " + segmentoLabel + " — " + emailCount + " destinatários", user_id: userId }); } catch {}
+    }
+    if (smsCount > 0) {
+      try { await sb.from("historico").insert({ data: dataHora, hora: horaStr, acao: "Disparo SMS — " + segmentoLabel + " — " + smsCount + " destinatários", user_id: userId }); } catch {}
+    }
+  };
 
   const excluirEvento = (e: any, fecharModal = false) => {
     setAgEvents(p => p.filter(x => x.id !== e.id));
@@ -4585,7 +4683,7 @@ export default function CRM() {
                                 </span>
                                 {sent && segSel === item.id
                                   ? <div style={{ fontSize: 12, color: "var(--q3)", fontWeight: 600 }}>✓ Disparo programado!</div>
-                                  : <button onClick={() => { disparo(); setDisparosHist((p: any[]) => [{ data: new Date().toLocaleDateString("pt-BR"), hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), segmento: item.label, destinatarios: cnt, preview: (msgEdit || msg).slice(0, 60) }, ...p.slice(0, 19)]); }}
+                                  : <button onClick={() => { disparar(clients.filter(item.f), msgEdit || msg, item.label); }}
                                       disabled={cnt === 0}
                                       style={{ background: cnt === 0 ? "var(--dk4)" : "var(--gold)", color: cnt === 0 ? "var(--tx3)" : "#000", border: "none", borderRadius: 7, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: cnt === 0 ? "not-allowed" : "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                                       📣 Disparar
@@ -4650,7 +4748,7 @@ export default function CRM() {
                             <span style={{ fontSize: 11, color: "var(--tx3)" }}>📩 {cnt} destinatário{cnt !== 1 ? "s" : ""}</span>
                             {sent && dateSel === d.id
                               ? <div style={{ fontSize: 12, color: "var(--q3)", fontWeight: 600 }}>✓ Disparo programado!</div>
-                              : <button onClick={() => { disparo(); setDisparosHist((p: any[]) => [{ data: new Date().toLocaleDateString("pt-BR"), hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }), segmento: d.label, destinatarios: cnt, preview: (msgEdit || msg).slice(0, 60) }, ...p.slice(0, 19)]); }}
+                              : <button onClick={() => { disparar(clients, msgEdit || msg, d.label); }}
                                   style={{ background: "var(--gold)", color: "#000", border: "none", borderRadius: 7, padding: "8px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                                   📣 Disparar
                                 </button>
@@ -7683,6 +7781,22 @@ export default function CRM() {
                       }}>+</button>
                     </div>
                   </div>
+                  <div>
+                    <div className="stit">Comunicação</div>
+                    <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 10, lineHeight: 1.6 }}>Credenciais para disparo real de Email e SMS. Cada estúdio usa suas próprias chaves.</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx2)", marginBottom: 6, marginTop: 4 }}>Email — Resend</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 14 }}>
+                      <div className="fi2"><div className="fil">Resend API Key</div><input className="ef" type="password" placeholder="re_..." value={resendApiKey} onChange={e => setResendApiKey(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">Email Remetente</div><input className="ef" type="email" placeholder="aura@seuestudio.com" value={emailRemetente} onChange={e => setEmailRemetente(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">Nome Remetente</div><input className="ef" placeholder="Casa dos Carvalho" value={nomeRemetente} onChange={e => setNomeRemetente(e.target.value)} /></div>
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx2)", marginBottom: 6 }}>SMS — Twilio</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      <div className="fi2"><div className="fil">Account SID</div><input className="ef" placeholder="ACxxxxxxxxxxxxxxx" value={twilioAccountSid} onChange={e => setTwilioAccountSid(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">Auth Token</div><input className="ef" type="password" placeholder="••••••••••••••••" value={twilioAuthToken} onChange={e => setTwilioAuthToken(e.target.value)} /></div>
+                      <div className="fi2"><div className="fil">Número de Envio</div><input className="ef" placeholder="+5527999998230" value={twilioNumero} onChange={e => setTwilioNumero(e.target.value)} /></div>
+                    </div>
+                  </div>
                 </>}
 
                 {/* ── ABA DONO ── */}
@@ -7881,6 +7995,11 @@ export default function CRM() {
                       <input className="ef" value={auraName} placeholder="Escolha o nome da sua agente"
                         onChange={e => setAuraName(e.target.value.replace(/(^|\s)(\S)/g, (_: string, sp: string, ch: string) => sp + ch.toUpperCase()))} />
                     </div>
+                    <div className="fi2" style={{ marginTop: 8 }}>
+                      <div className="fil">Chave API Anthropic (Chat interno)</div>
+                      <input className="ef" type="password" placeholder="sk-ant-..." value={auraApiKey} onChange={e => setAuraApiKey(e.target.value)} />
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--tx3)", marginTop: 4, lineHeight: 1.5 }}>Usada pelo chat flutuante da Aura dentro do CRM. Obtenha em console.anthropic.com.</div>
                   </div>
                   <div>
                     <div className="stit">Tom de Comunicação</div>
@@ -8074,6 +8193,13 @@ export default function CRM() {
                     entrada_cats: entradaCats,
                     saida_cats: saidaCats,
                     servico_opts: servicoOpts,
+                    resend_api_key: resendApiKey,
+                    email_remetente: emailRemetente,
+                    nome_remetente: nomeRemetente,
+                    twilio_account_sid: twilioAccountSid,
+                    twilio_auth_token: twilioAuthToken,
+                    twilio_numero: twilioNumero,
+                    aura_api_key: auraApiKey,
                     user_id: userId,
                     updated_at: new Date().toISOString()
                   };
@@ -8130,6 +8256,109 @@ export default function CRM() {
             </div>
           </div>
         )}
+        {/* ── AURA FLOATING CHAT ── */}
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9999, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 12 }}>
+          {showAuraChat && (
+            <div style={{ width: "min(380px, 90vw)", height: 480, background: "var(--dk2)", border: "1px solid var(--gold)", borderRadius: 14, display: "flex", flexDirection: "column", boxShadow: "0 8px 40px rgba(0,0,0,.7)", overflow: "hidden" }}>
+              <div style={{ padding: "12px 16px", background: "var(--dk3)", borderBottom: "1px solid var(--br)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gold)" }}>✦ {auraName || "Aura"} — Assistente INK SYSTEM</div>
+                  <div style={{ fontSize: 10, color: "var(--tx3)", marginTop: 1 }}>Contexto real do estúdio carregado</div>
+                </div>
+                <button onClick={() => setShowAuraChat(false)} style={{ background: "none", border: "none", color: "var(--tx3)", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>✕</button>
+              </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                {auraChatMessages.length === 0 && (
+                  <div style={{ fontSize: 12, color: "var(--tx3)", textAlign: "center", marginTop: 40, lineHeight: 1.8 }}>
+                    <div style={{ fontSize: 28, marginBottom: 8 }}>✦</div>
+                    <div>Olá! Sou a {auraName || "Aura"}.</div>
+                    <div>Posso analisar seus dados, gerar mensagens e sugerir ações.</div>
+                  </div>
+                )}
+                {auraChatMessages.map((m, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                    <div style={{ maxWidth: "80%", background: m.role === "user" ? "rgba(201,168,76,.15)" : "var(--dk3)", border: "1px solid " + (m.role === "user" ? "rgba(201,168,76,.25)" : "var(--br)"), borderRadius: 10, padding: "8px 12px", fontSize: 12, color: "var(--tx)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>
+                      {m.content}
+                    </div>
+                  </div>
+                ))}
+                {auraChatLoading && (
+                  <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                    <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 10, padding: "8px 14px", fontSize: 12, color: "var(--tx3)" }}>✦ digitando…</div>
+                  </div>
+                )}
+              </div>
+              <div style={{ padding: "10px 12px", borderTop: "1px solid var(--br)", display: "flex", gap: 8, flexShrink: 0 }}>
+                <input
+                  className="fi"
+                  style={{ flex: 1, fontSize: 12 }}
+                  placeholder="Pergunte algo sobre o estúdio..."
+                  value={auraChatInput}
+                  onChange={e => setAuraChatInput(e.target.value)}
+                  onKeyDown={async e => {
+                    if (e.key !== "Enter" || !auraChatInput.trim() || auraChatLoading) return;
+                    if (!auraApiKey) { setAuraChatMessages(p => [...p, { role: "assistant", content: "Configure a chave API da Aura em Configurações → IA para ativar o chat." }]); return; }
+                    const userMsg = auraChatInput.trim();
+                    setAuraChatInput("");
+                    const hoje = new Date().toISOString().split("T")[0];
+                    const newHistory = [...auraChatMessages, { role: "user", content: userMsg }];
+                    setAuraChatMessages(newHistory);
+                    setAuraChatLoading(true);
+                    const contexto = "Você é a " + (auraName || "Aura") + ", assistente inteligente do INK SYSTEM.\nVocê está dentro do CRM do estúdio: " + (studioName || "estúdio") + ".\n\nDADOS ATUAIS DO ESTÚDIO:\n- Total de clientes: " + clients.length + "\n- Clientes ativos: " + clients.filter(c => c.etapa !== "hibernacao" && c.etapa !== "blacklist").length + "\n- Agendamentos hoje: " + agEvents.filter(e => e.date === hoje).length + "\n- Profissionais: " + artists.map((a: any) => a.nome).join(", ") + "\n\nCLIENTES EM ATENÇÃO:\n- Hibernação: " + clients.filter(c => c.etapa === "hibernacao").length + "\n- Blacklist: " + clients.filter(c => c.etapa === "blacklist").length + "\n\nResponda sempre em português, de forma direta e prática. Você pode sugerir ações, gerar textos de mensagem, analisar dados e orientar o usuário.";
+                    try {
+                      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "x-api-key": auraApiKey, "anthropic-version": "2023-06-01" },
+                        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1024, system: contexto, messages: newHistory })
+                      });
+                      const json = await resp.json();
+                      const reply = json.content?.[0]?.text || "Não consegui processar sua mensagem.";
+                      setAuraChatMessages(p => [...p, { role: "assistant", content: reply }]);
+                    } catch {
+                      setAuraChatMessages(p => [...p, { role: "assistant", content: "Erro ao conectar com a API. Verifique sua chave em Configurações → IA." }]);
+                    }
+                    setAuraChatLoading(false);
+                  }}
+                />
+                <button
+                  disabled={!auraChatInput.trim() || auraChatLoading}
+                  onClick={async () => {
+                    if (!auraChatInput.trim() || auraChatLoading) return;
+                    if (!auraApiKey) { setAuraChatMessages(p => [...p, { role: "assistant", content: "Configure a chave API da Aura em Configurações → IA para ativar o chat." }]); return; }
+                    const userMsg = auraChatInput.trim();
+                    setAuraChatInput("");
+                    const hoje = new Date().toISOString().split("T")[0];
+                    const newHistory = [...auraChatMessages, { role: "user", content: userMsg }];
+                    setAuraChatMessages(newHistory);
+                    setAuraChatLoading(true);
+                    const contexto = "Você é a " + (auraName || "Aura") + ", assistente inteligente do INK SYSTEM.\nVocê está dentro do CRM do estúdio: " + (studioName || "estúdio") + ".\n\nDADOS ATUAIS DO ESTÚDIO:\n- Total de clientes: " + clients.length + "\n- Clientes ativos: " + clients.filter(c => c.etapa !== "hibernacao" && c.etapa !== "blacklist").length + "\n- Agendamentos hoje: " + agEvents.filter(e => e.date === hoje).length + "\n- Profissionais: " + artists.map((a: any) => a.nome).join(", ") + "\n\nCLIENTES EM ATENÇÃO:\n- Hibernação: " + clients.filter(c => c.etapa === "hibernacao").length + "\n- Blacklist: " + clients.filter(c => c.etapa === "blacklist").length + "\n\nResponda sempre em português, de forma direta e prática.";
+                    try {
+                      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json", "x-api-key": auraApiKey, "anthropic-version": "2023-06-01" },
+                        body: JSON.stringify({ model: "claude-sonnet-4-6", max_tokens: 1024, system: contexto, messages: newHistory })
+                      });
+                      const json = await resp.json();
+                      const reply = json.content?.[0]?.text || "Não consegui processar sua mensagem.";
+                      setAuraChatMessages(p => [...p, { role: "assistant", content: reply }]);
+                    } catch {
+                      setAuraChatMessages(p => [...p, { role: "assistant", content: "Erro ao conectar com a API." }]);
+                    }
+                    setAuraChatLoading(false);
+                  }}
+                  style={{ background: auraChatInput.trim() && !auraChatLoading ? "var(--gold)" : "var(--dk4)", color: auraChatInput.trim() && !auraChatLoading ? "#000" : "var(--tx3)", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: auraChatInput.trim() && !auraChatLoading ? "pointer" : "not-allowed", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>
+                  ↑
+                </button>
+              </div>
+            </div>
+          )}
+          <button
+            onClick={() => setShowAuraChat(p => !p)}
+            style={{ background: showAuraChat ? "var(--dk3)" : "var(--gold)", color: showAuraChat ? "var(--tx2)" : "#000", border: "1px solid var(--gold)", borderRadius: 50, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", boxShadow: "0 4px 20px rgba(201,168,76,.4)", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+            ✦ {auraName || "Aura"}
+          </button>
+        </div>
+
     </>
   );
 }
