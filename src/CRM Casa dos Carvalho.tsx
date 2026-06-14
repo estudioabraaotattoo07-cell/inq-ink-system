@@ -7,6 +7,8 @@ const SUPA_URL = import.meta.env.VITE_SUPABASE_URL as string;
 const SUPA_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const sb = createClient(SUPA_URL, SUPA_KEY);
 const OWNER_EMAIL = "estudioabraaotattoo07@gmail.com";
+// Variável global para manter tool pendente da Aura sem stale closure
+let _auraToolPendenteCache: { tool: string; params: any; descricao: string } | null = null;
 
 async function dbGet(table: string) {
   const { data, error } = await sb.from(table).select("*");
@@ -2247,17 +2249,17 @@ export default function CRM() {
     setAuraChatImagem(null);
 
     // ── INTERCEPTAR CONFIRMAÇÃO ANTES DA API ──
-    const toolAtualRef = auraToolPendenteRef.current;
-    if (toolAtualRef && !imagemBase64) {
+    if (_auraToolPendenteCache && !imagemBase64) {
       const confirmacoes = ["sim", "pode", "confirmo", "ok", "vai", "faz", "execute", "confirmar", "positivo"];
       const isConfirmacao = confirmacoes.some(c => userMsg.toLowerCase().includes(c));
       if (isConfirmacao) {
         setAuraChatMessages(prev => [...prev, { role: "user", content: userMsg }]);
         setAuraChatMessages(prev => [...prev, { role: "assistant", content: "⏳ Executando..." }]);
         setAuraChatLoading(true);
-        const resultado = await executarToolAura(toolAtualRef.tool, toolAtualRef.params);
-        auraToolPendenteRef.current = null;
+        const cache = _auraToolPendenteCache;
+        _auraToolPendenteCache = null;
         setAuraToolPendente(null);
+        const resultado = await executarToolAura(cache.tool, cache.params);
         setAuraChatMessages(prev => {
           const sem = prev.filter(m => m.content !== "⏳ Executando...");
           return [...sem, { role: "assistant", content: resultado }];
@@ -2320,7 +2322,9 @@ export default function CRM() {
           else if (toolUseBlock.name === "disparar_email") descricao = "Enviar email para **" + p2.cliente_nome + "**\nAssunto: " + p2.assunto + "\n\n" + p2.mensagem;
           const msgAura = (textBlock?.text ? textBlock.text + "\n\n" : "") + "⚡ **Ação identificada:** " + descricao + "\n\n✅ Posso executar isso agora. Confirma?";
           setAuraChatMessages(prev => [...prev, { role: "assistant", content: msgAura }]);
-          setAuraToolPendente({ tool: toolUseBlock.name, params: toolUseBlock.input, descricao });
+          const pendente = { tool: toolUseBlock.name, params: toolUseBlock.input, descricao };
+          _auraToolPendenteCache = pendente;
+          setAuraToolPendente(pendente);
         }
       } else {
         const reply = json.content?.find((b: any) => b.type === "text")?.text || "Não consegui processar sua mensagem.";
