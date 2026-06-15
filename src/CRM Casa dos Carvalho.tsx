@@ -93,6 +93,12 @@ function applyTheme(dark: boolean) {
 const S = `
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700&family=DM+Sans:wght@400;500;600&display=swap');
 *{box-sizing:border-box;margin:0;padding:0;}
+@keyframes fadeSlideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes scalePulse{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
+@keyframes slideInRight{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+@keyframes countUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+@keyframes goldPulse{0%{box-shadow:0 0 0 0 rgba(201,168,76,.4)}70%{box-shadow:0 0 0 8px rgba(201,168,76,0)}100%{box-shadow:0 0 0 0 rgba(201,168,76,0)}}
 :root{
   --gold:#C9A84C;--gold-l:#E8C97A;--gold-d:rgba(201,168,76,0.13);
   --q0:#8E44AD;--q1:#C0392B;--q2:#D4820A;--q3:#27AE60;
@@ -122,7 +128,7 @@ body{background:var(--dk);color:var(--tx);font-family:'DM Sans',sans-serif;}
 .stats{display:flex;gap:1px;background:var(--br);border-bottom:1px solid var(--br);}
 .si{flex:1;background:var(--dk2);padding:11px 14px;display:flex;align-items:center;gap:9px;}
 .sico{width:30px;height:30px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;}
-.sv{font-size:19px;font-weight:600;color:var(--tx);font-family:'Cormorant Garamond',serif;line-height:1;}
+.sv{font-size:19px;font-weight:600;color:var(--tx);font-family:'Cormorant Garamond',serif;line-height:1;animation:countUp .35s ease;}
 .sl{font-size:10px;color:var(--tx2);text-transform:uppercase;letter-spacing:.08em;margin-top:2px;}
 .ctrl{padding:11px 16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--dk2);border-bottom:1px solid var(--br);}
 .srch{background:var(--dk3);border:1px solid var(--br);border-radius:6px;color:var(--tx);padding:7px 11px;font-size:12px;font-family:'DM Sans',sans-serif;width:190px;outline:none;}
@@ -130,30 +136,30 @@ body{background:var(--dk);color:var(--tx);font-family:'DM Sans',sans-serif;}
 .srch::placeholder{color:var(--tx3);}
 .fb{background:var(--dk3);border:1px solid var(--br);border-radius:6px;color:var(--tx2);padding:6px 11px;font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
 .fb.on{background:var(--gold-d);border-color:var(--gold);color:var(--gold);}
-.kw{flex:1;overflow-x:auto;padding:14px;display:flex;gap:11px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}.kw::-webkit-scrollbar{display:none;}.kw-scroll-mirror::-webkit-scrollbar{height:4px;}.kw-scroll-mirror::-webkit-scrollbar-track{background:var(--dk3);}.kw-scroll-mirror::-webkit-scrollbar-thumb{background:var(--gold);border-radius:2px;}.kc{min-width:215px;max-width:215px;display:flex;flex-direction:column;gap:6px;}
+.kw{flex:1;overflow-x:auto;padding:14px;display:flex;gap:11px;-webkit-overflow-scrolling:touch;scrollbar-width:none;}.kw::-webkit-scrollbar{display:none;}.kw-scroll-mirror::-webkit-scrollbar{height:4px;}.kw-scroll-mirror::-webkit-scrollbar-track{background:var(--dk3);}.kw-scroll-mirror::-webkit-scrollbar-thumb{background:var(--gold);border-radius:2px;}.kc{min-width:195px;max-width:195px;display:flex;flex-direction:column;gap:5px;}
 
 .kh{padding:8px 11px;border-radius:7px 7px 0 0;background:var(--dk3);border:1px solid var(--br);border-bottom:2px solid;display:flex;align-items:center;justify-content:space-between;}
 .kt{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;}
 .kn{font-size:11px;font-weight:700;background:var(--dk4);border-radius:9px;padding:2px 6px;color:var(--tx2);}
 .kb{background:var(--dk3);border:1px solid var(--br);border-top:none;border-radius:0 0 7px 7px;padding:7px;display:flex;flex-direction:column;gap:6px;min-height:70px;flex:1;}
 .ke{text-align:center;color:var(--tx3);font-size:11px;padding:14px 6px;font-style:italic;}
-.card{background:var(--dk4);border:1px solid var(--br);border-radius:7px;padding:9px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden;}
+.card{background:var(--dk4);border:1px solid var(--br);border-radius:7px;padding:7px 8px;cursor:pointer;transition:all .18s;position:relative;overflow:hidden;}
 .card:hover{border-color:var(--brh);transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.4);}
 .ctop{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:5px;}
-.cname{font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:600;color:var(--tx);line-height:1.2;}
+.cname{font-family:'Cormorant Garamond',serif;font-size:13px;font-weight:600;color:var(--tx);line-height:1.2;}
 .qb{font-size:9px;font-weight:700;letter-spacing:.05em;border-radius:4px;padding:2px 5px;text-transform:uppercase;flex-shrink:0;}
 .q0c{background:rgba(142,68,173,.2);color:var(--q0);border:1px solid rgba(142,68,173,.3);}
 .q1c{background:rgba(192,57,43,.2);color:var(--q1);border:1px solid rgba(192,57,43,.3);}
 .q2c{background:rgba(212,130,10,.2);color:var(--q2);border:1px solid rgba(212,130,10,.3);}
 .q3c{background:rgba(39,174,96,.2);color:var(--q3);border:1px solid rgba(39,174,96,.3);}
 .cst{font-size:11px;color:var(--tx2);margin-bottom:5px;}
-.cft{display:flex;align-items:center;justify-content:space-between;margin-top:5px;padding-top:5px;border-top:1px solid var(--br);}
+.cft{display:flex;align-items:center;justify-content:space-between;margin-top:4px;padding-top:4px;border-top:1px solid var(--br);}
 .at{font-size:10px;font-weight:600;letter-spacing:.04em;padding:2px 6px;border-radius:9px;text-transform:uppercase;}
 .at-abraao{background:rgba(74,158,191,.15);color:var(--ab);border:1px solid rgba(74,158,191,.25);}
 .at-camilla{background:rgba(155,107,181,.15);color:var(--ca);border:1px solid rgba(155,107,181,.25);}
 .cd{font-size:10px;color:var(--tx3);}
-.cor{font-size:10px;color:var(--tx3);margin-top:3px;}
-.ar{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap;}
+.cor{font-size:9px;color:var(--tx3);margin-top:2px;}
+.ar{display:flex;gap:3px;margin-top:3px;flex-wrap:wrap;}
 .atag{font-size:9px;font-weight:600;padding:2px 4px;border-radius:3px;background:rgba(212,130,10,.2);color:var(--q2);border:1px solid rgba(212,130,10,.3);}
 .co{font-size:9px;font-weight:600;padding:2px 4px;border-radius:3px;}
 .co-o{background:rgba(230,126,34,.2);color:#E67E22;border:1px solid rgba(230,126,34,.3);}
@@ -3047,7 +3053,7 @@ export default function CRM() {
         {/* ALERT DROPDOWN - createPortal para evitar overflow */}
         {showAlerts && alertas.length > 0 && createPortal(
           <div onClick={() => setShowAlerts(false)} style={{ position: "fixed", inset: 0, zIndex: 2147483646 }}>
-          <div onClick={e => e.stopPropagation()} style={{ position: "fixed", top: alertPos.top, right: alertPos.right, zIndex: 2147483647, width: "min(380px, calc(100vw - 32px))", background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,.5)", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div onClick={e => e.stopPropagation()} style={{ position: "fixed", top: alertPos.top, right: Math.max(alertPos.right, 8), zIndex: 2147483647, width: "min(380px, calc(100vw - 16px))", maxWidth: "calc(100vw - 16px)", background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, boxShadow: "0 8px 32px rgba(0,0,0,.5)", maxHeight: "min(80vh, calc(100dvh - 80px))", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <div className="ad-hdr" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span>Alertas — {alertas.length} clientes</span>
               <button onClick={() => setShowAlerts(false)} style={{ background: "none", border: "none", color: "var(--tx3)", cursor: "pointer", fontSize: 16 }}>×</button>
@@ -3224,7 +3230,7 @@ export default function CRM() {
         {tab === "kanban" && (
           <>
           {/* Barra de rolagem nativa dourada — acima das colunas */}
-          <div style={{ background: "var(--dk2)", borderBottom: "1px solid var(--br)" }}>
+          <div style={{ background: "var(--dk2)", borderBottom: "1px solid var(--br)", animation: "fadeIn .15s ease" }}>
             <div className="kw-scroll-mirror" id="kanban-scroll" style={{ overflowX: "auto", overflowY: "hidden", height: 10, scrollbarWidth: "thin", scrollbarColor: "var(--gold) var(--dk3)" }}
               onScroll={e => { const body = document.getElementById("kanban-body"); if (body) body.scrollLeft = e.currentTarget.scrollLeft; }}>
               <div id="kanban-scroll-spacer" style={{ height: 1 }} />
@@ -3270,7 +3276,7 @@ export default function CRM() {
                       const anivMes = isAniversMes((c as any).nascimento || "");
                       const anivHoje = isAniversHoje((c as any).nascimento || "");
                       return (
-                        <div key={c.id} className="card" onClick={() => { setSel(c); setSelCtx("clientes"); }}>
+                        <div key={c.id} className="card" onClick={() => { setSel(c); setSelCtx("clientes"); }} style={{ animation: "fadeSlideIn .22s ease both" }}>
                           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "3px", background: aColor(c.artista), borderRadius: "7px 0 0 7px" }} />
                           <div className="ctop">
                             <div className="cname">{anivHoje ? "🎂 " : ""}{c.nome}</div>
@@ -3348,7 +3354,7 @@ export default function CRM() {
           const sorted = [...filtered].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
           const usedLetters = new Set(sorted.map(c => c.nome[0].toUpperCase()));
           return (
-          <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+          <div style={{ display: "flex", flex: 1, overflow: "hidden", animation: "fadeIn .15s ease" }}>
             <div className="cw" style={{ flex: 1 }}>
             {sorted.length === 0
               ? <div className="empty">Nenhum cliente encontrado.</div>
@@ -3422,7 +3428,7 @@ export default function CRM() {
 
         {/* ── AGENDA ── */}
         {tab === "agenda" && (
-          <div className="agw">
+          <div className="agw" style={{ animation: "fadeIn .15s ease" }}>
             <div className="ag-ctrl">
               <div className="ag-nav">
                 <button className="ag-nb" onClick={() => agNav(-1)}>&lt;</button>
@@ -3654,7 +3660,7 @@ export default function CRM() {
           const lucroLiquido = lucroAntesProlabore - prolabore;
 
           return (
-          <div className="fw">
+          <div className="fw" style={{ animation: "fadeIn .15s ease" }}>
 
             {/* ── SUB-ABAS ── */}
             <div style={{ display: "flex", gap: 3, padding: "0 0 2px", borderBottom: "1px solid var(--br)", marginBottom: 4 }}>
@@ -4981,7 +4987,7 @@ export default function CRM() {
 
         {/* ── DISPAROS ── */}
         {tab === "disparos" && (
-          <div style={{ flex: 1, padding: "16px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, maxWidth: 780, width: "100%" }}>
+          <div style={{ flex: 1, padding: "16px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, maxWidth: 780, width: "100%", animation: "fadeIn .15s ease" }}>
 
             {/* Cabeçalho */}
             <div style={{ marginBottom: 4 }}>
@@ -7110,7 +7116,7 @@ export default function CRM() {
 
         {showAviso && (
           <div className="ov" style={{ zIndex: 9999 }} onClick={() => setShowAviso(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(400px, 90vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(400px, 90vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14, animation: "slideInRight .25s ease" }}>
               <div style={{ fontSize: 16, fontWeight: 700, color: showAviso?.includes("sucesso") || showAviso?.includes("concluído") || showAviso?.includes("confirmada") || showAviso?.includes("registrado") ? "var(--q3)" : "var(--gold)", fontFamily: "'Cormorant Garamond',serif" }}>
                 {showAviso?.includes("sucesso") || showAviso?.includes("concluído") || showAviso?.includes("confirmada") || showAviso?.includes("registrado") ? "✅ Sucesso" : "⚠ Atenção"}
               </div>
@@ -8689,7 +8695,7 @@ export default function CRM() {
                   </div>
                 )}
                 {auraChatMessages.map((m, i) => (
-                  <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                  <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start", animation: "fadeSlideIn .18s ease both", animationDelay: "0ms" }}>
                     <div style={{ maxWidth: "82%", background: m.role === "user" ? "rgba(201,168,76,.15)" : "var(--dk3)", border: "1px solid " + (m.role === "user" ? "rgba(201,168,76,.25)" : "var(--br)"), borderRadius: 10, padding: "8px 12px", fontSize: 12, color: "var(--tx)", lineHeight: 1.6 }}>
                       <span style={{ whiteSpace: "pre-wrap" }} dangerouslySetInnerHTML={{ __html: String(m.content).replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>") }} />
                     </div>
@@ -8757,7 +8763,7 @@ export default function CRM() {
           )}
           <button
             onClick={() => setShowAuraChat(p => !p)}
-            style={{ background: showAuraChat ? "var(--dk3)" : "var(--gold)", color: showAuraChat ? "var(--tx2)" : "#000", border: "1px solid var(--gold)", borderRadius: 50, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", boxShadow: "0 4px 20px rgba(201,168,76,.4)", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap" }}>
+            style={{ background: showAuraChat ? "var(--dk3)" : "var(--gold)", color: showAuraChat ? "var(--tx2)" : "#000", border: "1px solid var(--gold)", borderRadius: 50, padding: "12px 18px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif", boxShadow: "0 4px 20px rgba(201,168,76,.4)", display: "flex", alignItems: "center", gap: 8, whiteSpace: "nowrap", animation: showAuraChat ? "none" : "goldPulse 2.5s infinite" }}>
             ✦ {(auraName && !auraName.includes("@")) ? auraName : "Configure sua agente"}
           </button>
         </div>
