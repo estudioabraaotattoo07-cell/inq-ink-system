@@ -14,21 +14,21 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { nome, tel, email, idea, artista } = req.body;
+  const { nome, tel, email, idea, artista, insta, regiao, nascimento } = req.body;
   if (!nome) return res.status(400).json({ error: "nome obrigatório" });
 
   const row = {
     nome,
     tel: tel || "",
     email: email || "",
-    insta: "",
+    insta: insta || "",
     qual: "Q1",
     etapa: "lead",
     orig: "Site - Aura Chat",
-    descricao: idea || "",
+    descricao: [idea, nascimento ? `Nascimento: ${nascimento}` : ""].filter(Boolean).join(" | "),
     artista: artista || null,
     estilo: "",
-    regiao: "",
+    regiao: regiao || "",
     tam: "Medio",
     intencao: "",
     cob: false,
