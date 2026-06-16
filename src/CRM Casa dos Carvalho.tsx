@@ -969,6 +969,9 @@ export default function CRM() {
   const [finAbaAtiva, setFinAbaAtiva] = useState<"livrocaixa"|"dre"|"equipamentos">("livrocaixa");
   const [clients, setClients] = useState<any[]>([]);
   const [artists, setArtists] = useState<any[]>([]);
+  const [newLeadsBadge, setNewLeadsBadge] = useState(0);
+  const [leadToast, setLeadToast] = useState<string|null>(null);
+  const lastLeadCheckRef = useRef<string>(new Date().toISOString());
   const [fin, setFin] = useState(FIN_INIT);
   const [agEvents, setAgEvents] = useState<any[]>([]);
   const [tab, setTab] = useState(() => localStorage.getItem("inq_tab") || "kanban");
@@ -1187,7 +1190,7 @@ export default function CRM() {
         if (uid) setUserId(uid);
         const loadWithUser = async (table: string) => {
           if (!uid) return await sb.from(table).select("*").then(r => r.data);
-          return await sb.from(table).select("*").eq("user_id", uid).then(r => r.data);
+          return await sb.from(table).select("*").or(`user_id.eq.${uid},user_id.is.null`).then(r => r.data);
         };
         const loadCfg = async () => {
           if (!uid) return await sb.from("configuracoes").select("*").limit(1).single().then(r => r.data ? [r.data] : null);
@@ -1297,6 +1300,35 @@ export default function CRM() {
       setDbReady(true);
     }
     loadAll();
+  }, [logado]);
+
+  // ─── POLLING NOVOS LEADS ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!logado || !sb) return;
+    const poll = async () => {
+      try {
+        const since = lastLeadCheckRef.current;
+        lastLeadCheckRef.current = new Date().toISOString();
+        const { data } = await sb.from("clientes")
+          .select("id,nome,artista,orig,created_at")
+          .eq("orig", "Site - Aura Chat")
+          .gt("created_at", since);
+        if (data && data.length > 0) {
+          setClients(prev => {
+            const existingIds = new Set(prev.map((c: any) => c.id));
+            const novo = data.filter((c: any) => !existingIds.has(c.id)).map((c: any) => ({
+              ...c, hist: [], pv: [], faltas: 0, indicacoes: 0, credito: 0, desc: c.descricao || "", projetos: [],
+            }));
+            if (novo.length === 0) return prev;
+            setNewLeadsBadge(b => b + novo.length);
+            setLeadToast(novo.length === 1 ? `🎯 Novo lead: ${novo[0].nome}` : `🎯 ${novo.length} novos leads chegaram!`);
+            return [...novo, ...prev];
+          });
+        }
+      } catch {}
+    };
+    const interval = setInterval(poll, 30000);
+    return () => clearInterval(interval);
   }, [logado]);
 
   // ─── RÉGUA PÓS-VENDA ─────────────────────────────────────────────────────
@@ -3612,7 +3644,11 @@ export default function CRM() {
               return (
                 <div className="kc" key={stage.id} id={"kcol-" + stage.id}>
                   <div className="kh" style={{ borderBottomColor: stage.color }}>
-                    <span className="kt" style={{ color: stage.color }}>{stage.emoji} {stage.label}</span>
+                    <span className="kt" style={{ color: stage.color }}>{stage.emoji} {stage.label}
+                      {stage.id === "lead" && newLeadsBadge > 0 && (
+                        <span onClick={() => setNewLeadsBadge(0)} title="Novos leads — clique para dispensar" style={{ marginLeft: 6, background: "#E74C3C", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 10, padding: "1px 6px", cursor: "pointer", verticalAlign: "middle", animation: "pulse 1.5s infinite" }}>{newLeadsBadge}</span>
+                      )}
+                    </span>
                     <span className="kn">{sc2.length}</span>
                   </div>
                   <div className="kb">
@@ -7649,6 +7685,19 @@ export default function CRM() {
             </div>
           </div>
         )}
+
+        {leadToast && (() => {
+          setTimeout(() => setLeadToast(null), 5000);
+          return (
+            <div onClick={() => setLeadToast(null)} style={{ position: "fixed", bottom: 24, right: 24, zIndex: 99999, background: "#1a2a1a", border: "1.5px solid #27ae60", borderRadius: 12, padding: "14px 18px", color: "#fff", fontSize: 14, fontWeight: 600, boxShadow: "0 4px 24px #0008", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, animation: "slideInRight .3s ease", maxWidth: 320 }}>
+              <span style={{ fontSize: 22 }}>🎯</span>
+              <div>
+                <div style={{ color: "#2ecc71", fontWeight: 700, fontSize: 13 }}>Novo lead no site!</div>
+                <div style={{ fontSize: 12, opacity: 0.85, marginTop: 2 }}>{leadToast.replace("🎯 ", "")}</div>
+              </div>
+            </div>
+          );
+        })()}
 
         {showAviso && (
           <div className="ov" style={{ zIndex: 9999 }} onClick={() => setShowAviso(null)}>
