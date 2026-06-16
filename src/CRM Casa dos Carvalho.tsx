@@ -1051,6 +1051,7 @@ export default function CRM() {
   const [cancelProjetoModal, setCancelProjetoModal] = useState<{clienteId: any; projetoId: any; motivo: string} | null>(null);
   const [cancelMotivos, setCancelMotivos] = useState<string[]>(["Cliente desistiu", "Questão financeira", "Mudança de projeto", "Sem resposta do cliente", "Outro"]);
   const [pvRegua, setPvRegua] = useState<{id: string; label: string; dias: number; msg: string; canal: string}[]>([]);
+  const [enviandoRelatorio, setEnviandoRelatorio] = useState(false);
   const [novoProjetoAberto, setNovoProjetoAberto] = useState<any>(null);
   const [showStats, setShowStats] = useState(false);
   const [novoProjetoForm, setNovoProjetoForm] = useState({ estilo: "", tam: "Medio", primeira: false, desc: "", valorTotal: "", servico: "" });
@@ -1095,6 +1096,7 @@ export default function CRM() {
   const [auraChatLoading, setAuraChatLoading] = useState(false);
   const [auraToolPendente, setAuraToolPendente] = useState<{ tool: string; params: any; descricao: string } | null>(null);
   const [auraChatImagem, setAuraChatImagem] = useState<{ base64: string; mediaType: string } | null>(null);
+  const [auraChatPdf, setAuraChatPdf] = useState<{nome: string; base64: string} | null>(null);
   const [alertaConfig, setAlertaConfig] = useState({ alerta_nova_mensagem: true, alerta_sessao_proxima: true, alerta_sessao_antecedencia: "2h", alerta_falta: true, alerta_aniversario: true, alerta_sem_retorno: true, alerta_sem_retorno_dias: "30", alerta_sinal_pendente: true, alerta_projeto_sem_valor: true, alerta_novo_cliente_aura: true });
   const [sessoesExtras, setSessoesExtras] = useState<{date: string; start: number; end: number}[]>([]);
   const [entradaCats, setEntradaCats] = useState<string[]>(["sessao","sinal","prolabore","outro"]);
@@ -1303,6 +1305,62 @@ export default function CRM() {
     try {
       await sb.from("configuracoes").upsert({ user_id: userId, pv_regua: JSON.stringify(novaRegua) }, { onConflict: "user_id" });
     } catch {}
+  };
+
+  // ─── RELATÓRIO FINANCEIRO ────────────────────────────────────────────────
+  const enviarRelatorioContador = async () => {
+    if (!studioEmail) { setShowAviso("Configure o e-mail do estúdio nas Configurações antes de enviar."); return; }
+    if (!resendApiKey) { setShowAviso("Configure a Resend API Key nas Configurações → IA."); return; }
+    setEnviandoRelatorio(true);
+    try {
+      const mes = finFiltroMes || new Date().toISOString().slice(0, 7);
+      const [ano, mesNum] = mes.split("-");
+      const nomeMes = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"][Number(mesNum) - 1];
+      const entradas = fin.filter((f: any) => (!f.tipo || f.tipo === "entrada") && !f.is_permuta && (f.data || "").startsWith(mes));
+      const permutas = fin.filter((f: any) => f.is_permuta && (f.data || "").startsWith(mes));
+      const saidasMes = saidas.filter((s: any) => (s.data || "").startsWith(mes));
+      const totalEnt = entradas.reduce((s: number, f: any) => s + (Number(f.val_a) || 0), 0);
+      const totalSai = saidasMes.reduce((s: number, x: any) => s + (Number(x.valor) || 0), 0);
+      const totalRep = entradas.reduce((s: number, f: any) => s + ((Number(f.val_a) || 0) * (Number(f.com_sess) || 0) / 100), 0);
+      const totalPerm = permutas.reduce((s: number, f: any) => s + (Number(f.val_a) || 0), 0);
+      const saldo = totalEnt - totalSai - totalRep;
+      const linhasEntradas = entradas.map((f: any) =>
+        "<tr><td>" + (f.data || "—") + "</td><td>" + (f.cliente_nome || "—") + "</td><td>" + (f.pgto || f.forma_pgto || "—") + "</td><td style='text-align:right'>R$ " + Number(f.val_a).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + "</td></tr>"
+      ).join("");
+      const linhasSaidas = saidasMes.map((s: any) =>
+        "<tr><td>" + (s.data || "—") + "</td><td>" + (s.descricao || "—") + "</td><td>" + (s.categoria || "—") + "</td><td style='text-align:right'>R$ " + Number(s.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + "</td></tr>"
+      ).join("");
+      const linhasPermutas = permutas.map((f: any) =>
+        "<tr><td>" + (f.data || "—") + "</td><td>" + (f.cliente_nome || "—") + "</td><td>Permuta</td><td style='text-align:right'>R$ " + Number(f.val_a).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + "</td></tr>"
+      ).join("");
+      const html = "<div style='font-family:Arial,sans-serif;max-width:700px;margin:0 auto;color:#222'>" +
+        "<h2 style='color:#1a1a1a;border-bottom:2px solid #C9A84C;padding-bottom:8px'>📊 Relatório Financeiro — " + nomeMes + "/" + ano + "</h2>" +
+        "<p style='color:#555'>Estúdio: <strong>" + (studioName || "—") + "</strong>" + (cnpj ? " · CNPJ " + cnpj : "") + "</p>" +
+        "<table style='width:100%;border-collapse:collapse;margin:16px 0'>" +
+        "<tr><td style='padding:8px;background:#f9f9f9;border:1px solid #eee'>💰 Faturamento (caixa real)</td><td style='padding:8px;background:#f9f9f9;border:1px solid #eee;text-align:right;font-weight:700;color:#27AE60'>R$ " + totalEnt.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + "</td></tr>" +
+        "<tr><td style='padding:8px;border:1px solid #eee'>📤 Saídas</td><td style='padding:8px;border:1px solid #eee;text-align:right;color:#E74C3C'>R$ " + totalSai.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + "</td></tr>" +
+        "<tr><td style='padding:8px;background:#f9f9f9;border:1px solid #eee'>👤 Repasses profissionais</td><td style='padding:8px;background:#f9f9f9;border:1px solid #eee;text-align:right;color:#E67E22'>R$ " + totalRep.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + "</td></tr>" +
+        (totalPerm > 0 ? "<tr><td style='padding:8px;border:1px solid #eee'>🔄 Permutas (não contabilizado)</td><td style='padding:8px;border:1px solid #eee;text-align:right;color:#9B59B6'>R$ " + totalPerm.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + "</td></tr>" : "") +
+        "<tr style='background:#C9A84C20'><td style='padding:8px;border:1px solid #C9A84C;font-weight:700'>💵 Saldo Líquido</td><td style='padding:8px;border:1px solid #C9A84C;text-align:right;font-weight:700;font-size:16px'>R$ " + saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + "</td></tr>" +
+        "</table>" +
+        (linhasEntradas ? "<h3 style='margin-top:24px;color:#1a1a1a'>Entradas</h3><table style='width:100%;border-collapse:collapse;font-size:13px'><thead><tr style='background:#f0f0f0'><th style='padding:6px;text-align:left;border:1px solid #ddd'>Data</th><th style='padding:6px;text-align:left;border:1px solid #ddd'>Cliente</th><th style='padding:6px;text-align:left;border:1px solid #ddd'>Forma</th><th style='padding:6px;text-align:right;border:1px solid #ddd'>Valor</th></tr></thead><tbody>" + linhasEntradas + "</tbody></table>" : "") +
+        (linhasSaidas ? "<h3 style='margin-top:24px;color:#1a1a1a'>Saídas</h3><table style='width:100%;border-collapse:collapse;font-size:13px'><thead><tr style='background:#f0f0f0'><th style='padding:6px;text-align:left;border:1px solid #ddd'>Data</th><th style='padding:6px;text-align:left;border:1px solid #ddd'>Descrição</th><th style='padding:6px;text-align:left;border:1px solid #ddd'>Categoria</th><th style='padding:6px;text-align:right;border:1px solid #ddd'>Valor</th></tr></thead><tbody>" + linhasSaidas + "</tbody></table>" : "") +
+        (linhasPermutas ? "<h3 style='margin-top:24px;color:#9B59B6'>Permutas (informativo)</h3><table style='width:100%;border-collapse:collapse;font-size:13px'><thead><tr style='background:#f5f0ff'><th style='padding:6px;text-align:left;border:1px solid #ddd'>Data</th><th style='padding:6px;text-align:left;border:1px solid #ddd'>Cliente</th><th style='padding:6px;text-align:left;border:1px solid #ddd'>Tipo</th><th style='padding:6px;text-align:right;border:1px solid #ddd'>Valor</th></tr></thead><tbody>" + linhasPermutas + "</tbody></table>" : "") +
+        "<p style='margin-top:24px;font-size:12px;color:#999'>Gerado pelo INK SYSTEM · " + new Date().toLocaleString("pt-BR") + "</p></div>";
+      await fetch("/api/resend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey: resendApiKey,
+          from: "aura@acasadoscarvalhotattoo.com.br",
+          to: studioEmail,
+          subject: "📊 Relatório Financeiro — " + nomeMes + "/" + ano + " · " + (studioName || "INK SYSTEM"),
+          html
+        })
+      });
+      setShowAviso("✅ Relatório de " + nomeMes + "/" + ano + " enviado para " + studioEmail + ". Encaminhe para seu contador.");
+    } catch { setShowAviso("❌ Erro ao enviar relatório. Verifique as configurações de e-mail."); }
+    setEnviandoRelatorio(false);
   };
 
   // ─── SALVAR CLIENTE NO SUPABASE ──────────────────────────────────────────
@@ -2221,6 +2279,20 @@ export default function CRM() {
       }
     },
     {
+      name: "encaminhar_pdf",
+      description: "Encaminha um PDF recebido no chat para um destinatário por e-mail. Sempre mostrar para quem vai enviar e pedir confirmação antes.",
+      input_schema: {
+        type: "object",
+        properties: {
+          destinatario_email: { type: "string", description: "E-mail do destinatário" },
+          destinatario_nome: { type: "string", description: "Nome do destinatário para confirmação" },
+          assunto: { type: "string", description: "Assunto do e-mail" },
+          mensagem: { type: "string", description: "Texto que acompanha o PDF no e-mail" }
+        },
+        required: ["destinatario_email", "destinatario_nome", "assunto", "mensagem"]
+      }
+    },
+    {
       name: "criar_projeto",
       description: "Cria um novo projeto dentro da ficha de um cliente. Usado quando o cliente tem uma nova solicitação de tatuagem ou serviço. Sempre confirmar os dados antes de executar.",
       input_schema: {
@@ -2547,6 +2619,30 @@ export default function CRM() {
           return "❌ Erro ao enviar SMS. Verifique as credenciais Zenvia em Configurações.";
         }
       }
+      if (tool === "encaminhar_pdf") {
+        try {
+          if (!resendApiKey) return "❌ Resend não configurado. Acesse Configurações → IA para configurar.";
+          await fetch("/api/resend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              apiKey: resendApiKey,
+              from: emailRemetente || "aura@acasadoscarvalhotattoo.com.br",
+              to: params.destinatario_email,
+              subject: params.assunto,
+              html: "<p>" + params.mensagem.replace(/\n/g, "<br>") + "</p><p style='font-size:12px;color:#999'>Enviado via INK SYSTEM</p>"
+            })
+          });
+          try {
+            await sb.from("historico").insert({
+              data: dataStr, hora: horaStr,
+              acao: (auraName || "IA") + " encaminhou PDF para " + params.destinatario_nome + " (" + params.destinatario_email + ")",
+              user_id: userId
+            });
+          } catch {}
+          return "✅ PDF encaminhado para **" + params.destinatario_nome + "** (" + params.destinatario_email + ").";
+        } catch { return "❌ Erro ao encaminhar PDF. Verifique as configurações de e-mail."; }
+      }
       if (tool === "salvar_memoria") {
         try {
           const novaInstrucao = params.instrucao;
@@ -2573,6 +2669,7 @@ export default function CRM() {
     }
     setAuraChatInput("");
     setAuraChatImagem(null);
+    setAuraChatPdf(null);
 
     // ── INTERCEPTAR CONFIRMAÇÃO ANTES DA API ──
     if (_auraToolPendenteCache && !imagemBase64) {
@@ -2604,6 +2701,17 @@ export default function CRM() {
       ];
     } else {
       userContent = userMsg;
+    }
+    // Incluir PDF se houver
+    if (auraChatPdf) {
+      if (!Array.isArray(userContent)) {
+        userContent = [{ type: "text", text: userContent || "Analise este PDF." }];
+      }
+      userContent.push({
+        type: "document",
+        source: { type: "base64", media_type: "application/pdf", data: auraChatPdf.base64 }
+      });
+      setAuraChatPdf(null);
     }
     const clientesContexto = clients.slice(0, 80).map((c: any) => "ID:" + c.id + " | " + c.nome + " | etapa:" + c.etapa + " | tel:" + (c.tel || "-") + " | email:" + (c.email || "-")).join("\n");
     const displayMsg = imagemBase64 ? "📷 " + (userMsg || "Imagem enviada") : userMsg;
@@ -2686,6 +2794,9 @@ export default function CRM() {
           else if (toolUseBlock.name === "disparar_sms") {
             const p2 = toolUseBlock.input;
             descricao = "Enviar SMS para **" + p2.cliente_nome + "** (" + p2.cliente_tel + "):\n" + p2.mensagem;
+          }
+          else if (toolUseBlock.name === "encaminhar_pdf") {
+            descricao = "Encaminhar PDF para **" + p2.destinatario_nome + "** (" + p2.destinatario_email + ")\nAssunto: " + p2.assunto;
           }
           else if (toolUseBlock.name === "salvar_memoria") {
             descricao = "Salvar permanentemente nas minhas memórias: **" + toolUseBlock.input.instrucao + "**";
@@ -3919,6 +4030,12 @@ export default function CRM() {
                   <input type="month" value={finFiltroMes} onChange={e => setFinFiltroMes(e.target.value)}
                     style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 9px", fontSize: 12, color: "var(--tx)", outline: "none" }} />
                 </div>
+                <button
+                  onClick={enviarRelatorioContador}
+                  disabled={enviandoRelatorio}
+                  style={{ background: enviandoRelatorio ? "var(--dk3)" : "rgba(201,168,76,.12)", border: "1px solid rgba(201,168,76,.3)", borderRadius: 7, padding: "6px 14px", fontSize: 12, fontWeight: 700, color: "var(--gold)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", whiteSpace: "nowrap", flexShrink: 0 }}>
+                  {enviandoRelatorio ? "⏳ Enviando..." : "📊 Enviar ao Contador"}
+                </button>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 11, color: "var(--tx3)" }}>Profissional</span>
                   <select value={finFiltroArtista} onChange={e => setFinFiltroArtista(e.target.value)}
@@ -9111,6 +9228,14 @@ export default function CRM() {
                     </div>
                   </div>
                 )}
+                {auraChatPdf && (
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <div style={{ background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.3)", borderRadius: 10, padding: "8px 12px", fontSize: 12, color: "var(--gold)", display: "flex", alignItems: "center", gap: 8 }}>
+                      📄 {auraChatPdf.nome}
+                      <button onClick={() => setAuraChatPdf(null)} style={{ background: "none", border: "none", color: "var(--tx3)", cursor: "pointer", fontSize: 14, lineHeight: 1 }}>✕</button>
+                    </div>
+                  </div>
+                )}
                 {auraChatLoading && (
                   <div style={{ display: "flex", justifyContent: "flex-start" }}>
                     <div style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 10, padding: "8px 14px", fontSize: 12, color: "var(--tx3)" }}>✦ digitando…</div>
@@ -9135,30 +9260,52 @@ export default function CRM() {
                   <div style={{ background: auraChatImagem ? "rgba(201,168,76,.3)" : "var(--dk4)", border: "1px solid " + (auraChatImagem ? "var(--gold)" : "var(--br)"), borderRadius: 8, padding: "8px 10px", fontSize: 14, cursor: "pointer", color: auraChatImagem ? "var(--gold)" : "var(--tx3)" }}>📷</div>
                 </label>
                 <input
+                  type="file"
+                  accept="application/pdf"
+                  id="auraPdfInput"
+                  style={{ display: "none" }}
+                  onChange={async e => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = ev => {
+                      const base64 = (ev.target?.result as string).split(",")[1];
+                      setAuraChatPdf({ nome: file.name, base64 });
+                    };
+                    reader.readAsDataURL(file);
+                    e.target.value = "";
+                  }}
+                />
+                <div
+                  onClick={() => document.getElementById("auraPdfInput")?.click()}
+                  style={{ background: auraChatPdf ? "rgba(201,168,76,.3)" : "var(--dk4)", border: "1px solid " + (auraChatPdf ? "var(--gold)" : "var(--br)"), borderRadius: 8, padding: "8px 10px", fontSize: 14, cursor: "pointer", color: auraChatPdf ? "var(--gold)" : "var(--tx3)" }}>
+                  📄
+                </div>
+                <input
                   className="fi"
                   style={{ flex: 1, fontSize: 12 }}
-                  placeholder={auraChatImagem ? "Adicione uma instrução (opcional)..." : "Pergunte algo ou peça uma ação..."}
+                  placeholder={(auraChatImagem || auraChatPdf) ? "Adicione uma instrução (opcional)..." : "Pergunte algo ou peça uma ação..."}
                   value={auraChatInput}
                   onChange={e => setAuraChatInput(e.target.value)}
                   onKeyDown={async e => {
                     if (e.key !== "Enter" || auraChatLoading) return;
                     if (auraChatImagem) {
                       await enviarMensagemAura(auraChatInput.trim(), auraChatImagem.base64, auraChatImagem.mediaType);
-                    } else if (auraChatInput.trim()) {
+                    } else if (auraChatInput.trim() || auraChatPdf) {
                       await enviarMensagemAura();
                     }
                   }}
                 />
                 <button
-                  disabled={(!auraChatInput.trim() && !auraChatImagem) || auraChatLoading}
+                  disabled={(!auraChatInput.trim() && !auraChatImagem && !auraChatPdf) || auraChatLoading}
                   onClick={async () => {
                     if (auraChatImagem) {
                       await enviarMensagemAura(auraChatInput.trim(), auraChatImagem.base64, auraChatImagem.mediaType);
-                    } else if (auraChatInput.trim()) {
+                    } else if (auraChatInput.trim() || auraChatPdf) {
                       await enviarMensagemAura();
                     }
                   }}
-                  style={{ background: (auraChatInput.trim() || auraChatImagem) && !auraChatLoading ? "var(--gold)" : "var(--dk4)", color: (auraChatInput.trim() || auraChatImagem) && !auraChatLoading ? "#000" : "var(--tx3)", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: (auraChatInput.trim() || auraChatImagem) && !auraChatLoading ? "pointer" : "not-allowed", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>
+                  style={{ background: (auraChatInput.trim() || auraChatImagem || auraChatPdf) && !auraChatLoading ? "var(--gold)" : "var(--dk4)", color: (auraChatInput.trim() || auraChatImagem || auraChatPdf) && !auraChatLoading ? "#000" : "var(--tx3)", border: "none", borderRadius: 8, padding: "8px 14px", fontSize: 12, fontWeight: 700, cursor: (auraChatInput.trim() || auraChatImagem || auraChatPdf) && !auraChatLoading ? "pointer" : "not-allowed", fontFamily: "'DM Sans',sans-serif", flexShrink: 0 }}>
                   ↑
                 </button>
               </div>
