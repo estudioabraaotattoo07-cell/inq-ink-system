@@ -5344,6 +5344,55 @@ export default function CRM() {
                 </div>
               ))
             }
+          {/* ── RÉGUA DE PÓS-VENDA ── */}
+          <div style={{ padding: "16px", borderTop: "1px solid var(--br)", marginTop: 8 }}>
+            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--tx)", marginBottom: 4 }}>Régua de Pós-Venda</div>
+            <div style={{ fontSize: 12, color: "var(--tx3)", marginBottom: 12 }}>Configure as etapas de comunicação após cada sessão concluída. Cada profissional monta sua própria régua.</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 700 }}>
+              {(pvRegua.length > 0 ? pvRegua : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }))).map((etapa, idx) => (
+                <div key={etapa.id} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <input value={etapa.label} onChange={e => {
+                      const nova = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
+                      nova[idx] = { ...nova[idx], label: e.target.value };
+                      salvarPvRegua(nova);
+                    }} style={{ flex: 1, background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif" }} placeholder="Label da etapa" />
+                    <input type="number" value={etapa.dias} min={0} onChange={e => {
+                      const nova = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
+                      nova[idx] = { ...nova[idx], dias: Number(e.target.value) };
+                      salvarPvRegua(nova);
+                    }} style={{ width: 60, background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", textAlign: "center" }} title="Dias após sessão" />
+                    <span style={{ fontSize: 11, color: "var(--tx3)" }}>dias</span>
+                    <select value={etapa.canal || "email"} onChange={e => {
+                      const nova = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
+                      nova[idx] = { ...nova[idx], canal: e.target.value };
+                      salvarPvRegua(nova);
+                    }} style={{ background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif" }}>
+                      <option value="email">E-mail</option>
+                      <option value="whatsapp">WhatsApp</option>
+                      <option value="sms">SMS</option>
+                    </select>
+                    <button onClick={() => {
+                      const nova = (pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }))).filter((_, i) => i !== idx);
+                      salvarPvRegua(nova);
+                    }} style={{ background: "rgba(192,57,43,.12)", border: "none", borderRadius: 5, padding: "4px 8px", fontSize: 12, color: "#C0392B", cursor: "pointer" }} title="Remover etapa">✕</button>
+                  </div>
+                  <textarea value={etapa.msg} rows={2} onChange={e => {
+                    const nova = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
+                    nova[idx] = { ...nova[idx], msg: e.target.value };
+                    salvarPvRegua(nova);
+                  }} style={{ width: "100%", background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 8px", fontSize: 11, color: "var(--tx2)", fontFamily: "'DM Sans',sans-serif", resize: "vertical", boxSizing: "border-box" }} placeholder="Mensagem da etapa (use {nome}, {estudio})" />
+                </div>
+              ))}
+              <button onClick={() => {
+                const base = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
+                const nova = [...base, { id: "etapa_" + Date.now(), label: "Nova etapa", dias: 30, msg: "", canal: "email" }];
+                salvarPvRegua(nova);
+              }} style={{ background: "rgba(52,152,219,.1)", border: "1px dashed rgba(52,152,219,.4)", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "#3498DB", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                ＋ Nova etapa
+              </button>
+            </div>
+          </div>
           </div>
         )}
 
@@ -8986,54 +9035,6 @@ export default function CRM() {
 
                 {/* ── ABA SISTEMA ── */}
                 {settingsTab === "sistema" && <>
-                  <div>
-                    <div className="stit">Régua de Pós-Venda</div>
-                    <div style={{ fontSize: 12, color: "var(--tx2)", marginBottom: 12 }}>Etapas de acompanhamento enviadas automaticamente após uma sessão concluída. Edite labels, dias e canal de envio.</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      {(pvRegua.length > 0 ? pvRegua : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }))).map((etapa, idx) => (
-                        <div key={etapa.id} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
-                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                            <input value={etapa.label} onChange={e => {
-                              const nova = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
-                              nova[idx] = { ...nova[idx], label: e.target.value };
-                              salvarPvRegua(nova);
-                            }} style={{ flex: 1, background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif" }} placeholder="Label da etapa" />
-                            <input type="number" value={etapa.dias} min={0} onChange={e => {
-                              const nova = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
-                              nova[idx] = { ...nova[idx], dias: Number(e.target.value) };
-                              salvarPvRegua(nova);
-                            }} style={{ width: 60, background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", textAlign: "center" }} title="Dias após sessão" />
-                            <span style={{ fontSize: 11, color: "var(--tx3)" }}>dias</span>
-                            <select value={etapa.canal || "email"} onChange={e => {
-                              const nova = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
-                              nova[idx] = { ...nova[idx], canal: e.target.value };
-                              salvarPvRegua(nova);
-                            }} style={{ background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif" }}>
-                              <option value="email">E-mail</option>
-                              <option value="whatsapp">WhatsApp</option>
-                              <option value="sms">SMS</option>
-                            </select>
-                            <button onClick={() => {
-                              const nova = (pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }))).filter((_, i) => i !== idx);
-                              salvarPvRegua(nova);
-                            }} style={{ background: "rgba(192,57,43,.12)", border: "none", borderRadius: 5, padding: "4px 8px", fontSize: 12, color: "#C0392B", cursor: "pointer" }} title="Remover etapa">✕</button>
-                          </div>
-                          <textarea value={etapa.msg} rows={2} onChange={e => {
-                            const nova = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
-                            nova[idx] = { ...nova[idx], msg: e.target.value };
-                            salvarPvRegua(nova);
-                          }} style={{ width: "100%", background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 8px", fontSize: 11, color: "var(--tx2)", fontFamily: "'DM Sans',sans-serif", resize: "vertical", boxSizing: "border-box" }} placeholder="Mensagem da etapa (use {nome}, {estudio})" />
-                        </div>
-                      ))}
-                      <button onClick={() => {
-                        const base = pvRegua.length > 0 ? [...pvRegua] : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
-                        const nova = [...base, { id: "etapa_" + Date.now(), label: "Nova etapa", dias: 30, msg: "", canal: "email" }];
-                        salvarPvRegua(nova);
-                      }} style={{ background: "rgba(52,152,219,.1)", border: "1px dashed rgba(52,152,219,.4)", borderRadius: 8, padding: "8px 14px", fontSize: 12, color: "#3498DB", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                        ＋ Nova etapa
-                      </button>
-                    </div>
-                  </div>
                   <div>
                     <div className="stit">Tour Guiado</div>
                     <div style={{ fontSize: 12, color: "var(--tx2)", marginBottom: 10 }}>Refaça o tour de apresentação do sistema a qualquer momento.</div>
