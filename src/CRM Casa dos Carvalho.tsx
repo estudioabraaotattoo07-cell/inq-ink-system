@@ -1042,6 +1042,7 @@ export default function CRM() {
   const [showSaidaCatsModal, setShowSaidaCatsModal] = useState(false);
   const [showAvisoPastDate, setShowAvisoPastDate] = useState(false);
   const [proximaSessaoModal, setProximaSessaoModal] = useState<{cid: any; agEvent: any} | null>(null);
+  const [agendarProximaModal, setAgendarProximaModal] = useState<{cid: any} | null>(null);
   const [instrucaoDisparo, setInstrucaoDisparo] = useState<Record<string, string>>({});
   const [gerandoDisparo, setGerandoDisparo] = useState<string | null>(null);
   const [confirmDisparo, setConfirmDisparo] = useState<{clientes: any[]; mensagem: string; segmento: string} | null>(null);
@@ -1639,7 +1640,7 @@ export default function CRM() {
       }
     } catch {}
     setConfirmPagamento(null);
-    setProximaSessaoModal({ cid, agEvent: confirmPagamento?.agEvent || null });
+    setAgendarProximaModal({ cid });
   };
 
   const upC = (cid: number, f: string, v: any) => {
@@ -6760,6 +6761,25 @@ export default function CRM() {
                   )}
                   {editingEvent && editingEvent.status !== "cancelado" && !editingEvent.tipo?.startsWith("bloq") && (
                     <>
+                    {(editingEvent.tipo?.startsWith("sess") || editingEvent.tipo === "piercing") && editingEvent.status !== "concluido" && (() => {
+                      const dataEv = editingEvent.date ? new Date(editingEvent.date + "T12:00:00") : null;
+                      const hoje0 = new Date(); hoje0.setHours(23,59,59,0);
+                      const isHojeOuPassado = !dataEv || dataEv <= hoje0;
+                      return isHojeOuPassado ? (
+                        <button className="btn-c" style={{ color: "#27AE60", borderColor: "rgba(39,174,96,.3)" }}
+                          onClick={() => {
+                            const ev = editingEvent;
+                            const valorPrev = ev.valor_previsto ? Number(ev.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+                            setPagFormas([{ forma: "Pix", valor: valorPrev, parcelas: "1" }]);
+                            setConfirmPagamento({ cid: ev.cliente_id, agEvent: ev });
+                            setShowAgForm(false);
+                            setEditingEvent(null);
+                            setAgClientVinc(null);
+                          }}>
+                          ✅ Cumpriu a Sessão
+                        </button>
+                      ) : null;
+                    })()}
                     <button className="btn-c" style={{ color: "#E67E22", borderColor: "rgba(230,126,34,.3)" }}
                       onClick={() => setConfirmCancelarEvento({ event: editingEvent, motivo: "" })}>
                       ⊘ Cliente Desmarcou
@@ -9034,8 +9054,8 @@ export default function CRM() {
         </div>
 
         {/* ── MODAL: HAVERÁ MAIS SESSÕES? ── */}
-        {proximaSessaoModal && (
-          <div className="ov" onClick={() => setProximaSessaoModal(null)}>
+        {agendarProximaModal && (
+          <div className="ov" onClick={() => setAgendarProximaModal(null)}>
             <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(440px, 92vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--gold)" }}>
                 ✅ Sessão concluída!
@@ -9045,25 +9065,14 @@ export default function CRM() {
               </div>
               <div style={{ display: "flex", gap: 10 }}>
                 <button onClick={() => {
-                  const { cid } = proximaSessaoModal;
-                  setProximaSessaoModal(null);
-                  if (window.confirm("Deseja agendar a próxima sessão agora?")) {
-                    const cli = clients.find((c: any) => c.id === cid);
-                    if (cli) {
-                      setAgClientVinc(cli);
-                      setEditingEvent(null);
-                      setAgClientSearch("");
-                      setSessoesExtras([]);
-                      setAgForm({ title: cli.nome, desc: "", tipo: "sess_" + (cli.artista || artists[0]?.id || ""), date: "", start: 9, end: 11, sinal: "", sinalPago: false, servico: "" } as any);
-                      setShowAgForm(true);
-                    }
-                  }
+                  setAgendarProximaModal(null);
+                  setProximaSessaoModal({ cid: agendarProximaModal.cid, agEvent: null });
                 }} style={{ flex: 1, background: "rgba(201,168,76,.15)", border: "1px solid rgba(201,168,76,.4)", borderRadius: 8, padding: "12px", fontSize: 13, fontWeight: 700, color: "var(--gold)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                   Sim, haverá mais
                 </button>
                 <button onClick={() => {
-                  const { cid } = proximaSessaoModal;
-                  setProximaSessaoModal(null);
+                  const cid = agendarProximaModal.cid;
+                  setAgendarProximaModal(null);
                   executarMove(cid, "hibernacao");
                 }} style={{ flex: 1, background: "rgba(100,100,100,.12)", border: "1px solid var(--br)", borderRadius: 8, padding: "12px", fontSize: 13, fontWeight: 700, color: "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                   Não, projeto concluído
@@ -9071,6 +9080,45 @@ export default function CRM() {
               </div>
               <div style={{ fontSize: 11, color: "var(--tx3)", textAlign: "center" }}>
                 Se o projeto foi concluído, o cliente será movido para Hibernação automaticamente.
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── MODAL: AGENDAR PRÓXIMA SESSÃO? ── */}
+        {proximaSessaoModal && (
+          <div className="ov" onClick={() => setProximaSessaoModal(null)}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(440px, 92vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--gold)" }}>
+                📅 Próxima Sessão
+              </div>
+              <div style={{ fontSize: 13, color: "var(--tx2)", lineHeight: 1.6 }}>
+                Deseja agendar a próxima sessão agora?
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => {
+                  const { cid } = proximaSessaoModal;
+                  setProximaSessaoModal(null);
+                  const cli = clients.find((c: any) => c.id === cid);
+                  if (cli) {
+                    setAgClientVinc(cli);
+                    setEditingEvent(null);
+                    setAgClientSearch("");
+                    setSessoesExtras([]);
+                    setAgForm({ title: cli.nome, desc: "", tipo: "sess_" + (cli.artista || artists[0]?.id || ""), date: "", start: 9, end: 11, sinal: "", sinalPago: false, servico: "" } as any);
+                    setShowAgForm(true);
+                  }
+                }} style={{ flex: 1, background: "rgba(201,168,76,.15)", border: "1px solid rgba(201,168,76,.4)", borderRadius: 8, padding: "12px", fontSize: 13, fontWeight: 700, color: "var(--gold)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                  Sim, agendar agora
+                </button>
+                <button onClick={() => {
+                  setProximaSessaoModal(null);
+                }} style={{ flex: 1, background: "rgba(100,100,100,.12)", border: "1px solid var(--br)", borderRadius: 8, padding: "12px", fontSize: 13, fontWeight: 700, color: "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                  Não agora
+                </button>
+              </div>
+              <div style={{ fontSize: 11, color: "var(--tx3)", textAlign: "center" }}>
+                O cliente permanece na etapa atual até a próxima sessão ser realizada.
               </div>
             </div>
           </div>
