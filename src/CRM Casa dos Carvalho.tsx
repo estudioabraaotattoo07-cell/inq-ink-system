@@ -536,7 +536,7 @@ function getMonthDates(d: Date): { date: Date; cur: boolean }[] {
 // ─── CONTRACT GENERATORS ─────────────────────────────────────────────────────
 function makeContractArtist(sName: string): string {
   return `CONTRATO DE PRESTACAO DE SERVICOS ARTISTICOS
-In-Quadra Ink System - ${sName}
+INK SYSTEM - ${sName}
 
 CONTRATANTE: ${sName}
 CONTRATADO(A): [NOME COMPLETO] | CPF: [CPF] | Email: [EMAIL] | Instagram: [INSTAGRAM]
@@ -600,7 +600,7 @@ O cliente pode reagendar sem cobranca desde que avise com minimo de 24 horas de 
 
 Ao responder CONFIRMO, o cliente declara estar de acordo com todos os termos acima.
 
-In-Quadra Ink System`;
+INK SYSTEM`;
 }
 
 // ─── INITIAL DATA ─────────────────────────────────────────────────────────────
@@ -2974,7 +2974,7 @@ export default function CRM() {
           }
           <div style={{ textAlign: "center" }}>
             <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 700, color: "#C9A84C", letterSpacing: ".08em" }}>{studioName}</div>
-            <div style={{ fontSize: 10, color: "#555045", letterSpacing: ".18em", textTransform: "uppercase", marginTop: 5 }}>In-Quadra Ink System</div>
+            <div style={{ fontSize: 10, color: "#555045", letterSpacing: ".18em", textTransform: "uppercase", marginTop: 5 }}>INK SYSTEM</div>
           </div>
         </div>
         <button onClick={() => setShowSplash(false)}
@@ -3172,7 +3172,7 @@ export default function CRM() {
             <div style={{ padding: "32px 28px", display: "flex", flexDirection: "column", alignItems: "center", gap: 14, textAlign: "center" }}>
               <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 600, color: "#C9A84C" }}>Tudo pronto!</div>
               <div style={{ fontSize: 13, color: "#8A8070", lineHeight: 1.7 }}>
-                O <strong style={{ color: "#E8E2D9" }}>{studioName}</strong> esta configurado.<br />Bem-vindo ao In-Quadra Ink System.
+                O <strong style={{ color: "#E8E2D9" }}>{studioName}</strong> esta configurado.<br />Bem-vindo ao INK SYSTEM.
               </div>
             </div>
           )}
@@ -3209,7 +3209,7 @@ export default function CRM() {
                     </div>
                   </div>
                 </div>
-                <div className="ff"><label className="fl">E-mail de acesso ao sistema</label><input className="fi" type="email" placeholder="email@exemplo.com" value={artForm.email} onChange={e => setArtForm({ ...artForm, email: e.target.value })} /></div>
+                <div className="ff"><label className="fl">E-mail de acesso ao sistema</label><input className="fi" type="email" placeholder="email@exemplo.com" value={artForm.email} onChange={e => setArtForm({ ...artForm, email: e.target.value.toLowerCase() })} /></div>
                 <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={artForm.insta} onChange={e => { const v = e.target.value; setArtForm({ ...artForm, insta: v && !v.startsWith("@") ? "@" + v : v }); }} /></div>
                 <div className="ff"><label className="fl">Cor</label><ColorPicker value={artForm.cor} onChange={cor => setArtForm({ ...artForm, cor })} /></div>
               </div>
@@ -3235,7 +3235,7 @@ export default function CRM() {
             }
             <div style={{ cursor: userRole === "admin" ? "pointer" : "default" }} onClick={() => { if (userRole === "admin") setShowSettings(true); }}>
               <div className="bname">{studioName}</div>
-              <div className="bsub">{userRole === "profissional" ? "Acesso Profissional" : "In-Quadra Ink System"}</div>
+              <div className="bsub">{userRole === "profissional" ? "Acesso Profissional" : "INK SYSTEM"}</div>
               {(() => { const cnpjDigits = (cnpj || "").replace(/[^0-9]/g,""); return cnpjDigits.length === 14 ? <div style={{ fontSize: 9, color: "var(--tx3)", letterSpacing: ".08em" }}>CNPJ: {cnpj}</div> : null; })()}
             </div>
           </div>
@@ -4238,7 +4238,7 @@ export default function CRM() {
                       '<tr><td>&nbsp;&nbsp;(-) Pro-Labore</td><td class="red">' + fmtR(prolabore) + '</td></tr>',
                       '<tr class="sep"><td class="bold">Lucro Liquido</td><td class="' + lucroClass + ' bold">' + fmtR(lucroLiquido) + '</td></tr>',
                       '</table>',
-                      '<div class="footer">In-Quadra Ink System · ' + studioName + (cnpj ? ' · CNPJ ' + cnpj : '') + '</div>',
+                      '<div class="footer">INK SYSTEM · ' + studioName + (cnpj ? ' · CNPJ ' + cnpj : '') + '</div>',
                       '</body></html>'
                     ].join('\n');
                     const w = window.open("", "_blank");
@@ -4354,7 +4354,7 @@ export default function CRM() {
                       '<tr><td>&nbsp;&nbsp;(-) Pro-Labore</td><td class="red">' + fmtR(prolabore) + '</td></tr>',
                       '<tr class="sep"><td class="bold">Lucro Liquido</td><td class="' + lucroClass + ' bold">' + fmtR(lucroLiquido) + '</td></tr>',
                       '</table>',
-                      '<div class="footer">In-Quadra Ink System · ' + studioName + (cnpj ? ' · CNPJ ' + cnpj : '') + '</div>',
+                      '<div class="footer">INK SYSTEM · ' + studioName + (cnpj ? ' · CNPJ ' + cnpj : '') + '</div>',
                       '</body></html>'
                     ].join('\n');
                     const w = window.open("", "_blank");
@@ -4929,8 +4929,8 @@ export default function CRM() {
                 </div>
                     </div>
                     <div className="fr">
-                      <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={editingArtist.insta || ""} onChange={e => setEditingArtist({ ...editingArtist, insta: e.target.value })} /></div>
-                      <div className="ff"><label className="fl">Email</label><input className="fi" placeholder="email" value={editingArtist.email || ""} onChange={e => setEditingArtist({ ...editingArtist, email: e.target.value })} /></div>
+                      <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={editingArtist.insta || ""} onChange={e => { const v = e.target.value; setEditingArtist({ ...editingArtist, insta: v && !v.startsWith("@") ? "@" + v : v }); }} /></div>
+                      <div className="ff"><label className="fl">Email</label><input className="fi" placeholder="email" value={editingArtist.email || ""} onChange={e => setEditingArtist({ ...editingArtist, email: e.target.value.toLowerCase() })} /></div>
                     </div>
                     <div className="ff">
                       <label className="fl">Telefone (visivel apenas para o dono)</label>
@@ -6471,7 +6471,7 @@ export default function CRM() {
                 </div>
                 <div className="fr">
                   <div className="ff"><label className="fl">Instagram</label><input className="fi" placeholder="@perfil" value={artForm.insta} onChange={e => { const v = e.target.value; setArtForm({ ...artForm, insta: v && !v.startsWith("@") ? "@" + v : v }); }} /></div>
-                  <div className="ff"><label className="fl">Email</label><input className="fi" placeholder="email" value={artForm.email} onChange={e => setArtForm({ ...artForm, email: e.target.value })} /></div>
+                  <div className="ff"><label className="fl">Email</label><input className="fi" placeholder="email" value={artForm.email} onChange={e => setArtForm({ ...artForm, email: e.target.value.toLowerCase() })} /></div>
                 </div>
                 <div className="ff"><label className="fl">Telefone</label><input className="fi" placeholder="(99) 99999-9999" value={artForm.tel} onChange={e => setArtForm({ ...artForm, tel: maskTel(e.target.value) })} /></div>
                 <div className="ff">
@@ -8249,7 +8249,7 @@ export default function CRM() {
               <div className="mh">
                 <div>
                   <div className="mn">{studioName}</div>
-                  <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 3 }}>In-Quadra Ink System</div>
+                  <div style={{ fontSize: 11, color: "var(--tx2)", marginTop: 3 }}>INK SYSTEM</div>
                 </div>
                 <button className="mc" onClick={() => setShowSettings(false)}>✕</button>
               </div>
@@ -8792,35 +8792,6 @@ export default function CRM() {
 
                 {/* ── ABA SISTEMA ── */}
                 {settingsTab === "sistema" && <>
-                  <div>
-                    <div className="stit">Status do Sistema</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", background: "var(--dk3)", borderRadius: 7, border: "1px solid var(--br)" }}>
-                        <div>
-                          <div style={{ fontSize: 12, color: "var(--tx)" }}>Supabase</div>
-                          <div style={{ fontSize: 10, opacity: 0.6, color: "var(--tx3)", marginTop: 2 }}>Banco de dados do sistema — armazena todos os seus clientes e agendamentos</div>
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--q3)", background: "rgba(39,174,96,.1)", border: "1px solid rgba(39,174,96,.2)", borderRadius: 4, padding: "2px 8px", flexShrink: 0, marginLeft: 8 }}>✓ Conectado</span>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "9px 12px", background: "var(--dk3)", borderRadius: 7, border: "1px solid var(--br)" }}>
-                        <div>
-                          <div style={{ fontSize: 12, color: "var(--tx)" }}>In-Quadra Ink System</div>
-                          <div style={{ fontSize: 10, opacity: 0.6, color: "var(--tx3)", marginTop: 2 }}>Versão atual do sistema</div>
-                        </div>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--q3)", background: "rgba(39,174,96,.1)", border: "1px solid rgba(39,174,96,.2)", borderRadius: 4, padding: "2px 8px", flexShrink: 0, marginLeft: 8 }}>✓ v1.7.0</span>
-                      </div>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "9px 12px", background: "var(--dk3)", borderRadius: 7, border: "1px solid var(--br)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <div>
-                            <div style={{ fontSize: 12, color: "var(--tx)" }}>Aura (WhatsApp)</div>
-                            <div style={{ fontSize: 10, opacity: 0.6, color: "var(--tx3)", marginTop: 2 }}>Agente de IA conectada ao WhatsApp Business</div>
-                          </div>
-                          <a href="https://business.facebook.com" target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, fontWeight: 700, color: "var(--q2)", background: "rgba(212,130,10,.1)", border: "1px solid rgba(212,130,10,.2)", borderRadius: 4, padding: "2px 8px", textDecoration: "none", flexShrink: 0, marginLeft: 8 }}>⚠ Configurar WhatsApp</a>
-                        </div>
-                        <div style={{ fontSize: 10, opacity: 0.6, color: "var(--tx3)", fontStyle: "italic" }}>Acesse business.facebook.com para conectar seu número</div>
-                      </div>
-                    </div>
-                  </div>
                   <div>
                     <div className="stit">Tour Guiado</div>
                     <div style={{ fontSize: 12, color: "var(--tx2)", marginBottom: 10 }}>Refaça o tour de apresentação do sistema a qualquer momento.</div>
