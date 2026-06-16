@@ -2194,9 +2194,65 @@ export default function CRM() {
           email: { type: "string", description: "Novo email (apenas se alterando)" },
           insta: { type: "string", description: "Novo Instagram (apenas se alterando)" },
           nascimento: { type: "string", description: "Data de nascimento no formato YYYY-MM-DD (apenas se alterando)" },
-          obs: { type: "string", description: "Observações (apenas se alterando)" }
+          obs: { type: "string", description: "Observações (apenas se alterando)" },
+          artista: { type: "string", description: "ID do profissional responsável pelo cliente (apenas se alterando)" }
         },
         required: ["cliente_id", "cliente_nome"]
+      }
+    },
+    {
+      name: "acao_em_massa",
+      description: "Executa uma alteração em múltiplos clientes de uma vez. A Aura filtra os clientes pelo critério informado, lista os encontrados e pede confirmação do usuário antes de executar qualquer coisa. Só executar após confirmação explícita.",
+      input_schema: {
+        type: "object",
+        properties: {
+          filtro: { type: "string", description: "Critério de filtragem em texto livre (ex: 'etapa=hibernacao', 'artista=Camilla', 'sem sessão há 60 dias')" },
+          campo: { type: "string", description: "Campo a ser alterado em todos os clientes encontrados (ex: etapa, artista, obs)" },
+          valor: { type: "string", description: "Novo valor a ser aplicado no campo informado" },
+          ids: { type: "array", items: { type: "string" }, description: "Lista de IDs dos clientes que serão alterados. A Aura monta essa lista após filtrar." }
+        },
+        required: ["filtro", "campo", "valor", "ids"]
+      }
+    },
+    {
+      name: "cancelar_agendamento",
+      description: "Remove um agendamento da agenda do estúdio. Sempre mostrar qual evento será cancelado e pedir confirmação antes de executar.",
+      input_schema: {
+        type: "object",
+        properties: {
+          evento_id: { type: "string", description: "ID do evento na agenda" },
+          cliente_nome: { type: "string", description: "Nome do cliente para confirmação" },
+          data: { type: "string", description: "Data do evento no formato YYYY-MM-DD" },
+          hora: { type: "string", description: "Hora do evento para confirmação" }
+        },
+        required: ["evento_id", "cliente_nome", "data", "hora"]
+      }
+    },
+    {
+      name: "registrar_falta",
+      description: "Registra a ausência de um cliente em um agendamento. Sempre confirmar os dados antes de executar.",
+      input_schema: {
+        type: "object",
+        properties: {
+          cliente_id: { type: "string", description: "ID do cliente" },
+          cliente_nome: { type: "string", description: "Nome do cliente" },
+          data: { type: "string", description: "Data da falta no formato YYYY-MM-DD" },
+          motivo: { type: "string", description: "Motivo da ausência: sem_aviso, cancelou_cima_hora, remarcou, problema_pessoal, outro" }
+        },
+        required: ["cliente_id", "cliente_nome", "data", "motivo"]
+      }
+    },
+    {
+      name: "disparar_sms",
+      description: "Envia um SMS para um cliente via Zenvia. Só funciona se as credenciais Zenvia estiverem configuradas em Configurações. Sempre mostrar o conteúdo da mensagem e pedir confirmação antes de enviar.",
+      input_schema: {
+        type: "object",
+        properties: {
+          cliente_tel: { type: "string", description: "Telefone do destinatário, apenas números com DDD (ex: 27999999999)" },
+          cliente_nome: { type: "string", description: "Nome do cliente para confirmação" },
+          mensagem: { type: "string", description: "Texto do SMS. Máximo recomendado: 160 caracteres." }
+        },
+        required: ["cliente_tel", "cliente_nome", "mensagem"]
       }
     },
     {
@@ -2332,6 +2388,7 @@ export default function CRM() {
           if (params.insta) campos.insta = params.insta;
           if (params.nascimento) campos.nascimento = params.nascimento;
           if (params.obs) campos.obs = params.obs;
+          if (params.artista) campos.artista = params.artista;
           if (Object.keys(campos).length === 0) return "❌ Nenhum campo para atualizar foi informado.";
           const updated = { ...cliente, ...campos };
           setClients((p: any[]) => p.map((c: any) => c.id === params.cliente_id ? updated : c));
@@ -2340,6 +2397,100 @@ export default function CRM() {
           try { await sb.from("historico").insert({ data: dataStr, hora: horaStr, acao: (auraName || "IA") + " atualizou " + camposStr + " de " + params.cliente_nome, user_id: userId }); } catch {}
           return "✅ Dados de **" + params.cliente_nome + "** atualizados com sucesso! Campos alterados: " + camposStr + ".";
         } catch { return "❌ Erro ao editar cliente."; }
+      }
+      if (tool === "acao_em_massa") {
+        try {
+          const ids: string[] = params.ids || [];
+          if (ids.length === 0) return "❌ Nenhum cliente informado para a ação em massa.";
+          let atualizados = 0;
+          for (const cid of ids) {
+            const cliente = clients.find((c: any) => String(c.id) === String(cid));
+            if (!cliente) continue;
+            const campoAlvo: any = {};
+            campoAlvo[params.campo] = params.valor;
+            const updated = { ...cliente, ...campoAlvo };
+            setClients((p: any[]) => p.map((c: any) => String(c.id) === String(cid) ? updated : c));
+            await dbUpsert("clientes", { id: cid, ...campoAlvo, user_id: userId });
+            atualizados++;
+          }
+          try {
+            await sb.from("historico").insert({
+              data: dataStr,
+              hora: horaStr,
+              acao: (auraName || "IA") + " — ação em massa: " + params.campo + "=" + params.valor + " em " + atualizados + " clientes (filtro: " + params.filtro + ")",
+              user_id: userId
+            });
+          } catch {}
+          return "✅ Ação concluída! **" + atualizados + " clientes** atualizados: **" + params.campo + "** → **" + params.valor + "**.";
+        } catch {
+          return "❌ Erro ao executar ação em massa.";
+        }
+      }
+      if (tool === "cancelar_agendamento") {
+        try {
+          setAgEvents((p: any[]) => p.filter((e: any) => String(e.id) !== String(params.evento_id)));
+          await dbDelete("agenda", params.evento_id);
+          try {
+            await sb.from("historico").insert({
+              data: dataStr,
+              hora: horaStr,
+              acao: (auraName || "IA") + " cancelou agendamento de " + params.cliente_nome + " em " + params.data + " às " + params.hora,
+              user_id: userId
+            });
+          } catch {}
+          return "✅ Agendamento de **" + params.cliente_nome + "** em " + params.data + " às " + params.hora + " cancelado com sucesso.";
+        } catch {
+          return "❌ Erro ao cancelar agendamento.";
+        }
+      }
+      if (tool === "registrar_falta") {
+        try {
+          const cliente = clients.find((c: any) => String(c.id) === String(params.cliente_id));
+          if (!cliente) return "❌ Cliente não encontrado.";
+          const novasFaltas = (cliente.faltas || 0) + 1;
+          const updated = { ...cliente, faltas: novasFaltas };
+          setClients((p: any[]) => p.map((c: any) => String(c.id) === String(params.cliente_id) ? updated : c));
+          await dbUpsert("clientes", { id: params.cliente_id, faltas: novasFaltas, user_id: userId });
+          try {
+            await sb.from("historico").insert({
+              data: dataStr,
+              hora: horaStr,
+              acao: (auraName || "IA") + " registrou falta de " + params.cliente_nome + " em " + params.data + " — motivo: " + params.motivo,
+              user_id: userId
+            });
+          } catch {}
+          return "✅ Falta registrada para **" + params.cliente_nome + "** em " + params.data + ". Motivo: " + params.motivo + ". Total de faltas: **" + novasFaltas + "**.";
+        } catch {
+          return "❌ Erro ao registrar falta.";
+        }
+      }
+      if (tool === "disparar_sms") {
+        try {
+          if (!zenviaApiKey) {
+            return "❌ Credenciais Zenvia não configuradas. Acesse **Configurações → IA → SMS** para configurar.";
+          }
+          await fetch("/api/zenvia", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              apiKey: zenviaApiKey,
+              numero: zenviaNumero,
+              to: params.cliente_tel,
+              text: params.mensagem
+            })
+          });
+          try {
+            await sb.from("historico").insert({
+              data: dataStr,
+              hora: horaStr,
+              acao: (auraName || "IA") + " enviou SMS para " + params.cliente_nome + " (" + params.cliente_tel + ")",
+              user_id: userId
+            });
+          } catch {}
+          return "✅ SMS enviado para **" + params.cliente_nome + "** (" + params.cliente_tel + ").";
+        } catch {
+          return "❌ Erro ao enviar SMS. Verifique as credenciais Zenvia em Configurações.";
+        }
       }
       if (tool === "salvar_memoria") {
         try {
@@ -2464,6 +2615,22 @@ export default function CRM() {
             const p4 = toolUseBlock.input;
             const campos4 = Object.entries(p4).filter(([k]) => !["cliente_id","cliente_nome"].includes(k)).map(([k,v]) => k + ": " + v).join(", ");
             descricao = "Atualizar dados de **" + p4.cliente_nome + "**: " + campos4;
+          }
+          else if (toolUseBlock.name === "acao_em_massa") {
+            const p2 = toolUseBlock.input;
+            descricao = "Alterar **" + p2.campo + "** para **" + p2.valor + "** em **" + (p2.ids?.length || 0) + " clientes** (filtro: " + p2.filtro + ")";
+          }
+          else if (toolUseBlock.name === "cancelar_agendamento") {
+            const p2 = toolUseBlock.input;
+            descricao = "Cancelar agendamento de **" + p2.cliente_nome + "** em " + p2.data + " às " + p2.hora;
+          }
+          else if (toolUseBlock.name === "registrar_falta") {
+            const p2 = toolUseBlock.input;
+            descricao = "Registrar falta de **" + p2.cliente_nome + "** em " + p2.data + " · motivo: " + p2.motivo;
+          }
+          else if (toolUseBlock.name === "disparar_sms") {
+            const p2 = toolUseBlock.input;
+            descricao = "Enviar SMS para **" + p2.cliente_nome + "** (" + p2.cliente_tel + "):\n" + p2.mensagem;
           }
           else if (toolUseBlock.name === "salvar_memoria") {
             descricao = "Salvar permanentemente nas minhas memórias: **" + toolUseBlock.input.instrucao + "**";
