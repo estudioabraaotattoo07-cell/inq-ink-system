@@ -1094,6 +1094,12 @@ export default function CRM() {
   const [pvPreEditando, setPvPreEditando] = useState<{campo: string; idx: number} | null>(null);
   const [pvPreEditLocal, setPvPreEditLocal] = useState<any | null>(null);
   const [pvPreConfirmDelete, setPvPreConfirmDelete] = useState<{campo: string; idx: number} | null>(null);
+  const [canaisHabilitados, setCanaisHabilitados] = useState<{email: boolean; whatsapp: boolean; sms: boolean}>({ email: true, whatsapp: false, sms: false });
+  // ── RÉGUA: toggles de ativação (nível régua) ──
+  const [pvReguaAtiva, setPvReguaAtiva] = useState(true);
+  const [preReguaAtiva, setPreReguaAtiva] = useState<{lead: boolean; qualificacao: boolean; hibernacao: boolean}>({ lead: true, qualificacao: true, hibernacao: true });
+  // ── DISPARO MANUAL: estado de confirmação ──
+  const [disparoManualPendente, setDisparoManualPendente] = useState<{etapa: any; tipoRegua: string; campo?: string} | null>(null);
   const [disparosHist, setDisparosHist] = useState<any[]>([]);
   const [resendApiKey, setResendApiKey] = useState("");
   const [emailRemetente, setEmailRemetente] = useState("");
@@ -1281,6 +1287,22 @@ export default function CRM() {
           if (cfg.zenvia_numero) setZenviaNumero(cfg.zenvia_numero);
           if (cfg.aura_api_key) setAuraApiKey(cfg.aura_api_key);
           if (cfg.aura_instrucoes) setAuraInstrucoes(cfg.aura_instrucoes);
+          // ── CANAIS HABILITADOS ──
+          if (cfg.canais_habilitados) {
+            try {
+              const parsedCH = typeof cfg.canais_habilitados === "string" ? JSON.parse(cfg.canais_habilitados) : cfg.canais_habilitados;
+              setCanaisHabilitados(prev => ({ ...prev, ...parsedCH }));
+            } catch {}
+          }
+          // ── RÉGUA ATIVA: pós-venda ──
+          if (cfg.pv_regua_ativa !== undefined) setPvReguaAtiva(cfg.pv_regua_ativa !== false);
+          // ── RÉGUA ATIVA: pré-venda ──
+          if (cfg.pre_regua_ativa) {
+            try {
+              const parsedPRA = typeof cfg.pre_regua_ativa === "string" ? JSON.parse(cfg.pre_regua_ativa) : cfg.pre_regua_ativa;
+              setPreReguaAtiva(prev => ({ ...prev, ...parsedPRA }));
+            } catch {}
+          }
           const pvReguaRaw = cfg.pv_regua;
           if (pvReguaRaw) {
             try {
@@ -1365,6 +1387,76 @@ export default function CRM() {
     try {
       await sb.from("configuracoes").upsert({ user_id: userId, pre_venda_regua: JSON.stringify(novo) }, { onConflict: "user_id" });
     } catch {}
+  };
+
+  const salvarCanaisHabilitados = async (novos: typeof canaisHabilitados) => {
+    setCanaisHabilitados(novos);
+    try {
+      await sb.from("configuracoes").upsert({ user_id: userId, canais_habilitados: JSON.stringify(novos) }, { onConflict: "user_id" });
+    } catch {}
+  };
+
+  const salvarPvReguaAtiva = async (ativa: boolean) => {
+    setPvReguaAtiva(ativa);
+    try {
+      await sb.from("configuracoes").upsert({ user_id: userId, pv_regua_ativa: ativa }, { onConflict: "user_id" });
+    } catch {}
+  };
+
+  const salvarPreReguaAtiva = async (novo: typeof preReguaAtiva) => {
+    setPreReguaAtiva(novo);
+    try {
+      await sb.from("configuracoes").upsert({ user_id: userId, pre_regua_ativa: JSON.stringify(novo) }, { onConflict: "user_id" });
+    } catch {}
+  };
+
+  // ── DISPARO MANUAL: executa envio de uma etapa sob demanda ────────────────
+  const executarDisparoManual = async (etapa: any, tipoRegua: string) => {
+    const canal = etapa.canal || "email";
+    const canalOk = canaisHabilitados[canal as keyof typeof canaisHabilitados] !== false;
+    if (!canalOk) { setShowAviso("Canal " + canal + " não está habilitado nas configurações."); return; }
+    const clientes = tipoRegua.startsWith("pré-venda")
+      ? clients.filter(c => {
+          const campo = tipoRegua.split("/")[1] || "";
+          return c.etapa === campo;
+        })
+      : clients.filter(c => c.etapa === "tatuado" || c.etapa === "pos_venda");
+    let enviados = 0;
+    for (const cliente of clientes) {
+      const msg = (etapa.msg || "")
+        .replace(/\{nome\}/gi, cliente.nome || "")
+        .replace(/\[Nome\]/gi, cliente.nome || "")
+        .replace(/\{estudio\}/gi, studioName || "INK SYSTEM")
+        .replace(/\[ESTUDIO\]/gi, studioName || "INK SYSTEM");
+      try {
+        if (canal === "email" && resendApiKey && cliente.email) {
+          const html = "<div style='font-family:Arial,sans-serif;font-size:14px;line-height:1.8;color:#222;max-width:600px'>" + msg.replace(/\n/g, "<br>") + "</div>";
+          await fetch("/api/resend", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ apiKey: resendApiKey, from: emailRemetente || "noreply@acasadoscarvalhotattoo.com.br", to: cliente.email, subject: etapa.label + " — " + (studioName || "INK SYSTEM"), html })
+          });
+          enviados++;
+        } else if ((canal === "whatsapp" || canal === "sms") && zenviaApiKey && zenviaNumero && cliente.tel) {
+          const tel = (cliente.tel || "").replace(/[^0-9]/g, "");
+          const endpoint = canal === "sms" ? "/api/zenvia-sms" : "/api/zenvia";
+          await fetch(endpoint, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ apiKey: zenviaApiKey, from: zenviaNumero, to: tel, text: msg })
+          });
+          enviados++;
+        }
+      } catch {}
+    }
+    try {
+      const now = new Date();
+      const data = now.toLocaleDateString("pt-BR");
+      const hora = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      await sb.from("historico").insert({ data, hora, acao: "Disparo manual [" + tipoRegua + "] — " + etapa.label + " — " + enviados + " destinatário(s)", user_id: userId });
+    } catch {}
+    setShowAviso("Disparo manual enviado para " + enviados + " cliente(s).");
+    setDisparoManualPendente(null);
   };
 
   // ─── RELATÓRIO FINANCEIRO ────────────────────────────────────────────────
@@ -5386,13 +5478,27 @@ export default function CRM() {
           //     (usa pvPreEditando.campo === editandoKey para pré-venda, ou "pv" para pós-venda)
           //   isPosVendaRegua: boolean — true = usa pvEditando/pvEditLocal/pvConfirmDelete, false = usa pvPreEditando
           //   campo: string — nome do campo em preVendaRegua (para réguas de pré-venda)
+          // ── TOGGLE HELPER ──────────────────────────────────────────────────────
+          const ReguaToggle = ({ ativa, onToggle }: { ativa: boolean; onToggle: () => void }) => (
+            <div onClick={onToggle} title={ativa ? "Régua ativa — clique para desativar" : "Régua inativa — clique para ativar"}
+              style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", userSelect: "none" }}>
+              <div style={{ width: 34, height: 19, borderRadius: 10, background: ativa ? "var(--q3)" : "var(--dk5)", position: "relative", transition: "background .2s", flexShrink: 0 }}>
+                <div style={{ width: 15, height: 15, background: "#fff", borderRadius: "50%", position: "absolute", top: 2, left: ativa ? 17 : 2, transition: "left .2s" }} />
+              </div>
+              <span style={{ fontSize: 11, color: ativa ? "var(--q3)" : "var(--tx3)", fontWeight: 600 }}>{ativa ? "Ativa" : "Inativa"}</span>
+            </div>
+          );
+
           const renderRegua = (
             title: string,
             desc: string,
-            etapas: {id:string;label:string;dias:number;msg:string;canal:string}[],
-            onSalvar: (novas: {id:string;label:string;dias:number;msg:string;canal:string}[]) => void,
+            etapas: {id:string;label:string;dias:number;msg:string;canal:string;ativa?:boolean}[],
+            onSalvar: (novas: {id:string;label:string;dias:number;msg:string;canal:string;ativa?:boolean}[]) => void,
             isPosVendaRegua: boolean,
-            campo: string
+            campo: string,
+            reguaAtiva: boolean,
+            onToggleRegua: () => void,
+            tipoReguaLabel: string
           ) => {
             const getEditando = () => isPosVendaRegua ? pvEditando : (pvPreEditando?.campo === campo ? pvPreEditando.idx : null);
             const getEditLocal = () => isPosVendaRegua ? pvEditLocal : (pvPreEditando?.campo === campo ? pvPreEditLocal : null);
@@ -5413,9 +5519,14 @@ export default function CRM() {
             const editLocal = getEditLocal();
             const confirmDeleteIdx = getConfirmDelete();
             return (
-              <div style={{ padding: "16px", borderTop: "1px solid var(--br)", marginTop: 8 }} key={title}>
-                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--tx)", marginBottom: 4 }}>{title}</div>
+              <div style={{ padding: "16px", borderTop: "1px solid var(--br)", marginTop: 8, opacity: reguaAtiva ? 1 : 0.65 }} key={title}>
+                {/* Cabeçalho com toggle de régua */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--tx)" }}>{title}</div>
+                  <ReguaToggle ativa={reguaAtiva} onToggle={onToggleRegua} />
+                </div>
                 <div style={{ fontSize: 12, color: "var(--tx3)", marginBottom: 12 }}>{desc}</div>
+                {/* Modal confirmação exclusão */}
                 {confirmDeleteIdx !== null && (
                   <div className="ov" style={{ zIndex: 9999 }} onClick={() => setConfirmDelete(null)}>
                     <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(360px, 90vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14, animation: "slideInRight .25s ease" }}>
@@ -5433,13 +5544,31 @@ export default function CRM() {
                     </div>
                   </div>
                 )}
+                {/* Modal confirmação disparo manual */}
+                {disparoManualPendente && disparoManualPendente.campo === campo && (
+                  <div className="ov" style={{ zIndex: 9999 }} onClick={() => setDisparoManualPendente(null)}>
+                    <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(360px, 90vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14, animation: "slideInRight .25s ease" }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "var(--gold)", fontFamily: "'Cormorant Garamond',serif" }}>Tem certeza disto?</div>
+                      <div style={{ fontSize: 13, color: "var(--tx)", lineHeight: 1.6 }}>
+                        Você está prestes a enviar <strong>{disparoManualPendente.etapa?.label}</strong> agora para todos os clientes elegíveis. Esta ação não pode ser desfeita.
+                      </div>
+                      <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <button className="btn-c" onClick={() => setDisparoManualPendente(null)}>Cancelar</button>
+                        <button className="btn-s" onClick={() => executarDisparoManual(disparoManualPendente.etapa, tipoReguaLabel)}>Confirmar</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 700 }}>
                   {etapas.map((etapa, idx) => {
                     const emEdicao = editandoIdx === idx;
                     const draft = emEdicao ? editLocal : etapa;
-                    const canalLabel = (draft.canal || "email") === "email" ? "E-mail" : (draft.canal || "email") === "whatsapp" ? "WhatsApp" : "SMS";
+                    const canalEtapa = draft.canal || "email";
+                    const canalLabel = canalEtapa === "email" ? "E-mail" : canalEtapa === "whatsapp" ? "WhatsApp" : "SMS";
+                    const canalBloqueado = canaisHabilitados[canalEtapa as keyof typeof canaisHabilitados] === false;
+                    const etapaAtiva = etapa.ativa !== false;
                     return (
-                      <div key={etapa.id} style={{ background: "var(--dk3)", border: "1px solid " + (emEdicao ? "rgba(201,168,76,.4)" : "var(--br)"), borderRadius: 8, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6 }}>
+                      <div key={etapa.id} style={{ background: "var(--dk3)", border: "1px solid " + (emEdicao ? "rgba(201,168,76,.4)" : "var(--br)"), borderRadius: 8, padding: "10px 12px", display: "flex", flexDirection: "column", gap: 6, opacity: etapaAtiva ? 1 : 0.5 }}>
                         {emEdicao ? (
                           <>
                             <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -5447,9 +5576,9 @@ export default function CRM() {
                               <input type="number" value={draft.dias} min={0} onChange={e => setEditLocal((d: any) => ({ ...d, dias: Number(e.target.value) }))} style={{ width: 60, background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", textAlign: "center" }} title="Dias na etapa" />
                               <span style={{ fontSize: 11, color: "var(--tx3)" }}>dias</span>
                               <select value={draft.canal || "email"} onChange={e => setEditLocal((d: any) => ({ ...d, canal: e.target.value }))} style={{ background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 8px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif" }}>
-                                <option value="email">E-mail</option>
-                                <option value="whatsapp">WhatsApp</option>
-                                <option value="sms">SMS</option>
+                                <option value="email" disabled={canaisHabilitados.email === false}>E-mail{canaisHabilitados.email === false ? " (desabilitado)" : ""}</option>
+                                <option value="whatsapp" disabled={canaisHabilitados.whatsapp === false} style={{ opacity: canaisHabilitados.whatsapp === false ? 0.4 : 1 }}>WhatsApp{canaisHabilitados.whatsapp === false ? " (desabilitado)" : ""}</option>
+                                <option value="sms" disabled={canaisHabilitados.sms === false} style={{ opacity: canaisHabilitados.sms === false ? 0.4 : 1 }}>SMS{canaisHabilitados.sms === false ? " (desabilitado)" : ""}</option>
                               </select>
                               <button onClick={() => setConfirmDelete(idx)} style={{ background: "rgba(192,57,43,.12)", border: "none", borderRadius: 5, padding: "4px 8px", fontSize: 12, color: "#C0392B", cursor: "pointer" }} title="Remover etapa">✕</button>
                             </div>
@@ -5467,15 +5596,24 @@ export default function CRM() {
                           </>
                         ) : (
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            {/* Toggle de etapa individual */}
+                            <div onClick={() => {
+                              const base = [...etapas];
+                              base[idx] = { ...base[idx], ativa: !etapaAtiva };
+                              onSalvar(base);
+                            }} title={etapaAtiva ? "Etapa ativa" : "Etapa inativa"} style={{ marginTop: 2, width: 28, height: 16, borderRadius: 8, background: etapaAtiva ? "var(--q3)" : "var(--dk5)", position: "relative", transition: "background .2s", cursor: "pointer", flexShrink: 0 }}>
+                              <div style={{ width: 12, height: 12, background: "#fff", borderRadius: "50%", position: "absolute", top: 2, left: etapaAtiva ? 14 : 2, transition: "left .2s" }} />
+                            </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 3 }}>
                                 <span style={{ fontSize: 12, fontWeight: 700, color: "var(--tx)" }}>{etapa.label || "Etapa sem título"}</span>
                                 <span style={{ fontSize: 10, color: "var(--tx3)", background: "var(--dk4)", borderRadius: 4, padding: "1px 6px" }}>{etapa.dias} dias</span>
-                                <span style={{ fontSize: 10, color: "var(--tx3)", background: "var(--dk4)", borderRadius: 4, padding: "1px 6px" }}>{canalLabel}</span>
+                                <span style={{ fontSize: 10, color: canalBloqueado ? "var(--q1)" : "var(--tx3)", background: canalBloqueado ? "rgba(192,57,43,.12)" : "var(--dk4)", borderRadius: 4, padding: "1px 6px", border: canalBloqueado ? "1px solid rgba(192,57,43,.3)" : "none" }} title={canalBloqueado ? "Canal não habilitado" : ""}>{canalLabel}{canalBloqueado ? " ⚠" : ""}</span>
                               </div>
                               <div style={{ fontSize: 11, color: "var(--tx2)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{etapa.msg || <span style={{ fontStyle: "italic", opacity: 0.5 }}>Sem mensagem definida</span>}</div>
                             </div>
                             <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                              <button onClick={() => setDisparoManualPendente({ etapa, tipoRegua: tipoReguaLabel, campo })} style={{ background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.35)", borderRadius: 5, padding: "4px 8px", fontSize: 11, color: "var(--gold)", cursor: "pointer" }} title="Enviar agora para clientes elegíveis">Enviar agora</button>
                               <button onClick={() => { setEditando(idx); setEditLocal({ ...etapa }); }} style={{ background: "none", border: "1px solid var(--br)", borderRadius: 5, padding: "4px 8px", fontSize: 13, color: "var(--tx3)", cursor: "pointer" }} title="Editar etapa">✏️</button>
                               <button onClick={() => setConfirmDelete(idx)} style={{ background: "rgba(192,57,43,.08)", border: "none", borderRadius: 5, padding: "4px 8px", fontSize: 12, color: "#C0392B", cursor: "pointer" }} title="Remover etapa">✕</button>
                             </div>
@@ -5485,7 +5623,7 @@ export default function CRM() {
                     );
                   })}
                   <button onClick={() => {
-                    const novaEtapa = { id: "etapa_" + Date.now(), label: "Nova etapa", dias: 7, msg: "", canal: "email" };
+                    const novaEtapa = { id: "etapa_" + Date.now(), label: "Nova etapa", dias: 7, msg: "", canal: "email", ativa: true };
                     const nova = [...etapas, novaEtapa];
                     onSalvar(nova);
                     setEditando(nova.length - 1);
@@ -5498,10 +5636,29 @@ export default function CRM() {
             );
           };
 
-          const pvReguaAtiva = pvRegua.length > 0 ? pvRegua : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email" }));
+          const pvReguaEtapas = pvRegua.length > 0 ? pvRegua : PV_FLOW.map(p => ({ id: p.id, label: p.label, dias: p.dias, msg: p.msg, canal: "email", ativa: true }));
 
           return (
             <div className="pvw">
+              {/* ── CANAIS HABILITADOS ── */}
+              <div style={{ padding: "14px 16px", background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 9, margin: "8px 0 0" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx)", marginBottom: 10 }}>Canais habilitados</div>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                  {([["email", "E-mail"], ["whatsapp", "WhatsApp"], ["sms", "SMS"]] as const).map(([ch, label]) => {
+                    const ligado = canaisHabilitados[ch] !== false;
+                    return (
+                      <div key={ch} onClick={() => salvarCanaisHabilitados({ ...canaisHabilitados, [ch]: !ligado })}
+                        style={{ display: "flex", alignItems: "center", gap: 7, cursor: "pointer", padding: "6px 12px", background: ligado ? "rgba(39,174,96,.08)" : "var(--dk3)", border: "1px solid " + (ligado ? "rgba(39,174,96,.3)" : "var(--br)"), borderRadius: 7 }}>
+                        <div style={{ width: 30, height: 17, borderRadius: 8, background: ligado ? "var(--q3)" : "var(--dk5)", position: "relative", transition: "background .2s", flexShrink: 0 }}>
+                          <div style={{ width: 13, height: 13, background: "#fff", borderRadius: "50%", position: "absolute", top: 2, left: ligado ? 15 : 2, transition: "left .2s" }} />
+                        </div>
+                        <span style={{ fontSize: 12, color: ligado ? "var(--q3)" : "var(--tx3)", fontWeight: 500 }}>{label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* ── PRÉ-VENDA: clientes em follow-up de pós-venda ── */}
               {pvC.length === 0
                 ? <div className="empty">Nenhum cliente em pós-venda.</div>
@@ -5546,7 +5703,10 @@ export default function CRM() {
                 preVendaRegua.lead,
                 (novas) => salvarPreVendaRegua({ ...preVendaRegua, lead: novas }),
                 false,
-                "lead"
+                "lead",
+                preReguaAtiva.lead !== false,
+                () => salvarPreReguaAtiva({ ...preReguaAtiva, lead: !preReguaAtiva.lead }),
+                "pré-venda/lead"
               )}
               {renderRegua(
                 "Régua Qualificação",
@@ -5554,7 +5714,10 @@ export default function CRM() {
                 preVendaRegua.qualificacao,
                 (novas) => salvarPreVendaRegua({ ...preVendaRegua, qualificacao: novas }),
                 false,
-                "qualificacao"
+                "qualificacao",
+                preReguaAtiva.qualificacao !== false,
+                () => salvarPreReguaAtiva({ ...preReguaAtiva, qualificacao: !preReguaAtiva.qualificacao }),
+                "pré-venda/qualificacao"
               )}
               {renderRegua(
                 "Régua Hibernação",
@@ -5562,17 +5725,23 @@ export default function CRM() {
                 preVendaRegua.hibernacao,
                 (novas) => salvarPreVendaRegua({ ...preVendaRegua, hibernacao: novas }),
                 false,
-                "hibernacao"
+                "hibernacao",
+                preReguaAtiva.hibernacao !== false,
+                () => salvarPreReguaAtiva({ ...preReguaAtiva, hibernacao: !preReguaAtiva.hibernacao }),
+                "pré-venda/hibernacao"
               )}
 
               {/* ── RÉGUA DE PÓS-VENDA ── */}
               {renderRegua(
                 "Régua de Pós-Venda",
                 "Configure as etapas de comunicação após cada sessão concluída. Cada profissional monta sua própria régua.",
-                pvReguaAtiva,
+                pvReguaEtapas,
                 salvarPvRegua,
                 true,
-                "pv"
+                "pv",
+                pvReguaAtiva,
+                () => salvarPvReguaAtiva(!pvReguaAtiva),
+                "pós-venda"
               )}
             </div>
           );
