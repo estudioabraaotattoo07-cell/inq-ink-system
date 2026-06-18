@@ -5684,37 +5684,47 @@ export default function CRM() {
             } catch {}
             setCampConfirmDel(null);
           };
-          const campForm = (idx: number | null) => (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 4 }}>Nome da campanha</div>
-                  <input className="ef" placeholder="Ex: Black Friday 2025" value={campEditForm.nome} onChange={e => setCampEditForm(f => ({ ...f, nome: e.target.value }))} />
+          const campForm = (idx: number | null) => {
+            const hojeStr = new Date().toISOString().split("T")[0];
+            const erroInicio = campEditForm.data_inicio && campEditForm.data_inicio < hojeStr
+              ? "A data de início não pode ser anterior a hoje."
+              : "";
+            const erroFim = campEditForm.data_fim && campEditForm.data_inicio && campEditForm.data_fim <= campEditForm.data_inicio
+              ? "A data de fim deve ser posterior à data de início."
+              : "";
+            const podeSalvar = !erroInicio && !erroFim && !!campEditForm.data_inicio && !!campEditForm.data_fim;
+            return (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 4 }}>Nome da campanha</div>
+                    <input className="ef" placeholder="Ex: Black Friday 2025" value={campEditForm.nome} onChange={e => setCampEditForm(f => ({ ...f, nome: e.target.value }))} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 4 }}>Palavra-chave</div>
+                    <input className="ef" placeholder="Ex: blackfriday2025" value={campEditForm.palavra_chave} onChange={e => setCampEditForm(f => ({ ...f, palavra_chave: e.target.value }))} />
+                  </div>
+                  <div>
+                    <DateScroller label="Início" value={campEditForm.data_inicio} onChange={v => setCampEditForm(f => ({ ...f, data_inicio: v }))} />
+                    {erroInicio && <div style={{ fontSize: 10, color: "var(--q1)", marginTop: 3 }}>{erroInicio}</div>}
+                  </div>
+                  <div>
+                    <DateScroller label="Fim" value={campEditForm.data_fim} onChange={v => setCampEditForm(f => ({ ...f, data_fim: v }))} />
+                    {erroFim && <div style={{ fontSize: 10, color: "var(--q1)", marginTop: 3 }}>{erroFim}</div>}
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 4 }}>Palavra-chave</div>
-                  <input className="ef" placeholder="Ex: blackfriday2025" value={campEditForm.palavra_chave} onChange={e => setCampEditForm(f => ({ ...f, palavra_chave: e.target.value }))} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 4 }}>Início</div>
-                  <input className="ef" type="date" value={campEditForm.data_inicio} onChange={e => setCampEditForm(f => ({ ...f, data_inicio: e.target.value }))} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 4 }}>Fim</div>
-                  <input className="ef" type="date" value={campEditForm.data_fim} onChange={e => setCampEditForm(f => ({ ...f, data_fim: e.target.value }))} />
+                {campEditForm.palavra_chave.trim() && (
+                  <div style={{ fontSize: 11, color: "var(--tx3)" }}>
+                    Palavra salva como: <span style={{ color: "var(--gold)", fontFamily: "monospace" }}>{slugPalavra(campEditForm.palavra_chave)}</span>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                  <button className="btn-c" onClick={() => { setCampEditIdx(null); setCampEditForm({ nome: "", palavra_chave: "", data_inicio: "", data_fim: "" }); }}>Cancelar</button>
+                  <button className="btn-s" style={{ opacity: podeSalvar ? 1 : 0.45, cursor: podeSalvar ? "pointer" : "not-allowed" }} onClick={() => { if (podeSalvar) salvarCamp(campEditForm, idx); }}>Salvar</button>
                 </div>
               </div>
-              {campEditForm.palavra_chave.trim() && (
-                <div style={{ fontSize: 11, color: "var(--tx3)" }}>
-                  Palavra salva como: <span style={{ color: "var(--gold)", fontFamily: "monospace" }}>{slugPalavra(campEditForm.palavra_chave)}</span>
-                </div>
-              )}
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button className="btn-c" onClick={() => { setCampEditIdx(null); setCampEditForm({ nome: "", palavra_chave: "", data_inicio: "", data_fim: "" }); }}>Cancelar</button>
-                <button className="btn-s" onClick={() => salvarCamp(campEditForm, idx)}>Salvar</button>
-              </div>
-            </div>
-          );
+            );
+          };
           return (
             <div style={{ padding: "24px 16px", maxWidth: 700, margin: "0 auto" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
