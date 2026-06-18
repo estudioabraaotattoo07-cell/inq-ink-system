@@ -118,8 +118,8 @@ export default async function handler(req, res) {
 
   let systemPrompt = SYSTEM_PROMPT;
   if (campanhas && Array.isArray(campanhas) && campanhas.length > 0) {
-    const lista = campanhas.map(c => "- \"" + c.palavra_chave + "\" → " + c.nome + " (válida até " + c.data_fim + ")").join("\n");
-    systemPrompt += "\n\n## CAMPANHAS ATIVAS\nSe o lead mencionar que tem uma palavra secreta, código de promoção ou algo similar, pergunte qual é a palavra. Compare com esta lista (ignore maiúsculas, acentos e espaços):\n" + lista + "\n\nSe a palavra bater: confirme com entusiasmo discreto que reconhece a promoção. Garanta que nome, WhatsApp e e-mail estejam coletados (se não estiverem, colete antes de confirmar). Após os dados completos e confirmação do lead, inclua no final da resposta: [CAMPANHA:{\"id\":\"ID\",\"nome\":\"NOME\"}] com os dados reais.\nSe a palavra não bater ou a promoção estiver encerrada: informe de forma gentil e acolhedora, sem ser ríspida.";
+    const lista = campanhas.map(c => "- palavra_chave: \"" + c.palavra_chave + "\" | id: \"" + c.id + "\" | nome: \"" + c.nome + "\" | validade: até " + c.data_fim).join("\n");
+    systemPrompt += "\n\n## CAMPANHAS ATIVAS\nSe o lead mencionar que tem uma palavra secreta, código de promoção ou algo similar, pergunte qual é a palavra. Compare com esta lista (ignore maiúsculas, acentos e espaços extras ao comparar a palavra_chave):\n" + lista + "\n\nSe a palavra bater com uma campanha: confirme com entusiasmo discreto. Garanta que nome, WhatsApp e e-mail estejam coletados antes de confirmar. Após confirmação com dados completos, inclua EXATAMENTE no final da sua resposta (invisível ao usuário): [CAMPANHA:{\"id\":\"VALOR_DO_ID\",\"nome\":\"VALOR_DO_NOME\"}] — substituindo VALOR_DO_ID e VALOR_DO_NOME pelos valores EXATOS desta lista acima.\nSe a palavra não corresponder a nenhuma campanha ou a campanha estiver encerrada: informe de forma gentil e acolhedora, sem ser ríspida.";
   }
 
   const response = await fetch("https://api.anthropic.com/v1/messages", {
