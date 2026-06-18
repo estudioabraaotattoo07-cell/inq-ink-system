@@ -2750,27 +2750,33 @@ export default function CRM() {
           if (!zenviaApiKey) {
             return "❌ Credenciais Zenvia não configuradas. Acesse **Configurações → IA → SMS** para configurar.";
           }
-          await fetch("/api/zenvia", {
+          const telFormatado = params.cliente_tel.replace(/\D/g, "").replace(/^0/, "");
+          const telZenvia = telFormatado.startsWith("55") ? telFormatado : "55" + telFormatado;
+          const smsResp = await fetch("/api/zenvia", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               apiKey: zenviaApiKey,
-              numero: zenviaNumero,
-              to: params.cliente_tel,
+              from: zenviaNumero,
+              to: telZenvia,
               text: params.mensagem
             })
           });
+          if (!smsResp.ok) {
+            const errData = await smsResp.json().catch(() => ({}));
+            return "❌ Zenvia retornou erro " + smsResp.status + ": " + (errData.message || errData.error || JSON.stringify(errData));
+          }
           try {
             await sb.from("historico").insert({
               data: dataStr,
               hora: horaStr,
-              acao: (auraName || "IA") + " enviou SMS para " + params.cliente_nome + " (" + params.cliente_tel + ")",
+              acao: (auraName || "IA") + " enviou SMS para " + params.cliente_nome + " (" + telZenvia + ")",
               user_id: userId
             });
           } catch {}
-          return "✅ SMS enviado para **" + params.cliente_nome + "** (" + params.cliente_tel + ").";
-        } catch {
-          return "❌ Erro ao enviar SMS. Verifique as credenciais Zenvia em Configurações.";
+          return "✅ SMS enviado para **" + params.cliente_nome + "** (" + telZenvia + ").";
+        } catch (err: any) {
+          return "❌ Erro ao enviar SMS: " + (err?.message || "erro desconhecido") + ". Verifique as credenciais Zenvia em Configurações.";
         }
       }
       if (tool === "encaminhar_pdf") {
