@@ -6177,12 +6177,27 @@ export default function CRM() {
                           <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => {
                             const file = e.target.files?.[0];
                             if (!file) return;
-                            const toB64 = (f: File) => new Promise<string>((res) => { const r = new FileReader(); r.onload = (ev) => res((ev.target?.result as string).split(",")[1]); r.readAsDataURL(f); });
-                            const base64 = await toB64(file);
+                            const compress = (f: File, maxPx: number, q: number): Promise<{base64: string}> => new Promise((res) => {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                  let w = img.width, h = img.height;
+                                  if (w > maxPx || h > maxPx) { if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; } else { w = Math.round(w * maxPx / h); h = maxPx; } }
+                                  const canvas = document.createElement("canvas");
+                                  canvas.width = w; canvas.height = h;
+                                  canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+                                  res({ base64: canvas.toDataURL("image/jpeg", q).split(",")[1] });
+                                };
+                                img.src = ev.target?.result as string;
+                              };
+                              reader.readAsDataURL(f);
+                            });
+                            const { base64 } = await compress(file, 1200, 0.82);
                             const resp = await fetch("https://inq-ink-system.vercel.app/api/upload", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({ base64, mimeType: file.type, clienteId: sc.id })
+                              body: JSON.stringify({ base64, mimeType: "image/jpeg", clienteId: sc.id })
                             });
                             const d = await resp.json();
                             if (d.url) {
