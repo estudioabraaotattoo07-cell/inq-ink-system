@@ -1224,6 +1224,7 @@ export default function CRM() {
           credito: c.credito || 0,
           desc: c.descricao || "",
           projetos: c.projetos || [],
+          referencias: c.referencias || [],
           orig: c.orig || c.origem || "",
         })));
         if (arts && arts.length > 0) {
@@ -1536,6 +1537,7 @@ export default function CRM() {
       nascimento: c.nascimento || "",
       documento: (c as any).documento || "",
       projetos: c.projetos || [],
+      referencias: (c as any).referencias || [],
       user_id: userId,
       updated_at: new Date().toISOString()
     }, (msg) => setShowAviso("Erro ao salvar dados do cliente: " + msg));
@@ -6150,6 +6152,52 @@ export default function CRM() {
                     {[{ l: "Origem", v: sc.orig }, { l: "Observações", v: sc.cri }].map((fd, i) => (
                       <div className="fi2" key={i}><div className="fil">{fd.l}</div><div className="fiv">{fd.v || "—"}</div></div>
                     ))}
+
+                    {/* ── Referências de tatuagem ── */}
+                    <div className="fi2" style={{ gridColumn: "1 / -1" }}>
+                      <div className="fil" style={{ marginBottom: 8 }}>Referências de Tatuagem</div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                        {((sc as any).referencias || []).map((url: string, i: number) => (
+                          <div key={i} style={{ position: "relative" }}>
+                            <img src={url} alt={`ref-${i}`}
+                              style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 6, border: "1px solid var(--br)", cursor: "pointer" }}
+                              onClick={() => window.open(url, "_blank")} />
+                            <button
+                              onClick={async () => {
+                                const refs: string[] = ((sc as any).referencias || []).filter((_: string, j: number) => j !== i);
+                                upC(sc.id, "referencias", refs);
+                                await sb.from("clientes").update({ referencias: refs }).eq("id", sc.id);
+                              }}
+                              style={{ position: "absolute", top: -6, right: -6, background: "#c0392b", border: "none", borderRadius: "50%", width: 18, height: 18, fontSize: 10, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}
+                              title="Remover">✕</button>
+                          </div>
+                        ))}
+                        <label style={{ width: 80, height: 80, border: "1px dashed var(--br)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--tx3)", fontSize: 22, flexShrink: 0 }} title="Adicionar referência">
+                          +
+                          <input type="file" accept="image/*" style={{ display: "none" }} onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            const toB64 = (f: File) => new Promise<string>((res) => { const r = new FileReader(); r.onload = (ev) => res((ev.target?.result as string).split(",")[1]); r.readAsDataURL(f); });
+                            const base64 = await toB64(file);
+                            const resp = await fetch("https://inq-ink-system.vercel.app/api/upload", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ base64, mimeType: file.type, clienteId: sc.id })
+                            });
+                            const d = await resp.json();
+                            if (d.url) {
+                              const refs = [...((sc as any).referencias || []), d.url];
+                              upC(sc.id, "referencias", refs);
+                            }
+                            e.target.value = "";
+                          }} />
+                        </label>
+                      </div>
+                      {(!(sc as any).referencias || (sc as any).referencias.length === 0) && (
+                        <div style={{ fontSize: 11, color: "var(--tx3)", fontStyle: "italic" }}>Nenhuma referência ainda. Clique em + para adicionar.</div>
+                      )}
+                    </div>
+
                     <div className="fi2">
                       <div className="fil">Data de Nascimento</div>
                       {(() => {

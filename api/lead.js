@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { nome, tel, email, idea, artista, insta, regiao, nascimento } = req.body;
+  const { nome, tel, email, idea, artista, insta, regiao, nascimento, referencias } = req.body;
   if (!nome) return res.status(400).json({ error: "nome obrigatório" });
 
   const row = {
@@ -44,16 +44,19 @@ export default async function handler(req, res) {
     credito: 0,
     cri: "",
     dias: 0,
+    referencias: Array.isArray(referencias) && referencias.length ? referencias : [],
   };
 
   row.user_id = "2d366d35-1cae-40d5-ba92-06fe2ab8a763";
 
-  const { error } = await sb.from("clientes").insert(row);
+  const { data: inserted, error } = await sb.from("clientes").insert(row).select("id").single();
 
   if (error) {
     console.error("Supabase insert error:", error);
     return res.status(500).json({ error: error.message });
   }
+
+  const clienteId = inserted?.id || null;
 
   // Dispara SMS para o cliente e para o estúdio em paralelo
   const zenviaKey = process.env.ZENVIA_API_KEY;
@@ -111,5 +114,5 @@ export default async function handler(req, res) {
     }).catch(e => console.warn("Email boas-vindas error:", e));
   }
 
-  return res.status(200).json({ ok: true });
+  return res.status(200).json({ ok: true, clienteId });
 }
