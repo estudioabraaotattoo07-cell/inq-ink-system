@@ -10547,7 +10547,11 @@ export default function CRM() {
                       user_id: userId,
                     };
                     try {
-                      const { data: inserted } = await sb.from("financeiro").insert(novaEntrada).select().single();
+                      const { data: inserted, error: insertErr } = await sb.from("financeiro").insert(novaEntrada).select().single();
+                      if (insertErr) {
+                        setShowAviso("❌ Erro ao registrar pagamento: " + (insertErr.message || "verifique sua conexão e tente novamente."));
+                        return;
+                      }
                       const row = { ...(inserted || novaEntrada), id: inserted?.id, cliente: pgAvulso.clienteNome };
                       setFin((p: any[]) => [...p, row]);
                       try {
@@ -10557,8 +10561,8 @@ export default function CRM() {
                       } catch {}
                       setPgAvulso(null);
                       setShowAviso("✅ Pagamento de R$ " + valorNum.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) + " registrado com sucesso.");
-                    } catch {
-                      setShowAviso("❌ Erro ao registrar pagamento. Tente novamente.");
+                    } catch (e: any) {
+                      setShowAviso("❌ Erro ao registrar pagamento: " + (e?.message || "verifique sua conexão e tente novamente."));
                     }
                   }}>
                     Confirmar registro
