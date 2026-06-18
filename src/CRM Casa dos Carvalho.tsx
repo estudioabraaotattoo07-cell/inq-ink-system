@@ -846,6 +846,9 @@ function maskCNPJ(v: string) {
   if (v.length <= 12) return v.slice(0,2)+"."+v.slice(2,5)+"."+v.slice(5,8)+"/"+v.slice(8);
   return v.slice(0,2)+"."+v.slice(2,5)+"."+v.slice(5,8)+"/"+v.slice(8,12)+"-"+v.slice(12);
 }
+function slugify(s: string) {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
 function maskTel(v: string) {
   if (!v) return "";
   v = String(v).replace(/\D/g, "").slice(0, 11);
@@ -952,6 +955,12 @@ export default function CRM() {
   const [metaNPS, setMetaNPS] = useState(0);
   const [settingsTab, setSettingsTab] = useState<"estudio"|"dono"|"metas"|"ia"|"sistema">("estudio");
   const [googleLink, setGoogleLink] = useState("");
+  const [studioSite, setStudioSite] = useState("");
+  // ── ORIGENS ──
+  const [origens, setOrigens] = useState<{id: string; user_id: string; nome: string; slug: string; criado_em: string}[]>([]);
+  const [origenEditIdx, setOrigenEditIdx] = useState<number | null>(null);
+  const [origenEditNome, setOrigenEditNome] = useState("");
+  const [origenConfirmDel, setOrigenConfirmDel] = useState<number | null>(null);
   const [cnpj, setCnpj] = useState("");
   const [metaMensal, setMetaMensal] = useState(0);
   const [descontoAniversario, setDescontoAniversario] = useState(5);
@@ -1210,10 +1219,12 @@ export default function CRM() {
           if (!uid) return await sb.from("configuracoes").select("*").limit(1).single().then(r => r.data ? [r.data] : null);
           return await sb.from("configuracoes").select("*").eq("user_id", uid).limit(1).single().then(r => r.data ? [r.data] : null);
         };
-        const [cls, arts, fins, sds, ags, cfgs, eqs] = await Promise.all([
+        const [cls, arts, fins, sds, ags, cfgs, eqs, orgs] = await Promise.all([
           loadWithUser("clientes"), loadWithUser("artistas"), loadWithUser("financeiro"),
-          loadWithUser("saidas"), loadWithUser("agenda"), loadCfg(), loadWithUser("equipamentos")
+          loadWithUser("saidas"), loadWithUser("agenda"), loadCfg(), loadWithUser("equipamentos"),
+          uid ? sb.from("origens").select("*").eq("user_id", uid).order("criado_em", { ascending: true }).then(r => r.data) : Promise.resolve([])
         ]);
+        if (orgs && orgs.length > 0) setOrigens(orgs);
         if (eqs && eqs.length > 0) setEquipamentos(eqs);
         if (cls && cls.length > 0) setClients(cls.map((c: any) => ({
           ...c,
@@ -1281,6 +1292,7 @@ export default function CRM() {
           if (cfg.entrada_cats && Array.isArray(cfg.entrada_cats) && cfg.entrada_cats.length) setEntradaCats(cfg.entrada_cats);
           if (cfg.saida_cats && Array.isArray(cfg.saida_cats) && cfg.saida_cats.length) setSaidaCats(cfg.saida_cats);
           if (cfg.servico_opts && Array.isArray(cfg.servico_opts) && cfg.servico_opts.length) setServicoOpts(cfg.servico_opts);
+          if (cfg.studio_site) setStudioSite(cfg.studio_site);
           if (cfg.resend_api_key) setResendApiKey(cfg.resend_api_key);
           if (cfg.email_remetente) setEmailRemetente(cfg.email_remetente);
           if (cfg.nome_remetente) setNomeRemetente(cfg.nome_remetente);
@@ -3685,6 +3697,7 @@ export default function CRM() {
             { id: "dashboard", l: "Visão Geral", i: "📊", roles: ["admin","profissional"] },
             { id: "posvenda", l: "Pré/Pós-Venda", i: "💬", roles: ["admin","profissional"] },
             { id: "disparos", l: "Disparos", i: "📣", roles: ["admin"] },
+            { id: "origens", l: "Origens", i: "🔗", roles: ["admin"] },
             { id: "licencas", l: "Licenças", i: "🔑", roles: ["owner"] },
           ] as {id:string;l:string;i:string;roles:string[]}[]).filter(t => {
             if (t.id === "licencas") return authEmail === OWNER_EMAIL;
@@ -5474,6 +5487,146 @@ export default function CRM() {
           </div>
         )}
 
+        {/* ── ORIGENS ── */}
+        {tab === "origens" && (() => {
+          const siteBase = (studioSite || "https://seusite.com.br").replace(/\/$/, "");
+          const salvarOrigem = async (nome: string, idx: number | null) => {
+            const sl = slugify(nome);
+            if (!sl) return;
+            try {
+              if (idx === null) {
+                const { data: nova } = await sb.from("origens").insert({ nome, slug: sl, user_id: userId, criado_em: new Date().toISOString() }).select("*").single();
+                if (nova) setOrigens(prev => [...prev, nova]);
+              } else {
+                await sb.from("origens").update({ nome, slug: sl }).eq("id", origens[idx].id);
+                setOrigens(prev => prev.map((o, i) => i === idx ? { ...o, nome, slug: sl } : o));
+              }
+            } catch {}
+            setOrigenEditIdx(null);
+            setOrigenEditNome("");
+          };
+          const excluirOrigem = async (idx: number) => {
+            try {
+              await sb.from("origens").delete().eq("id", origens[idx].id);
+              setOrigens(prev => prev.filter((_, i) => i !== idx));
+            } catch {}
+            setOrigenConfirmDel(null);
+          };
+          return (
+            <div style={{ padding: "24px 16px", maxWidth: 700, margin: "0 auto" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 24, fontWeight: 700, color: "var(--gold)" }}>🔗 Gerenciador de Origens</div>
+                <button className="btn-s" onClick={() => { setOrigenEditIdx(-1); setOrigenEditNome(""); }}>+ Nova origem</button>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--tx3)", marginBottom: 20, lineHeight: 1.6 }}>
+                Cadastre as origens dos seus clientes (ex: "Instagram Abraão", "Google Maps", "Campanha de Verão"). O sistema gera um link único por origem para você compartilhar nas redes sociais. Quando alguém acessa seu site por esse link, a origem é registrada automaticamente no cadastro do cliente.
+              </div>
+              {!studioSite && (
+                <div style={{ background: "rgba(212,130,10,.12)", border: "1px solid rgba(212,130,10,.3)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--gold)", marginBottom: 16 }}>
+                  ⚠ Configure o URL do site em <strong>Configurações → Estúdio → Site</strong> para gerar os links corretamente.
+                </div>
+              )}
+              {/* Modal confirmação exclusão */}
+              {origenConfirmDel !== null && (
+                <div className="ov" style={{ zIndex: 9999 }} onClick={() => setOrigenConfirmDel(null)}>
+                  <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(360px, 90vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 14, animation: "slideInRight .25s ease" }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: "var(--gold)", fontFamily: "'Cormorant Garamond',serif" }}>Remover origem?</div>
+                    <div style={{ fontSize: 13, color: "var(--tx)", lineHeight: 1.6 }}>Esta ação não pode ser desfeita. Deseja remover esta origem?</div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button className="btn-c" onClick={() => setOrigenConfirmDel(null)}>Cancelar</button>
+                      <button className="btn-s" style={{ background: "rgba(192,57,43,.18)", color: "#C0392B", border: "1px solid rgba(192,57,43,.4)" }} onClick={() => excluirOrigem(origenConfirmDel!)}>Remover</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Form nova origem */}
+              {origenEditIdx === -1 && (
+                <div style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, padding: "16px", marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ fontSize: 12, color: "var(--tx3)", fontWeight: 600 }}>Nova origem</div>
+                  <input
+                    className="ef"
+                    placeholder="Ex: Instagram Abraão, Google Maps, Campanha de Verão..."
+                    value={origenEditNome}
+                    autoFocus
+                    onChange={e => setOrigenEditNome(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") salvarOrigem(origenEditNome.trim(), null); if (e.key === "Escape") { setOrigenEditIdx(null); setOrigenEditNome(""); } }}
+                  />
+                  {origenEditNome.trim() && (
+                    <div style={{ fontSize: 11, color: "var(--tx3)" }}>
+                      Link gerado: <span style={{ color: "var(--gold)", fontFamily: "monospace" }}>{siteBase + "?origem=" + slugify(origenEditNome.trim())}</span>
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button className="btn-c" onClick={() => { setOrigenEditIdx(null); setOrigenEditNome(""); }}>Cancelar</button>
+                    <button className="btn-s" onClick={() => salvarOrigem(origenEditNome.trim(), null)}>Salvar</button>
+                  </div>
+                </div>
+              )}
+              {/* Lista de origens */}
+              {origens.length === 0 && origenEditIdx !== -1 && (
+                <div style={{ textAlign: "center", color: "var(--tx3)", fontSize: 13, padding: "40px 0" }}>
+                  Nenhuma origem cadastrada ainda. Clique em "+ Nova origem" para começar.
+                </div>
+              )}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {origens.map((o, idx) => {
+                  const link = siteBase + "?origem=" + o.slug;
+                  const isEditing = origenEditIdx === idx;
+                  return (
+                    <div key={o.id} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, padding: "14px 16px" }}>
+                      {isEditing ? (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                          <input
+                            className="ef"
+                            value={origenEditNome}
+                            autoFocus
+                            onChange={e => setOrigenEditNome(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") salvarOrigem(origenEditNome.trim(), idx); if (e.key === "Escape") { setOrigenEditIdx(null); setOrigenEditNome(""); } }}
+                          />
+                          {origenEditNome.trim() && (
+                            <div style={{ fontSize: 11, color: "var(--tx3)" }}>
+                              Link gerado: <span style={{ color: "var(--gold)", fontFamily: "monospace" }}>{siteBase + "?origem=" + slugify(origenEditNome.trim())}</span>
+                            </div>
+                          )}
+                          <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                            <button className="btn-c" onClick={() => { setOrigenEditIdx(null); setOrigenEditNome(""); }}>Cancelar</button>
+                            <button className="btn-s" onClick={() => salvarOrigem(origenEditNome.trim(), idx)}>Salvar</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: 14, color: "var(--tx)", marginBottom: 4 }}>{o.nome}</div>
+                            <div style={{ fontSize: 11, color: "var(--tx3)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link}</div>
+                          </div>
+                          <button
+                            title="Copiar link"
+                            onClick={() => { try { navigator.clipboard.writeText(link); } catch {} }}
+                            style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 10px", fontSize: 14, cursor: "pointer", color: "var(--tx2)", flexShrink: 0 }}>
+                            📋
+                          </button>
+                          <button
+                            title="Editar"
+                            onClick={() => { setOrigenEditIdx(idx); setOrigenEditNome(o.nome); }}
+                            style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 10px", fontSize: 14, cursor: "pointer", color: "var(--tx2)", flexShrink: 0 }}>
+                            ✏️
+                          </button>
+                          <button
+                            title="Remover"
+                            onClick={() => setOrigenConfirmDel(idx)}
+                            style={{ background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 6, padding: "6px 10px", fontSize: 14, cursor: "pointer", color: "#C0392B", flexShrink: 0 }}>
+                            ✕
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
+
         {/* ── PRÉ/PÓS-VENDA ── */}
         {tab === "posvenda" && (() => {
           // ── Componente interno reutilizável de régua ──────────────────────────
@@ -6976,17 +7129,11 @@ export default function CRM() {
                         <label className="fl">Origem</label>
                         <select className="fs" value={form.orig} onChange={e => setForm({ ...form, orig: e.target.value })}>
                           <option value="">Selecionar origem...</option>
-                          <option>Instagram Orgânico</option>
-                          <option>Instagram Ads</option>
-                          <option>Google Orgânico</option>
-                          <option>Google Ads</option>
-                          <option>Indicação</option>
-                          <option>Presencial</option>
-                          <option>Site</option>
-                          <option>WhatsApp</option>
-                          <option>TikTok</option>
-                          <option>Facebook</option>
-                          <option>Outro</option>
+                          {origens.map(o => <option key={o.id} value={o.nome}>{o.nome}</option>)}
+                          {form.orig && !origens.find(o => o.nome === form.orig) && (
+                            <option value={form.orig}>{form.orig}</option>
+                          )}
+                          <option value="Outro">Outro</option>
                         </select>
                       </div>
                       <div className="ff">
@@ -8989,6 +9136,7 @@ export default function CRM() {
                         setCnpj(fmt);
                       }} style={{ borderColor: !cnpj ? "rgba(212,130,10,.4)" : undefined }} /></div>
                       <div className="fi2"><div className="fil">Link Google Meu Negócio{!googleLink && <span style={{ color: "var(--q2)", marginLeft: 4 }}>⚠</span>}</div><input className="ef" value={googleLink} placeholder="maps.app.goo.gl/..." onChange={e => setGoogleLink(e.target.value)} style={{ borderColor: !googleLink ? "rgba(212,130,10,.4)" : undefined }} /></div>
+                      <div className="fi2"><div className="fil">Site do Estúdio</div><input className="ef" value={studioSite} placeholder="https://seusite.com.br" onChange={e => setStudioSite(e.target.value)} /></div>
                     </div>
                   </div>
                   <div>
@@ -9534,7 +9682,7 @@ export default function CRM() {
                     return;
                   }
                   const cfg: any = {
-                    studio_name: studioName, studio_tel: studioTel,
+                    studio_name: studioName, studio_tel: studioTel, studio_site: studioSite,
                     studio_owner: studioOwner, studio_email: studioEmail,
                     studio_city: studioCity, studio_insta: studioInsta,
                     studio_rua: studioRua, studio_numero: studioNumero,
