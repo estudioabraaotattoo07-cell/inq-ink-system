@@ -265,12 +265,38 @@ async function solicitarAgendamento(input) {
       cliente_insta ? "Instagram: @" + cliente_insta.replace("@", "") : ""
     ].filter(Boolean).join(" | ");
 
-    const { data: pending, error: pendErr } = await supabase
+    // Para clientes novos: cria o registro no CRM direto com etapa aura_agend
+    let finalClienteId = cliente_id || null;
+    if (!finalClienteId) {
+      const { data: novoCliente } = await supabase.from("clientes").insert({
+        user_id: STUDIO_USER_ID,
+        nome: cliente_nome,
+        tel: (cliente_tel || "").replace(/\D/g, ""),
+        email: cliente_email || "",
+        insta: cliente_insta || "",
+        artista: artista || null,
+        descricao: descricao || "",
+        regiao: regiao || "",
+        etapa: "aura_agend",
+        orig: "Site - Aura Chat",
+        qual: "Q1",
+        obs: "Agendamento via Aura Chat",
+        estilo: "", tam: "Medio", intencao: "", cob: false, stars: 0,
+        val_a: 0, val_c: 0, pgto: "", orcamento: false, contrato: false,
+        faltas: 0, indicacoes: 0, credito: 0, cri: "", dias: 0, referencias: []
+      }).select("id").single();
+      if (novoCliente) finalClienteId = novoCliente.id;
+    } else {
+      await supabase.from("clientes").update({ etapa: "aura_agend" }).eq("id", finalClienteId);
+    }
+
+    // Inserir agendamento pendente — sem .select().single() para evitar erro de RLS no SELECT
+    const { error: pendErr } = await supabase
       .from("agendamentos_pendentes")
       .insert({
         user_id: STUDIO_USER_ID,
         status: "pendente",
-        cliente_id: cliente_id || null,
+        cliente_id: finalClienteId,
         cliente_nome,
         cliente_email: cliente_email || "",
         cliente_tel: (cliente_tel || "").replace(/\D/g, ""),
@@ -279,17 +305,11 @@ async function solicitarAgendamento(input) {
         hora_solicitada: hora_solicitada || "",
         tipo,
         descricao
-      })
-      .select("id")
-      .single();
+      });
 
     if (pendErr) {
       console.error("agendamentos_pendentes insert error:", pendErr);
       return { ok: false, erro: pendErr.message };
-    }
-
-    if (cliente_id) {
-      await supabase.from("clientes").update({ etapa: "aura_agend" }).eq("id", cliente_id);
     }
 
     const resendKey = process.env.RESEND_API_KEY;
@@ -369,7 +389,7 @@ async function solicitarAgendamento(input) {
       }).catch(e => console.warn("SMS profissional error:", e));
     }
 
-    return { ok: true, pendingId: pending?.id, mensagem: "Agendamento solicitado. Profissional notificado por e-mail e SMS." };
+    return { ok: true, clienteId: finalClienteId, mensagem: "Agendamento solicitado. Profissional notificado por e-mail e SMS." };
   } catch (e) {
     return { ok: false, erro: String(e) };
   }

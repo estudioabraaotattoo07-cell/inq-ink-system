@@ -31,10 +31,39 @@ export default async function handler(req, res) {
     cliente_insta ? "Instagram: @" + cliente_insta.replace("@", "") : ""
   ].filter(Boolean).join(" | ");
 
-  const { data: pending, error: pendErr } = await sb.from("agendamentos_pendentes").insert({
+  let finalClienteId = cliente_id || null;
+  if (!finalClienteId) {
+    const descricaoCliente = [
+      projeto ? "Projeto: " + projeto : "",
+      regiao ? "Região: " + regiao : "",
+      orcamento ? "Orçamento: " + orcamento : ""
+    ].filter(Boolean).join(" | ");
+    const { data: novoCliente } = await sb.from("clientes").insert({
+      user_id: STUDIO_USER_ID,
+      nome: cliente_nome,
+      tel: (cliente_tel || "").replace(/\D/g, ""),
+      email: cliente_email || "",
+      insta: cliente_insta || "",
+      artista: artista || null,
+      descricao: descricaoCliente,
+      regiao: regiao || "",
+      etapa: "aura_agend",
+      orig: "Site - Aura Chat",
+      qual: "Q1",
+      obs: "Agendamento via Aura Chat",
+      estilo: "", tam: "Medio", intencao: "", cob: false, stars: 0,
+      val_a: 0, val_c: 0, pgto: "", orcamento: false, contrato: false,
+      faltas: 0, indicacoes: 0, credito: 0, cri: "", dias: 0, referencias: []
+    }).select("id").single();
+    if (novoCliente) finalClienteId = novoCliente.id;
+  } else {
+    await sb.from("clientes").update({ etapa: "aura_agend" }).eq("id", finalClienteId);
+  }
+
+  const { error: pendErr } = await sb.from("agendamentos_pendentes").insert({
     user_id: STUDIO_USER_ID,
     status: "pendente",
-    cliente_id: cliente_id || null,
+    cliente_id: finalClienteId,
     cliente_nome,
     cliente_email: cliente_email || "",
     cliente_tel: (cliente_tel || "").replace(/\D/g, ""),
@@ -43,15 +72,11 @@ export default async function handler(req, res) {
     hora_solicitada: hora_solicitada || "",
     tipo,
     descricao
-  }).select("id").single();
+  });
 
   if (pendErr) {
     console.error("agendamentos_pendentes insert error:", pendErr);
     return res.status(500).json({ error: pendErr.message });
-  }
-
-  if (cliente_id) {
-    await sb.from("clientes").update({ etapa: "aura_agend" }).eq("id", cliente_id);
   }
 
   const resendKey = process.env.RESEND_API_KEY;
@@ -131,5 +156,5 @@ export default async function handler(req, res) {
     }).catch(e => console.warn("SMS profissional error:", e));
   }
 
-  return res.status(200).json({ ok: true, pendingId: pending?.id });
+  return res.status(200).json({ ok: true, clienteId: finalClienteId });
 }
