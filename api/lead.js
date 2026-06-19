@@ -14,8 +14,19 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
-  const { nome, tel, email, idea, artista, insta, regiao, nascimento, referencias, orig, obs: obsExtra } = req.body;
+  const { nome, tel, email, idea, ideia, artista, insta, regiao, nascimento, referencias, orig, obs: obsExtra } = req.body;
   if (!nome) return res.status(400).json({ error: "nome obrigatório" });
+
+  const ideaFinal = idea || ideia || "";
+
+  // Normalizar nascimento para ISO (AAAA-MM-DD) se vier como DD/MM/AAAA
+  let nascimentoISO = null;
+  if (nascimento) {
+    const parts = String(nascimento).replace(/[^\d]/g, "/").split("/");
+    if (parts.length === 3 && parts[2].length === 4) {
+      nascimentoISO = parts[2] + "-" + parts[1].padStart(2, "0") + "-" + parts[0].padStart(2, "0");
+    }
+  }
 
   const row = {
     nome,
@@ -25,7 +36,8 @@ export default async function handler(req, res) {
     qual: "Q1",
     etapa: "lead",
     orig: orig || "Site",
-    descricao: [idea, nascimento ? `Nascimento: ${nascimento}` : ""].filter(Boolean).join(" | "),
+    descricao: ideaFinal,
+    nascimento: nascimentoISO,
     artista: artista || null,
     estilo: "",
     regiao: regiao || "",
@@ -64,7 +76,8 @@ export default async function handler(req, res) {
       if (nome) updateFields.nome = updateRow.nome;
       if (email) updateFields.email = updateRow.email;
       if (insta) updateFields.insta = updateRow.insta;
-      if (idea || nascimento) updateFields.descricao = updateRow.descricao;
+      if (ideaFinal) updateFields.descricao = ideaFinal;
+      if (nascimentoISO) updateFields.nascimento = nascimentoISO;
       if (artista) updateFields.artista = updateRow.artista;
       if (regiao) updateFields.regiao = updateRow.regiao;
       if (obsExtra) updateFields.obs = updateRow.obs;

@@ -145,7 +145,7 @@ Triage por estilo:
 - Faltas sem aviso: retorno com depósito de R$150
 - Não tatuamos menores de 18 anos (sem exceção)
 - Endereço (Rua Aristides Navarro 165, centro de Vitória-ES): somente após agendamento confirmado
-- Horários: 13h30 às 18h
+- Horários: segunda a sexta, 13h30 às 18h; sábado, 13h às 20h. Domingo fechado.
 
 ## PERGUNTAS FREQUENTES
 - **Dói?** Depende da região e tolerância. Cuidamos para que seja o mais confortável possível.
@@ -305,8 +305,21 @@ async function solicitarAgendamento(input) {
       }
     }
 
-    // Para clientes novos: cria o registro no CRM direto com etapa aura_agend
+    // Para clientes novos: verifica por telefone antes de criar (evita duplicatas com lead.js)
     let finalClienteId = cliente_id || null;
+    if (!finalClienteId && cliente_tel) {
+      const telDigits = (cliente_tel || "").replace(/\D/g, "").slice(-8);
+      const { data: existentes } = await supabase.from("clientes").select("id,tel").eq("user_id", STUDIO_USER_ID);
+      const matchExistente = (existentes || []).find(c => (c.tel || "").replace(/\D/g, "").slice(-8) === telDigits);
+      if (matchExistente) {
+        finalClienteId = matchExistente.id;
+        const upd = { etapa: "aura_agend" };
+        if (descricao) upd.descricao = descricao;
+        if (artistaId) upd.artista = artistaId;
+        if (nascimentoISO) upd.nascimento = nascimentoISO;
+        await supabase.from("clientes").update(upd).eq("id", finalClienteId);
+      }
+    }
     if (!finalClienteId) {
       const novoClienteRow = {
         user_id: STUDIO_USER_ID,
@@ -373,8 +386,7 @@ async function solicitarAgendamento(input) {
         data: data_solicitada,
         hora: horaInicio,
         hora_fim: horaFim,
-        tipo: tipoAgenda,
-        status: "pendente"
+        tipo: tipoAgenda
       }).then(r => { if (r.error) console.warn("agenda insert error:", r.error); });
     }
 
