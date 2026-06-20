@@ -4158,7 +4158,7 @@ export default function CRM() {
               const infoAberto = stageInfoOpen === stage.id;
               return (
                 <div className="kc" key={stage.id} id={"kcol-" + stage.id} onClick={() => { if (infoAberto) setStageInfoOpen(null); }}>
-                  <div className="kh" style={{ borderBottomColor: stage.color }}>
+                  <div className="kh" style={{ borderBottomColor: stage.color, position: "relative" }}>
                     <span className="kt" style={{ color: stage.color }}>{stage.emoji} {stage.label}
                       {stage.id === "lead" && newLeadsBadge > 0 && (
                         <span onClick={() => setNewLeadsBadge(0)} title="Novos leads — clique para dispensar" style={{ marginLeft: 6, background: "#E74C3C", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 10, padding: "1px 6px", cursor: "pointer", verticalAlign: "middle", animation: "pulse 1.5s infinite" }}>{newLeadsBadge}</span>
@@ -4166,18 +4166,8 @@ export default function CRM() {
                     </span>
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
                       <span className="kn">{sc2.length}</span>
-                      {/* Botão ℹ️ — balão de descrição da etapa */}
-                      <div style={{ position: "relative" }}>
-                        <span onClick={e => { e.stopPropagation(); setStageInfoOpen(infoAberto ? null : stage.id); }}
-                          style={{ cursor: "pointer", fontSize: 11, opacity: infoAberto ? 0.9 : 0.45, lineHeight: 1, userSelect: "none", color: infoAberto ? stage.color : undefined }}>ℹ️</span>
-                        {infoAberto && (
-                          <div onClick={e => e.stopPropagation()}
-                            style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 300, width: 240, background: "var(--dk2)", border: "1px solid " + stage.color + "55", borderRadius: 10, padding: "12px 14px", boxShadow: "0 6px 24px rgba(0,0,0,.5)", animation: "fadeIn .15s ease" }}>
-                            <div style={{ fontSize: 11, color: stage.color, fontWeight: 700, marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>{stage.emoji} {stage.label}</div>
-                            <div style={{ fontSize: 12, color: "var(--tx2)", lineHeight: 1.55, fontFamily: "'DM Sans',sans-serif" }}>{stageDesc}</div>
-                          </div>
-                        )}
-                      </div>
+                      <span onClick={e => { e.stopPropagation(); setStageInfoOpen(infoAberto ? null : stage.id); }}
+                        style={{ cursor: "pointer", fontSize: 11, opacity: infoAberto ? 0.9 : 0.45, lineHeight: 1, userSelect: "none", color: infoAberto ? stage.color : undefined }}>ℹ️</span>
                       <span title="Editar etapa" onClick={e => { e.stopPropagation(); setEditingStage(stage); setEditStageLabel(stage.label); setEditStageEmoji(stage.emoji || ""); setEditStageCor(stage.color || "#888"); }}
                         style={{ cursor: "pointer", fontSize: 10, opacity: 0.45, lineHeight: 1, userSelect: "none" }}>✏️</span>
                       {stage.fixo === false && (
@@ -4185,6 +4175,13 @@ export default function CRM() {
                           style={{ cursor: "pointer", fontSize: 10, opacity: 0.45, lineHeight: 1, userSelect: "none" }}>🗑</span>
                       )}
                     </div>
+                    {infoAberto && (
+                      <div onClick={e => e.stopPropagation()}
+                        style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 300, background: "var(--dk2)", border: "1px solid " + stage.color + "66", borderRadius: 10, padding: "12px 14px", boxShadow: "0 6px 24px rgba(0,0,0,.55)", animation: "fadeIn .15s ease" }}>
+                        <div style={{ fontSize: 11, color: stage.color, fontWeight: 700, marginBottom: 6, fontFamily: "'DM Sans',sans-serif" }}>{stage.emoji} {stage.label}</div>
+                        <div style={{ fontSize: 12, color: "var(--tx2)", lineHeight: 1.6, fontFamily: "'DM Sans',sans-serif" }}>{stageDesc}</div>
+                      </div>
+                    )}
                   </div>
                   <div className="kb">
                     {sc2.length === 0 && (
