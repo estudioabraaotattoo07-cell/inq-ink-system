@@ -1337,6 +1337,30 @@ export default function CRM() {
               sb.from("clientes").update({ etapa: "lead" }).eq("id", c.id).then(() => {});
             });
           }
+          // Sincronização: cliente com evento de agenda válido não pode ficar em "lead"
+          if (ags && ags.length > 0) {
+            const clientesParaSincronizar: { id: any; novaEtapa: string }[] = [];
+            ags.forEach((a: any) => {
+              if (!a.cliente_id || !a.tipo || a.tipo.startsWith("bloq")) return;
+              const tipoKey = a.tipo.split("_")[0];
+              if (tipoKey !== "sess" && tipoKey !== "cons" && tipoKey !== "piercing") return;
+              const cliente = clientesMapeados.find((c: any) => c.id === a.cliente_id);
+              if (!cliente || cliente.etapa !== "lead") return;
+              const novaEtapa = tipoKey === "cons" ? "cons_agendada" : "sessao_agend";
+              if (!clientesParaSincronizar.find(x => x.id === cliente.id)) {
+                clientesParaSincronizar.push({ id: cliente.id, novaEtapa });
+              }
+            });
+            if (clientesParaSincronizar.length > 0) {
+              clientesParaSincronizar.forEach(({ id, novaEtapa }) => {
+                sb.from("clientes").update({ etapa: novaEtapa }).eq("id", id).then(() => {});
+              });
+              const idsSync = clientesParaSincronizar.map(x => x.id);
+              const etapaMap: Record<string, string> = {};
+              clientesParaSincronizar.forEach(x => { etapaMap[x.id] = x.novaEtapa; });
+              setClients(prev => prev.map((c: any) => idsSync.includes(c.id) ? { ...c, etapa: etapaMap[c.id] } : c));
+            }
+          }
         }
         if (arts && arts.length > 0) {
           setArtists(arts);
@@ -2395,6 +2419,13 @@ export default function CRM() {
         return;
       }
     }
+    if ((agForm.tipo || "").startsWith("bloq")) {
+      const tituloBloqueio = ((agForm as any).bloqTitulo || "").trim();
+      if (!tituloBloqueio) {
+        setShowAviso("Informe um título para o bloqueio antes de salvar.");
+        return;
+      }
+    }
     if (!forceRetroativo && !(agForm.tipo || "").startsWith("bloq") && agForm.date) {
       const agDateStr = agForm.date + "T" + String(agForm.start).padStart(2,"0") + ":00:00";
       const agDateTime = new Date(agDateStr);
@@ -2407,6 +2438,7 @@ export default function CRM() {
     }
     const row: any = {
       titulo: agForm.title,
+      titulo_bloqueio: (agForm as any).bloqTitulo || "",
       artista: agForm.tipo === "piercing" ? ((agForm as any).artista_exec || "") : (agForm.tipo.replace("cons_","").replace("sess_","").replace("bloq_","") || artists[0]?.id || ""),
       data: agForm.date,
       hora: String(agForm.start).padStart(2, "0") + ":00",
@@ -4583,7 +4615,7 @@ export default function CRM() {
                           const anivHoje = cliEv ? isAniversHoje((cliEv as any).nascimento || "") : false;
                           return (
                             <div key={e.id} className="mev" style={{ background: getEventColor(e.tipo, artists, e.artista), cursor: "pointer", opacity: e.status === "concluido" ? 0.45 : 1 }}
-                              onClick={ev => { ev.stopPropagation(); const eDate2 = e.date; const hoje2 = new Date(); hoje2.setHours(0,0,0,0); const evData2 = eDate2 ? new Date(eDate2 + "T12:00:00") : null; const isPast2 = evData2 && evData2 < hoje2; const semStatus2 = !e.status || e.status === ""; if (isPast2 && semStatus2 && !e.tipo?.startsWith("bloq")) { setConfirmPresenca({ event: e }); setPresencaMotivo(""); } else { setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal_pago ? "" : (e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""), sinalPago: false } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); } }}>
+                              onClick={ev => { ev.stopPropagation(); const eDate2 = e.date; const hoje2 = new Date(); hoje2.setHours(0,0,0,0); const evData2 = eDate2 ? new Date(eDate2 + "T12:00:00") : null; const isPast2 = evData2 && evData2 < hoje2; const semStatus2 = !e.status || e.status === ""; if (isPast2 && semStatus2 && !e.tipo?.startsWith("bloq")) { setConfirmPresenca({ event: e }); setPresencaMotivo(""); } else { setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.obs || "", servico: e.servico || "", bloqTitulo: e.titulo_bloqueio || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal_pago ? "" : (e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""), sinalPago: false } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); } }}>
                               {e.status === "concluido" && "✅ "}{anivHoje && "🎂 "}{e.start}h {buildEventTitle(e, agEvents)}
                             </div>
                           );
@@ -4634,7 +4666,7 @@ export default function CRM() {
                                 filter: e.status === "concluido" ? "saturate(0.4)" : "none",
                                 textDecoration: e.status === "cancelado" ? "line-through" : "none"
                               }}
-                              onClick={ev => { ev.stopPropagation(); const eDate2 = e.date; const hoje2 = new Date(); hoje2.setHours(0,0,0,0); const evData2 = eDate2 ? new Date(eDate2 + "T12:00:00") : null; const isPast2 = evData2 && evData2 < hoje2; const semStatus2 = !e.status || e.status === ""; if (isPast2 && semStatus2 && !e.tipo?.startsWith("bloq")) { setConfirmPresenca({ event: e }); setPresencaMotivo(""); } else { setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal_pago ? "" : (e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""), sinalPago: false } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); } }}>
+                              onClick={ev => { ev.stopPropagation(); const eDate2 = e.date; const hoje2 = new Date(); hoje2.setHours(0,0,0,0); const evData2 = eDate2 ? new Date(eDate2 + "T12:00:00") : null; const isPast2 = evData2 && evData2 < hoje2; const semStatus2 = !e.status || e.status === ""; if (isPast2 && semStatus2 && !e.tipo?.startsWith("bloq")) { setConfirmPresenca({ event: e }); setPresencaMotivo(""); } else { setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.obs || "", servico: e.servico || "", bloqTitulo: e.titulo_bloqueio || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal_pago ? "" : (e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""), sinalPago: false } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); } }}>
                                 <span style={{overflow:"hidden",flex:1,minWidth:0}}>
                                   {e.status === "concluido" && <span style={{ fontSize: 10, marginRight: 3 }}>✅</span>}
                                   {(() => {
@@ -4645,6 +4677,7 @@ export default function CRM() {
                                   {e.tipo?.startsWith("bloq")
                                     ? <span style={{ color: e.tipo === "bloq_geral" ? "#C0392B" : (artists.find((a:any) => a.id === e.tipo?.replace("bloq_",""))?.cor || "#888"), fontWeight: 700 }}>
                                         🔒 {e.tipo === "bloq_geral" ? "TODOS" : (artists.find((a:any) => a.id === e.tipo?.replace("bloq_",""))?.nome?.split(" ")[0] || "Bloqueio")}
+                                        {e.titulo_bloqueio ? <><br/><span style={{ fontWeight: 600, fontSize: "0.95em" }}>{e.titulo_bloqueio}</span></> : null}
                                       </span>
                                     : buildEventTitle(e, agEvents)
                                   }<br/><span style={{opacity:.8}}>{e.start}h–{e.end}h</span>
@@ -4690,7 +4723,7 @@ export default function CRM() {
                                   opacity: e.status === "concluido" ? 0.45 : e.status === "cancelado" ? 0.55 : 1,
                                   filter: e.status === "concluido" ? "saturate(0.4)" : "none"
                                 }}
-                                onClick={ev => { ev.stopPropagation(); setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal_pago ? "" : (e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""), sinalPago: false } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); }}>
+                                onClick={ev => { ev.stopPropagation(); setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.obs || "", servico: e.servico || "", bloqTitulo: e.titulo_bloqueio || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal_pago ? "" : (e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""), sinalPago: false } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); }}>
                                 <span style={{ fontWeight: 600 }}>
                                   {e.status === "concluido" && "✅ "}
                                   {(() => {
@@ -4700,13 +4733,14 @@ export default function CRM() {
                                   {e.tipo?.startsWith("bloq")
                                     ? <span style={{ color: e.tipo === "bloq_geral" ? "#C0392B" : (artists.find((a:any) => a.id === e.tipo?.replace("bloq_",""))?.cor || "#888") }}>
                                         🔒 {e.tipo === "bloq_geral" ? "TODOS" : (artists.find((a:any) => a.id === e.tipo?.replace("bloq_",""))?.nome?.split(" ")[0] || "Bloqueio")}
+                                        {e.titulo_bloqueio ? <><br/><span style={{ fontWeight: 600, fontSize: "0.95em" }}>{e.titulo_bloqueio}</span></> : null}
                                       </span>
                                     : buildEventTitle(e, agEvents)
                                   } · {e.start}h–{e.end}h
                                 </span>
                                 <div style={{ display: "flex", gap: 4 }}>
                                   <span style={{ opacity: .8, cursor: "pointer", fontSize: 13 }}
-                                    onClick={ev => { ev.stopPropagation(); setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.desc || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal_pago ? "" : (e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""), sinalPago: false } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); }}>✏️</span>
+                                    onClick={ev => { ev.stopPropagation(); setEditingEvent(e); setAgForm({ title: e.title, tipo: e.tipo, date: e.date, start: e.start, end: e.end, desc: e.obs || "", servico: e.servico || "", bloqTitulo: e.titulo_bloqueio || "", valorPrevisto: e.valor_previsto ? Number(e.valor_previsto).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "", sinal: e.sinal_pago ? "" : (e.sinal ? Number(e.sinal).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ""), sinalPago: false } as any); const cv = e.cliente_id ? clients.find(c => c.id === e.cliente_id) || null : null; setAgClientVinc(cv); setAgClientSearch(""); setShowAgForm(true); }}>✏️</span>
                                   <span style={{ opacity: .8, cursor: "pointer", fontSize: 13 }}
                                     onClick={ev => { ev.stopPropagation(); setConfirmExcluir(e); }}>🗑</span>
                                 </div>
@@ -8498,24 +8532,32 @@ export default function CRM() {
                   </div>
                   {/* Sub-opções de bloqueio */}
                   {(agForm.tipo || "").startsWith("bloq") && (
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                      <div onMouseDown={() => setAgForm({ ...agForm, tipo: "bloq_geral" })}
-                        style={{ padding: "4px 12px", borderRadius: 20, cursor: "pointer", fontSize: 11, fontWeight: 700,
-                          background: agForm.tipo === "bloq_geral" ? "rgba(192,57,43,.2)" : "var(--dk3)",
-                          border: `1px solid ${agForm.tipo === "bloq_geral" ? "var(--q1)" : "var(--br)"}`,
-                          color: agForm.tipo === "bloq_geral" ? "var(--q1)" : "var(--tx2)" }}>
-                        TODOS
-                      </div>
-                      {artists.filter(a => a.ativo).map(a => (
-                        <div key={a.id} onMouseDown={() => setAgForm({ ...agForm, tipo: "bloq_" + a.id })}
-                          style={{ padding: "4px 12px", borderRadius: 20, cursor: "pointer", fontSize: 11, fontWeight: 600,
-                            background: agForm.tipo === "bloq_" + a.id ? a.cor + "22" : "var(--dk3)",
-                            border: `1px solid ${agForm.tipo === "bloq_" + a.id ? a.cor : "var(--br)"}`,
-                            color: agForm.tipo === "bloq_" + a.id ? a.cor : "var(--tx2)" }}>
-                          {a.nome.split(" ")[0]}
+                    <>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
+                        <div onMouseDown={() => setAgForm({ ...agForm, tipo: "bloq_geral" })}
+                          style={{ padding: "4px 12px", borderRadius: 20, cursor: "pointer", fontSize: 11, fontWeight: 700,
+                            background: agForm.tipo === "bloq_geral" ? "rgba(192,57,43,.2)" : "var(--dk3)",
+                            border: `1px solid ${agForm.tipo === "bloq_geral" ? "var(--q1)" : "var(--br)"}`,
+                            color: agForm.tipo === "bloq_geral" ? "var(--q1)" : "var(--tx2)" }}>
+                          TODOS
                         </div>
-                      ))}
-                    </div>
+                        {artists.filter(a => a.ativo).map(a => (
+                          <div key={a.id} onMouseDown={() => setAgForm({ ...agForm, tipo: "bloq_" + a.id })}
+                            style={{ padding: "4px 12px", borderRadius: 20, cursor: "pointer", fontSize: 11, fontWeight: 600,
+                              background: agForm.tipo === "bloq_" + a.id ? a.cor + "22" : "var(--dk3)",
+                              border: `1px solid ${agForm.tipo === "bloq_" + a.id ? a.cor : "var(--br)"}`,
+                              color: agForm.tipo === "bloq_" + a.id ? a.cor : "var(--tx2)" }}>
+                            {a.nome.split(" ")[0]}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="ff" style={{ marginTop: 8 }}>
+                        <label className="fl">Título do Bloqueio *</label>
+                        <input className="fi" placeholder="Ex: Viagem, Manutenção, Compromisso pessoal..."
+                          value={(agForm as any).bloqTitulo || ""}
+                          onChange={e => setAgForm({ ...agForm, bloqTitulo: e.target.value } as any)} />
+                      </div>
+                    </>
                   )}
                 </div>
 
