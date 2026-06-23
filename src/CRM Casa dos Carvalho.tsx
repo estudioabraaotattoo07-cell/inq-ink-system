@@ -363,8 +363,8 @@ table.ft tr:nth-child(even) td{background:var(--dk3);}
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const DEFAULT_STAGES = [
   { id: "lead", label: "Lead", color: "#5B8DEF", emoji: "🎯" },
-  { id: "lead_morno", label: "Contato Qualificado", color: "#E8A838", emoji: "🌡️" },
-  { id: "aura_agend", label: "Solicitação via Aura", color: "#8B5CF6", emoji: "✦" },
+  { id: "lead_morno", label: "Solicitação de Consulta", color: "#E8A838", emoji: "🗓️" },
+  { id: "aura_agend", label: "Solicitação de Sessão", color: "#8B5CF6", emoji: "✦" },
   { id: "cons_agendada", label: "Consulta Marcada", color: "#9B6BB5", emoji: "📅" },
   { id: "sessao_agend", label: "Sessão Marcada", color: "#4A9EBF", emoji: "✏️" },
   { id: "tatuado", label: "Sessão Realizada", color: "#27AE60", emoji: "✅" },
@@ -377,7 +377,8 @@ const DEFAULT_STAGES = [
 
 const STAGE_INFO: Record<string, string> = {
   lead: "Primeiros contatos captados pelo site, redes sociais, indicação ou qualquer outro canal de entrada. O cliente demonstrou algum interesse mas ainda não foi qualificado. Seu papel aqui é iniciar o relacionamento: entender a ideia, o projeto e o nível de intenção. Quanto antes entrar em contato, maior a chance de conversão.",
-  aura_agend: "Clientes que solicitaram agendamento diretamente pelo chat do site. Eles já forneceram informações do projeto e aguardam contato da equipe pelo WhatsApp para confirmar data e horário. Prioridade de retorno — esse cliente tomou a iniciativa.",
+  lead_morno: "Clientes que solicitaram consulta via chat. Aguardam contato da equipe para agendar a conversa presencial.",
+  aura_agend: "Clientes que solicitaram sessão de tatuagem diretamente pelo chat do site. Aguardam contato para confirmar data e horário. Prioridade de retorno — esse cliente tomou a iniciativa.",
   cons_agendada: "Consulta presencial já confirmada. O cliente virá ao estúdio para uma conversa sobre o projeto: entender a proposta, alinhar expectativas, ver referências e definir o caminho antes de tatuar. Prepare o ambiente e o artista responsável.",
   sessao_agend: "Sessão de tatuagem agendada e confirmada. O projeto já foi discutido, o valor alinhado e o horário marcado. Tudo certo para tatuar na data combinada. Confirme com antecedência e certifique-se de que o cliente está preparado.",
   tatuado: "Sessão concluída com sucesso. Agora é hora do pós-atendimento: acompanhe a cicatrização, peça feedback, solicite avaliação e mantenha o vínculo para futuras sessões ou indicações. Um cliente satisfeito é o melhor canal de aquisição.",
@@ -1214,10 +1215,14 @@ export default function CRM() {
     }
   }, [auraChatMessages, auraChatLoading]);
 
-  // Quando auraName muda, atualiza o label da etapa aura_agend dinamicamente
+  // Quando auraName muda, atualiza os labels dinâmicos de consulta e sessão
   useEffect(() => {
     if (!auraName) return;
-    setStages(p => p.map((s: any) => s.id === "aura_agend" ? { ...s, label: "Solicitação via " + auraName } : s));
+    setStages(p => p.map((s: any) => {
+      if (s.id === "aura_agend") return { ...s, label: "Solicitação de Sessão via " + auraName };
+      if (s.id === "lead_morno") return { ...s, label: "Solicitação de Consulta via " + auraName };
+      return s;
+    }));
   }, [auraName]);
 
   useEffect(() => {
