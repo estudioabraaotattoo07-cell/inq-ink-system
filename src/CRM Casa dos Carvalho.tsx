@@ -363,6 +363,7 @@ table.ft tr:nth-child(even) td{background:var(--dk3);}
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const DEFAULT_STAGES = [
   { id: "lead", label: "Lead", color: "#5B8DEF", emoji: "🎯" },
+  { id: "lead_morno", label: "Contato Qualificado", color: "#E8A838", emoji: "🌡️" },
   { id: "aura_agend", label: "Solicitação via Aura", color: "#8B5CF6", emoji: "✦" },
   { id: "cons_agendada", label: "Consulta Marcada", color: "#9B6BB5", emoji: "📅" },
   { id: "sessao_agend", label: "Sessão Marcada", color: "#4A9EBF", emoji: "✏️" },
