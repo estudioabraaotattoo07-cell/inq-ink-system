@@ -7998,7 +7998,8 @@ export default function CRM() {
                         </div>
                         <div style="padding:32px;">
                           <p style="font-size:15px;">Ola, <strong>${sc.nome}</strong>! Tudo bem?</p>
-                          <p>Em anexo esta o seu <strong>${titulo}</strong>. Por favor leia com atencao antes da sua sessao.</p>
+                          <p>Segue o seu <strong>${titulo}</strong>. Por favor leia com atencao antes da sua sessao.</p>
+                          <p style="font-size:12px;color:#888;">O documento assinado esta salvo digitalmente na sua ficha em nosso sistema. Caso deseje uma copia em PDF, solicite ao seu profissional responsavel.</p>
                           ${descProjeto}
                           <hr style="margin:24px 0;border:none;border-top:1px solid #eee;"/>
                           ${docId === "anamnese" ? `
