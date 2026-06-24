@@ -8916,7 +8916,7 @@ export default function CRM() {
                                 Excluído em {excl.toLocaleDateString("pt-BR")} · restam {diasRestantes} dia{diasRestantes !== 1 ? "s" : ""}
                               </div>
                             </div>
-                            <button onClick={async () => { await sb.from("clientes").update({ excluido_em: null }).eq("id", c.id); carregarLixeira(); addLog(`Cliente "${c.nome}" restaurado da Lixeira`); }}
+                            <button onClick={async () => { await sb.from("clientes").update({ excluido_em: null }).eq("id", c.id); const { data: restaurado } = await sb.from("clientes").select("*").eq("id", c.id).single(); if (restaurado) setClients((p: any[]) => [restaurado, ...p.filter((x: any) => x.id !== c.id)]); carregarLixeira(); addLog(`Cliente "${c.nome}" restaurado da Lixeira`); }}
                               style={{ background: "rgba(39,174,96,.12)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "#27AE60", cursor: "pointer", whiteSpace: "nowrap" }}>
                               Restaurar
                             </button>
