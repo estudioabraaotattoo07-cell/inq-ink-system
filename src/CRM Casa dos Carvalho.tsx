@@ -7718,7 +7718,27 @@ export default function CRM() {
                                 await salvarOrdemEtapas(reordenada);
                               }}
                               onDragEnd={() => setJornadaDragIdx(null)}
-                              style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--dk3)", border: `1px solid ${jornadaDragIdx === idx ? "var(--gold)" : "var(--br)"}`, borderRadius: 8, padding: "9px 10px", cursor: "grab", opacity: jornadaDragIdx === idx ? 0.5 : 1 }}>
+                              onTouchStart={e => { setJornadaDragIdx(idx); (e.currentTarget as any)._touchY = e.touches[0].clientY; }}
+                              onTouchMove={e => {
+                                const touchY = e.touches[0].clientY;
+                                const startY = (e.currentTarget as any)._touchY;
+                                const diff = touchY - startY;
+                                if (Math.abs(diff) < 20) return;
+                                const targetIdx = diff > 0 ? Math.min(idx + 1, jornadaEtapas.length - 1) : Math.max(idx - 1, 0);
+                                if (targetIdx === idx) return;
+                                const nova = [...jornadaEtapas];
+                                const [mov] = nova.splice(idx, 1);
+                                nova.splice(targetIdx, 0, mov);
+                                const reordenada = nova.map((e, i) => ({ ...e, ordem: i + 1 }));
+                                setJornadaEtapas(reordenada);
+                                setJornadaDragIdx(targetIdx);
+                                (e.currentTarget as any)._touchY = touchY;
+                              }}
+                              onTouchEnd={async () => {
+                                await salvarOrdemEtapas(jornadaEtapas);
+                                setJornadaDragIdx(null);
+                              }}
+                              style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--dk3)", border: `1px solid ${jornadaDragIdx === idx ? "var(--gold)" : "var(--br)"}`, borderRadius: 8, padding: "9px 10px", cursor: "grab", opacity: jornadaDragIdx === idx ? 0.5 : 1, touchAction: "none" }}>
                               {/* drag handle */}
                               <span style={{ color: "var(--tx3)", fontSize: 14, cursor: "grab", userSelect: "none" }}>⠿</span>
                               {/* status dot clicável */}
