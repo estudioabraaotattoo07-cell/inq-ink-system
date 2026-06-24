@@ -7895,8 +7895,18 @@ export default function CRM() {
                     const campoAssin = docId === "anamnese" ? "anamnese_assinatura" : docId === "contrato" ? "contrato_assinatura" : "menor_assinatura";
                     const assinBase64 = (sc as any)[campoAssin] || "";
 
-                    // usa base64 direto no src — funciona no Gmail desktop e na maioria dos clientes
-                    const assinImg = assinBase64 || "";
+                    // upload para Storage — URL publica funciona no Gmail mobile (base64 e bloqueado)
+                    let assinImg = "";
+                    if (assinBase64.startsWith("data:")) {
+                      try {
+                        const b64 = assinBase64.split(",")[1];
+                        const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+                        const fname = `assin-${sc.id}-${docId}.png`;
+                        await sb.storage.from("referencias").upload(fname, bytes, { contentType: "image/png", upsert: true });
+                        const { data: pub } = sb.storage.from("referencias").getPublicUrl(fname);
+                        assinImg = pub.publicUrl;
+                      } catch { assinImg = ""; }
+                    }
 
                     const projetos = (sc as any).projetos || [];
                     const ultimoProjeto = projetos[projetos.length - 1];
