@@ -1086,6 +1086,8 @@ export default function CRM() {
   const [lixeiraOrfaos, setLixeiraOrfaos] = useState<any[]>([]);
   const [lixeiraLoading, setLixeiraLoading] = useState(false);
   const [showLixeiraModal, setShowLixeiraModal] = useState(false);
+  const [lixeiraExcluindoId, setLixeiraExcluindoId] = useState<string|null>(null);
+  const [lixeiraExcluindoTimer, setLixeiraExcluindoTimer] = useState(0);
   const [confirmReset, setConfirmReset] = useState(false);
   const [resetUndo, setResetUndo] = useState(false);
   const [resetTimer, setResetTimer] = useState<any>(null);
@@ -8920,10 +8922,30 @@ export default function CRM() {
                               style={{ background: "rgba(39,174,96,.12)", border: "1px solid rgba(39,174,96,.3)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "#27AE60", cursor: "pointer", whiteSpace: "nowrap" }}>
                               Restaurar
                             </button>
-                            <button onClick={async () => { await deleteClientDefinitivo(c.id); carregarLixeira(); addLog(`Cliente "${c.nome}" excluído definitivamente`); }}
-                              style={{ background: "rgba(192,57,43,.12)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "#C0392B", cursor: "pointer", whiteSpace: "nowrap" }}>
-                              Excluir agora
-                            </button>
+                            {lixeiraExcluindoId === c.id ? (
+                              <button onClick={() => { setLixeiraExcluindoId(null); setLixeiraExcluindoTimer(0); }}
+                                style={{ background: "rgba(192,57,43,.2)", border: "1px solid rgba(192,57,43,.5)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "#C0392B", cursor: "pointer", whiteSpace: "nowrap", minWidth: 80 }}>
+                                Desfazer ({lixeiraExcluindoTimer}s)
+                              </button>
+                            ) : (
+                              <button onClick={() => {
+                                setLixeiraExcluindoId(c.id);
+                                let t = 8;
+                                setLixeiraExcluindoTimer(t);
+                                const iv = setInterval(() => {
+                                  t--;
+                                  setLixeiraExcluindoTimer(t);
+                                  if (t <= 0) {
+                                    clearInterval(iv);
+                                    deleteClientDefinitivo(c.id).then(() => { carregarLixeira(); addLog(`Cliente "${c.nome}" excluído definitivamente`); });
+                                    setLixeiraExcluindoId(null);
+                                  }
+                                }, 1000);
+                              }}
+                                style={{ background: "rgba(192,57,43,.12)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 6, padding: "5px 10px", fontSize: 11, color: "#C0392B", cursor: "pointer", whiteSpace: "nowrap" }}>
+                                Excluir agora
+                              </button>
+                            )}
                           </div>
                         );
                       })
