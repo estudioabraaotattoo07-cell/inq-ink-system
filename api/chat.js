@@ -312,15 +312,14 @@ const TOOLS = [
 async function verificarClienteExistente(telefoneInformado) {
   try {
     const digitsInformado = (telefoneInformado || "").replace(/\D/g, "");
-    const ultimosDigitos = digitsInformado.slice(-8);
+    const ultimosDigitos = digitsInformado.slice(-11);
     if (!ultimosDigitos) return { encontrado: false };
     const { data, error } = await supabase
       .from("clientes")
       .select("id, nome, tel")
       .eq("user_id", STUDIO_USER_ID);
-    console.error("DEBUG verificarCliente:", { error, totalRegistros: data?.length, ultimosDigitos });
     if (error || !data) return { encontrado: false };
-    const match = data.find(c => (c.tel || "").replace(/\D/g, "").slice(-8) === ultimosDigitos);
+    const match = data.find(c => (c.tel || "").replace(/\D/g, "").slice(-11) === ultimosDigitos);
     if (match) return { encontrado: true, nome: match.nome, id: match.id };
     return { encontrado: false };
   } catch {
@@ -406,9 +405,9 @@ async function solicitarAgendamento(input) {
     // Para clientes novos: verifica por telefone antes de criar (evita duplicatas com lead.js)
     let finalClienteId = cliente_id || null;
     if (!finalClienteId && cliente_tel) {
-      const telDigits = (cliente_tel || "").replace(/\D/g, "").slice(-8);
+      const telDigits = (cliente_tel || "").replace(/[^0-9]/g, "").slice(-11);
       const { data: existentes } = await supabase.from("clientes").select("id,tel").eq("user_id", STUDIO_USER_ID);
-      const matchExistente = (existentes || []).find(c => (c.tel || "").replace(/\D/g, "").slice(-8) === telDigits);
+      const matchExistente = (existentes || []).find(c => (c.tel || "").replace(/[^0-9]/g, "").slice(-11) === telDigits);
       if (matchExistente) {
         finalClienteId = matchExistente.id;
         const upd = { etapa: (tipo === "consulta") ? "lead_morno" : "aura_agend" };

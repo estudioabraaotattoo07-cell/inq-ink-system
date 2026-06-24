@@ -65,9 +65,9 @@ export default async function handler(req, res) {
   let clienteId = null;
   let isNewClient = true;
   if (tel) {
-    const telDigits = tel.replace(/\D/g, "").slice(-8);
+    const telDigits = tel.replace(/[^0-9]/g, "").slice(-11);
     const { data: existentes } = await sb.from("clientes").select("id,tel").eq("user_id", row.user_id);
-    const match = (existentes || []).find(c => (c.tel || "").replace(/\D/g, "").slice(-8) === telDigits);
+    const match = (existentes || []).find(c => (c.tel || "").replace(/[^0-9]/g, "").slice(-11) === telDigits);
     if (match) {
       const updateRow = { ...row };
       delete updateRow.user_id; delete updateRow.etapa; delete updateRow.orig;
