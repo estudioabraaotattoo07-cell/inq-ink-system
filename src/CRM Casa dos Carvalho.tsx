@@ -2238,6 +2238,12 @@ export default function CRM() {
     });
   };
 
+  // Atualiza estado local sem salvar no banco — usar no onChange de campos de texto
+  // O save acontece no onBlur via upC
+  const upCLocal = (cid: number, f: string, v: any) => {
+    setClients(p => p.map(c => c.id !== cid ? c : { ...c, [f]: v }));
+  };
+
   const registrarFalta = (cid: number, artista: string) => {
     setClients(p => p.map(c => {
       if (c.id !== cid) return c;
@@ -7414,7 +7420,8 @@ export default function CRM() {
                       <div className="fi2" key={i}>
                         <div className="fil">{fd.l}{(fd as any).w ? " ⚠" : ""}</div>
                         <input className="ef" value={(sc as any)[fd.f] || ""} placeholder={(fd as any).w ? "Clique para adicionar" : ""}
-                          onChange={e => upC(sc.id, fd.f, e.target.value)}
+                          onChange={e => upCLocal(sc.id, fd.f, e.target.value)}
+                          onBlur={e => upC(sc.id, fd.f, e.target.value)}
                           style={{ borderColor: fd.f === "email" && (sc as any).email && !validarEmail((sc as any).email) ? "var(--q1)" : (fd as any).w && !(sc as any)[fd.f] ? "var(--q2)" : "var(--br)" }} />
                         {fd.f === "email" && (sc as any).email && !validarEmail((sc as any).email) && (
                           <span style={{ fontSize: 10, color: "var(--q1)", marginTop: 3, display: "block" }}>Email inválido</span>
@@ -7496,6 +7503,14 @@ export default function CRM() {
                       <input className="ef" placeholder="000.000.000-00" value={(sc as any).documento || ""}
                         maxLength={14}
                         onChange={e => {
+                          const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
+                          const fmt = raw.length <= 3 ? raw
+                            : raw.length <= 6 ? raw.slice(0,3) + "." + raw.slice(3)
+                            : raw.length <= 9 ? raw.slice(0,3) + "." + raw.slice(3,6) + "." + raw.slice(6)
+                            : raw.slice(0,3) + "." + raw.slice(3,6) + "." + raw.slice(6,9) + "-" + raw.slice(9);
+                          upCLocal(sc.id, "documento", fmt);
+                        }}
+                        onBlur={e => {
                           const raw = e.target.value.replace(/\D/g, "").slice(0, 11);
                           const fmt = raw.length <= 3 ? raw
                             : raw.length <= 6 ? raw.slice(0,3) + "." + raw.slice(3)
@@ -7629,6 +7644,13 @@ export default function CRM() {
                                     const raw = e.target.value.replace(/\D/g,""); const num = raw ? Number(raw)/100 : 0;
                                     const projs = (sc.projetos && sc.projetos.length > 0) ? [...sc.projetos] : [{ ...proj }];
                                     const idx = projs.findIndex((p: any) => p.id === proj.id);
+                                    if (idx >= 0) { projs[idx] = { ...projs[idx], valorTotal: num }; upCLocal(sc.id, "projetos", projs); }
+                                    else upCLocal(sc.id, "projetos", [{ ...proj, valorTotal: num }]);
+                                  }}
+                                  onBlur={e => {
+                                    const raw = e.target.value.replace(/\D/g,""); const num = raw ? Number(raw)/100 : 0;
+                                    const projs = (sc.projetos && sc.projetos.length > 0) ? [...sc.projetos] : [{ ...proj }];
+                                    const idx = projs.findIndex((p: any) => p.id === proj.id);
                                     if (idx >= 0) { projs[idx] = { ...projs[idx], valorTotal: num }; upC(sc.id, "projetos", projs); }
                                     else upC(sc.id, "projetos", [{ ...proj, valorTotal: num }]);
                                   }} />
@@ -7637,6 +7659,11 @@ export default function CRM() {
                             <div className="fi2">
                               <div className="fil">Descrição do Projeto</div>
                               <textarea className="ef" value={proj.desc || ""} onChange={e => {
+                                const projs = (sc.projetos && sc.projetos.length > 0) ? [...sc.projetos] : [{ ...proj }];
+                                const idx = projs.findIndex((p: any) => p.id === proj.id);
+                                if (idx >= 0) { projs[idx] = { ...projs[idx], desc: e.target.value }; upCLocal(sc.id, "projetos", projs); }
+                                else upCLocal(sc.id, "projetos", [{ ...proj, desc: e.target.value }]);
+                              }} onBlur={e => {
                                 const projs = (sc.projetos && sc.projetos.length > 0) ? [...sc.projetos] : [{ ...proj }];
                                 const idx = projs.findIndex((p: any) => p.id === proj.id);
                                 if (idx >= 0) { projs[idx] = { ...projs[idx], desc: e.target.value }; upC(sc.id, "projetos", projs); }
@@ -7674,6 +7701,10 @@ export default function CRM() {
                                         <textarea className="ef" value={proj.desc || ""} onChange={e => {
                                           const projs = [...(sc.projetos || [])];
                                           const idx = projs.findIndex((p: any) => p.id === proj.id);
+                                          if (idx >= 0) { projs[idx] = { ...projs[idx], desc: e.target.value }; upCLocal(sc.id, "projetos", projs); }
+                                        }} onBlur={e => {
+                                          const projs = [...(sc.projetos || [])];
+                                          const idx = projs.findIndex((p: any) => p.id === proj.id);
                                           if (idx >= 0) { projs[idx] = { ...projs[idx], desc: e.target.value }; upC(sc.id, "projetos", projs); }
                                         }} style={{ resize: "vertical", minHeight: 55, width: "100%", fontFamily: "inherit" }} />
                                       </div>
@@ -7682,6 +7713,13 @@ export default function CRM() {
                                         <input className="ef" type="text" placeholder="0,00"
                                           value={proj.valorTotal ? Number(proj.valorTotal).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : ""}
                                           onChange={e => {
+                                            const raw = e.target.value.replace(/[^0-9]/g, "");
+                                            const num = raw ? Number(raw) / 100 : 0;
+                                            const projs = [...(sc.projetos || [])];
+                                            const idx = projs.findIndex((p: any) => p.id === proj.id);
+                                            if (idx >= 0) { projs[idx] = { ...projs[idx], valorTotal: num }; upCLocal(sc.id, "projetos", projs); }
+                                          }}
+                                          onBlur={e => {
                                             const raw = e.target.value.replace(/[^0-9]/g, "");
                                             const num = raw ? Number(raw) / 100 : 0;
                                             const projs = [...(sc.projetos || [])];
@@ -8114,7 +8152,8 @@ export default function CRM() {
                   </div>
                   <div className="fi2" style={{ marginTop: 7 }}>
                     <div className="fil">Observações Internas</div>
-                    <textarea value={sc.obs} onChange={e => upC(sc.id, "obs", e.target.value)}
+                    <textarea value={sc.obs} onChange={e => upCLocal(sc.id, "obs", e.target.value)}
+                      onBlur={e => upC(sc.id, "obs", e.target.value)}
                       style={{ width: "100%", minHeight: 50, background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 5, padding: "6px 8px", fontSize: 11, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", outline: "none", resize: "vertical", marginTop: 3 }}
                       placeholder="Anotações privadas..." />
                   </div>
