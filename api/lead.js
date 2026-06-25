@@ -156,40 +156,42 @@ export default async function handler(req, res) {
 
   row.user_id = "2d366d35-1cae-40d5-ba92-06fe2ab8a763";
 
-  // Identificação de cliente existente: telefone + nome (tolerante) + email
-  function normalizarNome(str) {
-    return (str || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  // Identificação de cliente existente por telefone — telefone bate = mesmo cliente, sempre
+  // Ao atualizar, prevalece o campo com mais dados (novo só substitui se existente estiver vazio)
+  function maisCompleto(existente, novo) {
+    const e = (existente || "").trim();
+    const n = (novo || "").trim();
+    if (!e) return n || undefined;
+    if (!n) return undefined; // mantém existente, não sobrescreve
+    return n.length > e.length ? n : undefined; // novo mais longo = mais completo
   }
 
   let clienteId = null;
   let isNewClient = true;
   if (tel) {
     const telDigits = tel.replace(/[^0-9]/g, "").slice(-11);
-    const { data: existentes } = await sb.from("clientes").select("id,tel,nome,email").eq("user_id", row.user_id);
+    const { data: existentes } = await sb.from("clientes").select("id,tel,nome,email,insta,descricao,nascimento,artista,regiao").eq("user_id", row.user_id);
     const matchTel = (existentes || []).find(c => (c.tel || "").replace(/[^0-9]/g, "").slice(-11) === telDigits);
     if (matchTel) {
-      const nomeNovo = normalizarNome(nome);
-      const nomeExistente = normalizarNome(matchTel.nome);
-      const emailNovo = (email || "").toLowerCase().trim();
-      const emailExistente = (matchTel.email || "").toLowerCase().trim();
-      const nomesBatem = nomeNovo && nomeExistente && nomeNovo === nomeExistente;
-      const emailsBatem = !emailNovo || !emailExistente || emailNovo === emailExistente;
-      if (nomesBatem && emailsBatem) {
-        // Mesmo cliente confirmado — atualiza só campos preenchidos e limpa lixeira se necessário
-        const updateFields = { excluido_em: null };
-        if (nome) updateFields.nome = nome;
-        if (email) updateFields.email = email;
-        if (insta) updateFields.insta = insta;
-        if (ideaFinal) updateFields.descricao = ideaFinal;
-        if (nascimentoISO) updateFields.nascimento = nascimentoISO;
-        if (artista) updateFields.artista = artista;
-        if (regiao) updateFields.regiao = regiao;
-        if (obsExtra) updateFields.obs = `Lead captado via Aura Chat no site. ${obsExtra}`;
-        await sb.from("clientes").update(updateFields).eq("id", matchTel.id);
-        clienteId = matchTel.id;
-        isNewClient = false;
-      }
-      // Se nome ou email divergem: ignora o registro existente e cria novo
+      // Mesmo cliente confirmado pelo telefone — mescla mantendo o campo mais completo
+      const updateFields = { excluido_em: null };
+      const nomeVal = maisCompleto(matchTel.nome, nome);
+      if (nomeVal) updateFields.nome = nomeVal;
+      const emailVal = maisCompleto(matchTel.email, email);
+      if (emailVal) updateFields.email = emailVal;
+      const instaVal = maisCompleto(matchTel.insta, insta);
+      if (instaVal) updateFields.insta = instaVal;
+      const descVal = maisCompleto(matchTel.descricao, ideaFinal);
+      if (descVal) updateFields.descricao = descVal;
+      if (nascimentoISO && !matchTel.nascimento) updateFields.nascimento = nascimentoISO;
+      const artistaVal = maisCompleto(matchTel.artista, artista);
+      if (artistaVal) updateFields.artista = artistaVal;
+      const regiaoVal = maisCompleto(matchTel.regiao, regiao);
+      if (regiaoVal) updateFields.regiao = regiaoVal;
+      if (obsExtra) updateFields.obs = `Lead captado via Aura Chat no site. ${obsExtra}`;
+      await sb.from("clientes").update(updateFields).eq("id", matchTel.id);
+      clienteId = matchTel.id;
+      isNewClient = false;
     }
   }
 
