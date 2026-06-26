@@ -279,29 +279,32 @@ export default async function handler(req, res) {
 
   let clienteId = null;
   let isNewClient = true;
-  if (tel) {
-    const telDigits = tel.replace(/[^0-9]/g, "").slice(-11);
+  {
+    const telDigits = tel ? tel.replace(/[^0-9]/g, "").slice(-11) : null;
+    const emailNorm = email ? email.trim().toLowerCase() : null;
     const { data: existentes } = await sb.from("clientes").select("id,tel,nome,email,insta,descricao,nascimento,artista,regiao").eq("user_id", row.user_id);
-    const matchTel = (existentes || []).find(c => (c.tel || "").replace(/[^0-9]/g, "").slice(-11) === telDigits);
-    if (matchTel) {
-      // Mesmo cliente confirmado pelo telefone — mescla mantendo o campo mais completo
+    const match =
+      (telDigits && (existentes || []).find(c => c.tel && c.tel.replace(/[^0-9]/g, "").slice(-11) === telDigits)) ||
+      (emailNorm && (existentes || []).find(c => c.email && c.email.trim().toLowerCase() === emailNorm));
+    if (match) {
       const updateFields = { excluido_em: null };
-      const nomeVal = maisCompleto(matchTel.nome, nome);
+      const nomeVal = maisCompleto(match.nome, nome);
       if (nomeVal) updateFields.nome = nomeVal;
-      const emailVal = maisCompleto(matchTel.email, email);
+      const emailVal = maisCompleto(match.email, email);
       if (emailVal) updateFields.email = emailVal;
-      const instaVal = maisCompleto(matchTel.insta, insta);
+      if (telDigits && !match.tel) updateFields.tel = tel;
+      const instaVal = maisCompleto(match.insta, insta);
       if (instaVal) updateFields.insta = instaVal;
-      const descVal = maisCompleto(matchTel.descricao, ideaFinal);
+      const descVal = maisCompleto(match.descricao, ideaFinal);
       if (descVal) updateFields.descricao = descVal;
-      if (nascimentoISO && !matchTel.nascimento) updateFields.nascimento = nascimentoISO;
-      const artistaVal = maisCompleto(matchTel.artista, artista);
+      if (nascimentoISO && !match.nascimento) updateFields.nascimento = nascimentoISO;
+      const artistaVal = maisCompleto(match.artista, artista);
       if (artistaVal) updateFields.artista = artistaVal;
-      const regiaoVal = maisCompleto(matchTel.regiao, regiao);
+      const regiaoVal = maisCompleto(match.regiao, regiao);
       if (regiaoVal) updateFields.regiao = regiaoVal;
       if (obsExtra) updateFields.obs = `Lead captado via Aura Chat no site. ${obsExtra}`;
-      await sb.from("clientes").update(updateFields).eq("id", matchTel.id);
-      clienteId = matchTel.id;
+      await sb.from("clientes").update(updateFields).eq("id", match.id);
+      clienteId = match.id;
       isNewClient = false;
     }
   }
