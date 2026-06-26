@@ -11457,24 +11457,25 @@ export default function CRM() {
             } catch { stats.supabase = { erro: true }; }
             // Resend — CORS bloqueia chamada direta; mostrar chave configurada apenas
             stats.resend = resendApiKey ? { dashboard: true } : { semChave: true };
-            // Vercel — deploys do mês (filtrar por createdAt >= primeiro dia do mês)
+            // Vercel — deploys do mês (buscar 100 e filtrar localmente por createdAt)
             if (vercelToken) {
               try {
-                const agora = new Date();
-                const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1).getTime();
-                const r = await fetch(`https://api.vercel.com/v6/deployments?limit=100&since=${primeiroDiaMes}`, { headers: { Authorization: "Bearer " + vercelToken } });
+                const primeiroDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+                const r = await fetch("https://api.vercel.com/v6/deployments?limit=100", { headers: { Authorization: "Bearer " + vercelToken } });
                 if (r.ok) {
                   const d = await r.json();
                   const deploys = Array.isArray(d.deployments) ? d.deployments : [];
-                  stats.vercel = { mes: deploys.length, keyOk: true };
+                  const doMes = deploys.filter((dep: any) => dep.createdAt && Number(dep.createdAt) >= primeiroDiaMes);
+                  stats.vercel = { mes: doMes.length, keyOk: true };
                 } else { stats.vercel = { keyOk: false }; }
               } catch { stats.vercel = { keyOk: false }; }
             } else { stats.vercel = { semChave: true }; }
             // GitHub — Actions runs do mês
             if (githubToken && githubRepo) {
               try {
-                const primeiroDiaMes = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-                const r = await fetch(`https://api.github.com/repos/${githubRepo}/actions/runs?per_page=100&created=>=${primeiroDiaMes}`, { headers: { Authorization: "Bearer " + githubToken, Accept: "application/vnd.github+json" } });
+                const agora = new Date();
+                const primeiroDiaMes = new Date(agora.getFullYear(), agora.getMonth(), 1).toISOString().split("T")[0];
+                const r = await fetch(`https://api.github.com/repos/${githubRepo}/actions/runs?per_page=100&created=%3E%3D${primeiroDiaMes}`, { headers: { Authorization: "Bearer " + githubToken, Accept: "application/vnd.github+json" } });
                 if (r.ok) {
                   const d = await r.json();
                   stats.github = { mes: d.total_count ?? 0, keyOk: true };
