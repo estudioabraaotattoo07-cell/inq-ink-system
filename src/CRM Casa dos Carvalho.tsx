@@ -11507,55 +11507,306 @@ export default function CRM() {
           const C_BADGE_WARN = { fontSize: 10, padding: "2px 8px", borderRadius: 20, background: "rgba(230,126,34,.15)", color: "#E67E22", border: "1px solid rgba(230,126,34,.3)", display: "inline-block" };
 
           return (
-          <div style={{ flex: 1, padding: "20px", overflowY: "auto" }}>
-            <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: "var(--tx)", marginBottom: 4 }}>Gestão de Licenças</div>
-            <div style={{ fontSize: 12, color: "var(--tx3)", marginBottom: 20 }}>Todos os estúdios cadastrados no sistema.</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {licencas.length === 0 && <div style={{ fontSize: 13, color: "var(--tx3)" }}>Nenhuma licença cadastrada ainda.</div>}
-              {licencas.map(lic => {
-                const hoje = new Date().toISOString().split("T")[0];
-                const diasRestantes = lic.data_vencimento ? Math.ceil((new Date(lic.data_vencimento).getTime() - Date.now()) / 86400000) : -999;
-                const vencendo = diasRestantes >= 0 && diasRestantes <= 7;
-                const expirado = diasRestantes < 0 || lic.status !== "ativo";
-                const cor = expirado ? "#C0392B" : vencendo ? "#E67E22" : "#27AE60";
-                return (
-                  <div key={lic.id} style={{ background: "var(--dk2)", border: "1px solid " + (expirado ? "rgba(192,57,43,.3)" : vencendo ? "rgba(230,126,34,.3)" : "var(--br)"), borderRadius: 10, padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "var(--tx)" }}>{lic.email || lic.studio_id || lic.user_id}</div>
-                      <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 3 }}>
-                        Plano: <strong style={{ color: "var(--gold)" }}>{lic.plano || "—"}</strong>
-                        {" · "}Início: {lic.data_inicio || "—"}
-                        {" · "}Vence: {lic.data_vencimento || "—"}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto" }}>
+            {/* cabeçalho */}
+            <div style={{ padding: "20px 20px 0" }}>
+              <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 22, fontWeight: 700, color: "var(--tx)", marginBottom: 4 }}>INK SYSTEM — Painel do Dono</div>
+              <div style={{ fontSize: 12, color: "var(--tx3)", marginBottom: 16 }}>Infraestrutura, chaves de acesso e licenças dos estúdios.</div>
+              {/* sub-abas */}
+              <div style={{ display: "flex", gap: 2, borderBottom: "1px solid var(--br)", marginBottom: 20 }}>
+                {([["monitoramento","Monitoramento"],["chaves","Chaves de Acesso"],["licencas","Licenças"]] as const).map(([id, label]) => (
+                  <div key={id} onClick={() => setLicencasSubTab(id)} style={{ padding: "8px 16px", fontSize: 12, fontWeight: 600, cursor: "pointer", color: licencasSubTab === id ? "var(--gold)" : "var(--tx3)", borderBottom: licencasSubTab === id ? "2px solid var(--gold)" : "2px solid transparent", letterSpacing: ".03em" }}>{label}</div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: "0 20px 20px", flex: 1 }}>
+
+              {/* ── MONITORAMENTO ── */}
+              {licencasSubTab === "monitoramento" && (
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                    <div style={{ fontSize: 11, color: "var(--tx3)" }}>Uso da Infraestrutura{infraStats ? " — atualizado às " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : ""}</div>
+                    <button onClick={carregarInfra} disabled={infraLoading} style={{ fontSize: 11, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "5px 12px", color: "var(--tx2)", cursor: infraLoading ? "wait" : "pointer" }}>{infraLoading ? "Carregando..." : "Atualizar"}</button>
+                  </div>
+                  {!infraStats && !infraLoading && (
+                    <div style={{ textAlign: "center", padding: "40px 0", color: "var(--tx3)", fontSize: 13 }}>
+                      Clique em <strong>Atualizar</strong> para carregar os dados de uso.
+                    </div>
+                  )}
+                  {infraStats && (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      {/* Supabase */}
+                      <div style={C_CARD}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <span style={{ fontSize: 18 }}>⚡</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>Supabase</div>
+                            <div style={{ fontSize: 10, color: "var(--tx3)" }}>Free Plan</div>
+                          </div>
+                          <span style={{ ...C_BADGE_OK, marginLeft: "auto" }}>LIVE</span>
+                        </div>
+                        <div style={C_LABEL}>Total de Linhas (BD)</div>
+                        <div style={C_VAL}>{infraStats.supabase?.total ?? "—"}</div>
+                        <div style={C_SUB}>
+                          {infraStats.supabase?.clientes != null && `Clientes: ${infraStats.supabase.clientes}`}
+                          {infraStats.supabase?.licencas != null && ` · Licenças: ${infraStats.supabase.licencas}`}
+                          {infraStats.supabase?.disparos != null && ` · Disparos: ${infraStats.supabase.disparos}`}
+                        </div>
+                        <div style={{ marginTop: 12 }}>
+                          <div style={{ ...C_LABEL, marginBottom: 6 }}>Armazenamento estimado</div>
+                          <div style={{ height: 4, background: "var(--dk4)", borderRadius: 4, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: Math.min(((infraStats.supabase?.total ?? 0) * 2 / (500 * 1024)) * 100, 100) + "%", background: "var(--gold)", borderRadius: 4 }} />
+                          </div>
+                          <div style={{ ...C_SUB, marginTop: 4 }}>~{((infraStats.supabase?.total ?? 0) * 2).toFixed(0)} KB / 500 MB</div>
+                        </div>
+                      </div>
+                      {/* Vercel */}
+                      <div style={C_CARD}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <span style={{ fontSize: 18 }}>▲</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>Vercel</div>
+                            <div style={{ fontSize: 10, color: "var(--tx3)" }}>Hobby Plan</div>
+                          </div>
+                          {infraStats.vercel?.keyOk ? <span style={{ ...C_BADGE_OK, marginLeft: "auto" }}>LIVE</span> : infraStats.vercel?.semChave ? <span style={{ ...C_BADGE_WARN, marginLeft: "auto" }}>SEM CHAVE</span> : <span style={{ ...C_BADGE_ERR, marginLeft: "auto" }}>ERRO</span>}
+                        </div>
+                        <div style={C_LABEL}>Deploys / mês</div>
+                        <div style={C_VAL}>{infraStats.vercel?.keyOk ? infraStats.vercel.mes : "—"}</div>
+                        <div style={C_SUB}>{infraStats.vercel?.keyOk ? `${infraStats.vercel.mes} / 100 deploys` : infraStats.vercel?.semChave ? "Configure o Vercel Token em Chaves de Acesso" : "Verifique o token"}</div>
+                        {infraStats.vercel?.keyOk && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ height: 4, background: "var(--dk4)", borderRadius: 4, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: Math.min((infraStats.vercel.mes / 100) * 100, 100) + "%", background: infraStats.vercel.mes > 80 ? "#C0392B" : "var(--gold)", borderRadius: 4 }} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {/* Resend */}
+                      <div style={C_CARD}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <span style={{ fontSize: 18 }}>✉️</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>Resend</div>
+                            <div style={{ fontSize: 10, color: "var(--tx3)" }}>Free Plan</div>
+                          </div>
+                          {infraStats.resend?.keyOk ? <span style={{ ...C_BADGE_OK, marginLeft: "auto" }}>LIVE</span> : infraStats.resend?.semChave ? <span style={{ ...C_BADGE_WARN, marginLeft: "auto" }}>SEM CHAVE</span> : <span style={{ ...C_BADGE_ERR, marginLeft: "auto" }}>ERRO</span>}
+                        </div>
+                        <div style={C_LABEL}>Emails disparados / mês</div>
+                        <div style={C_VAL}>{infraStats.resend?.keyOk ? infraStats.resend.mes : "—"}</div>
+                        <div style={C_SUB}>{infraStats.resend?.keyOk ? `${infraStats.resend.mes} / 3.000 · Hoje: ${infraStats.resend.hoje}` : infraStats.resend?.semChave ? "Configure a Resend API Key em Chaves de Acesso" : "Verifique a chave"}</div>
+                        {infraStats.resend?.keyOk && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ height: 4, background: "var(--dk4)", borderRadius: 4, overflow: "hidden" }}>
+                              <div style={{ height: "100%", width: Math.min((infraStats.resend.mes / 3000) * 100, 100) + "%", background: infraStats.resend.mes > 2500 ? "#C0392B" : "var(--gold)", borderRadius: 4 }} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {/* GitHub */}
+                      <div style={C_CARD}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <span style={{ fontSize: 18 }}>🐙</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>GitHub</div>
+                            <div style={{ fontSize: 10, color: "var(--tx3)" }}>Free Plan</div>
+                          </div>
+                          {infraStats.github?.keyOk ? <span style={{ ...C_BADGE_OK, marginLeft: "auto" }}>LIVE</span> : infraStats.github?.semChave ? <span style={{ ...C_BADGE_WARN, marginLeft: "auto" }}>SEM CHAVE</span> : <span style={{ ...C_BADGE_ERR, marginLeft: "auto" }}>ERRO</span>}
+                        </div>
+                        <div style={C_LABEL}>Actions / mês</div>
+                        <div style={C_VAL}>{infraStats.github?.keyOk ? infraStats.github.mes : "—"}</div>
+                        <div style={C_SUB}>{infraStats.github?.semChave ? "Configure GitHub Token em Chaves de Acesso" : infraStats.github?.keyOk ? `${infraStats.github.mes} / 2.000 min` : "Verifique o token ou repositório"}</div>
+                      </div>
+                      {/* Anthropic */}
+                      <div style={C_CARD}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <span style={{ fontSize: 18 }}>✳️</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>Anthropic</div>
+                            <div style={{ fontSize: 10, color: "var(--tx3)" }}>Pay as you go</div>
+                          </div>
+                          {auraApiKey ? <span style={{ ...C_BADGE_OK, marginLeft: "auto" }}>CONFIG</span> : <span style={{ ...C_BADGE_WARN, marginLeft: "auto" }}>SEM CHAVE</span>}
+                        </div>
+                        <div style={C_LABEL}>Uso do mês</div>
+                        <div style={C_VAL}>—</div>
+                        <div style={C_SUB}>Consulte em console.anthropic.com/usage</div>
+                      </div>
+                      {/* Zenvia */}
+                      <div style={C_CARD}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                          <span style={{ fontSize: 18 }}>💬</span>
+                          <div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)" }}>Zenvia</div>
+                            <div style={{ fontSize: 10, color: "var(--tx3)" }}>SMS / WhatsApp</div>
+                          </div>
+                          {zenviaApiKey ? <span style={{ ...C_BADGE_OK, marginLeft: "auto" }}>CONFIG</span> : <span style={{ ...C_BADGE_WARN, marginLeft: "auto" }}>SEM CHAVE</span>}
+                        </div>
+                        <div style={C_LABEL}>Envios do mês</div>
+                        <div style={C_VAL}>—</div>
+                        <div style={C_SUB}>Consulte em app.zenvia.com/reports</div>
                       </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: cor + "22", color: cor, border: "1px solid " + cor + "55" }}>
-                        {expirado ? "EXPIRADO" : vencendo ? ("VENCE EM " + diasRestantes + "d") : "ATIVO"}
-                      </span>
-                      <select style={{ fontSize: 11, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "4px 8px", color: "var(--tx)", cursor: "pointer" }}
-                        value={lic.status}
-                        onChange={async e => {
-                          const novoStatus = e.target.value;
-                          await sb.from("licencas").update({ status: novoStatus }).eq("id", lic.id);
-                          setLicencas(p => p.map(l => l.id === lic.id ? { ...l, status: novoStatus } : l));
-                        }}>
-                        <option value="ativo">Ativo</option>
-                        <option value="expirado">Expirado</option>
-                        <option value="bloqueado">Bloqueado</option>
-                      </select>
-                      <input type="date" value={lic.data_vencimento || ""} style={{ fontSize: 11, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "4px 8px", color: "var(--tx)", cursor: "pointer" }}
-                        onChange={async e => {
-                          const novaData = e.target.value;
-                          await sb.from("licencas").update({ data_vencimento: novaData, status: "ativo" }).eq("id", lic.id);
-                          setLicencas(p => p.map(l => l.id === lic.id ? { ...l, data_vencimento: novaData, status: "ativo" } : l));
-                        }} />
+                  )}
+                </div>
+              )}
+
+              {/* ── CHAVES DE ACESSO ── */}
+              {licencasSubTab === "chaves" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <div style={{ background: "rgba(201,168,76,.06)", border: "1px solid rgba(201,168,76,.15)", borderRadius: 8, padding: "12px 14px" }}>
+                    <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 600, marginBottom: 4 }}>Credenciais centralizadas</div>
+                    <div style={{ fontSize: 11, color: "var(--tx3)", lineHeight: 1.6 }}>Estas chaves são salvas nas configurações do estúdio. Visíveis apenas para o dono do sistema.</div>
+                  </div>
+                  {/* Anthropic */}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx2)", marginBottom: 10, borderBottom: "1px solid var(--br)", paddingBottom: 8 }}>Anthropic — IA (Aura)</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>Chave API Anthropic</div>
+                        <input className="ef" type="password" placeholder="sk-ant-..." value={auraApiKey} onChange={e => setAuraApiKey(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--tx3)" }}>Obtenha em console.anthropic.com/settings/api-keys</div>
                     </div>
                   </div>
-                );
-              })}
+                  {/* Resend */}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx2)", marginBottom: 10, borderBottom: "1px solid var(--br)", paddingBottom: 8 }}>Resend — Email</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>Resend API Key</div>
+                        <input className="ef" type="password" placeholder="re_..." value={resendApiKey} onChange={e => setResendApiKey(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>Email Remetente</div>
+                        <input className="ef" type="email" placeholder="aura@seuestudio.com.br" value={emailRemetente} onChange={e => setEmailRemetente(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>Nome Remetente</div>
+                        <input className="ef" placeholder="A Casa dos Carvalho" value={nomeRemetente} onChange={e => setNomeRemetente(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                        <button type="button" disabled={testandoCanal === "email"} onClick={() => testarCanal("email")} style={{ background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.35)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--gold)", cursor: testandoCanal === "email" ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                          {testandoCanal === "email" ? "Enviando..." : "Testar canal email"}
+                          {canaisHabilitados.email && <span style={{ color: "#27AE60" }}>✓ Testado</span>}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Zenvia */}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx2)", marginBottom: 10, borderBottom: "1px solid var(--br)", paddingBottom: 8 }}>Zenvia — SMS / WhatsApp</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>Zenvia API Key</div>
+                        <input className="ef" type="password" placeholder="Sua chave Zenvia" value={zenviaApiKey} onChange={e => setZenviaApiKey(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>Número de Envio</div>
+                        <input className="ef" placeholder="+55DDD999999999" value={zenviaNumero} onChange={e => setZenviaNumero(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                        <button type="button" disabled={testandoCanal === "sms"} onClick={() => testarCanal("sms")} style={{ background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.35)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--gold)", cursor: testandoCanal === "sms" ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                          {testandoCanal === "sms" ? "Enviando..." : "Testar SMS"}
+                          {canaisHabilitados.sms && <span style={{ color: "#27AE60" }}>✓</span>}
+                        </button>
+                        <button type="button" disabled={testandoCanal === "whatsapp"} onClick={() => testarCanal("whatsapp")} style={{ background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.35)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--gold)", cursor: testandoCanal === "whatsapp" ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                          {testandoCanal === "whatsapp" ? "Enviando..." : "Testar WhatsApp"}
+                          {canaisHabilitados.whatsapp && <span style={{ color: "#27AE60" }}>✓</span>}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Vercel */}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx2)", marginBottom: 10, borderBottom: "1px solid var(--br)", paddingBottom: 8 }}>Vercel — Deploy</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>Vercel Token</div>
+                        <input className="ef" type="password" placeholder="Token gerado em vercel.com/account/tokens" value={vercelToken} onChange={e => setVercelToken(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--tx3)" }}>Gere em vercel.com → Account Settings → Tokens</div>
+                    </div>
+                  </div>
+                  {/* GitHub */}
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx2)", marginBottom: 10, borderBottom: "1px solid var(--br)", paddingBottom: 8 }}>GitHub — Actions</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>GitHub Token</div>
+                        <input className="ef" type="password" placeholder="ghp_..." value={githubToken} onChange={e => setGithubToken(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", width: 140, flexShrink: 0 }}>Repositório</div>
+                        <input className="ef" placeholder="usuario/nome-do-repo" value={githubRepo} onChange={e => setGithubRepo(e.target.value)} style={{ flex: 1 }} />
+                      </div>
+                      <div style={{ fontSize: 10, color: "var(--tx3)" }}>Gere em github.com → Settings → Developer settings → Personal access tokens</div>
+                    </div>
+                  </div>
+                  {/* Botão salvar */}
+                  <div style={{ paddingTop: 8, borderTop: "1px solid var(--br)" }}>
+                    <button onClick={async () => {
+                      if (!userId) return;
+                      const { data: existing } = await sb.from("configuracoes").select("id").eq("user_id", userId).limit(1).single();
+                      const fields = { aura_api_key: auraApiKey, resend_api_key: resendApiKey, email_remetente: emailRemetente, nome_remetente: nomeRemetente, zenvia_api_key: zenviaApiKey, zenvia_numero: zenviaNumero, vercel_token: vercelToken, github_token: githubToken, github_repo: githubRepo, updated_at: new Date().toISOString() };
+                      if (existing?.id) await sb.from("configuracoes").update(fields).eq("id", existing.id);
+                      setShowAviso("Chaves salvas com sucesso.");
+                    }} style={{ background: "var(--gold)", color: "#000", border: "none", borderRadius: 8, padding: "10px 24px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                      Salvar Chaves
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── LICENÇAS ── */}
+              {licencasSubTab === "licencas" && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {licencas.length === 0 && <div style={{ fontSize: 13, color: "var(--tx3)" }}>Nenhuma licença cadastrada ainda.</div>}
+                  {licencas.map(lic => {
+                    const diasRestantes = lic.data_vencimento ? Math.ceil((new Date(lic.data_vencimento).getTime() - Date.now()) / 86400000) : -999;
+                    const vencendo = diasRestantes >= 0 && diasRestantes <= 7;
+                    const expirado = diasRestantes < 0 || lic.status !== "ativo";
+                    const cor = expirado ? "#C0392B" : vencendo ? "#E67E22" : "#27AE60";
+                    return (
+                      <div key={lic.id} style={{ background: "var(--dk2)", border: "1px solid " + (expirado ? "rgba(192,57,43,.3)" : vencendo ? "rgba(230,126,34,.3)" : "var(--br)"), borderRadius: 10, padding: "14px 18px", display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--tx)" }}>{lic.email || lic.studio_id || lic.user_id}</div>
+                          <div style={{ fontSize: 11, color: "var(--tx3)", marginTop: 3 }}>
+                            Plano: <strong style={{ color: "var(--gold)" }}>{lic.plano || "—"}</strong>
+                            {" · "}Início: {lic.data_inicio || "—"}
+                            {" · "}Vence: {lic.data_vencimento || "—"}
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: cor + "22", color: cor, border: "1px solid " + cor + "55" }}>
+                            {expirado ? "EXPIRADO" : vencendo ? ("VENCE EM " + diasRestantes + "d") : "ATIVO"}
+                          </span>
+                          <select style={{ fontSize: 11, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "4px 8px", color: "var(--tx)", cursor: "pointer" }}
+                            value={lic.status}
+                            onChange={async e => {
+                              const novoStatus = e.target.value;
+                              await sb.from("licencas").update({ status: novoStatus }).eq("id", lic.id);
+                              setLicencas(p => p.map(l => l.id === lic.id ? { ...l, status: novoStatus } : l));
+                            }}>
+                            <option value="ativo">Ativo</option>
+                            <option value="expirado">Expirado</option>
+                            <option value="bloqueado">Bloqueado</option>
+                          </select>
+                          <input type="date" value={lic.data_vencimento || ""} style={{ fontSize: 11, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "4px 8px", color: "var(--tx)", cursor: "pointer" }}
+                            onChange={async e => {
+                              const novaData = e.target.value;
+                              await sb.from("licencas").update({ data_vencimento: novaData, status: "ativo" }).eq("id", lic.id);
+                              setLicencas(p => p.map(l => l.id === lic.id ? { ...l, data_vencimento: novaData, status: "ativo" } : l));
+                            }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
             </div>
           </div>
-        )}
+        );})()}
 
         {/* ── SETTINGS ── */}
         {showSettings && (() => {
@@ -12039,41 +12290,7 @@ export default function CRM() {
                       <input className="ef" value={(auraName && !auraName.includes("@")) ? auraName : ""} placeholder="Ex: Aura, Luna, Sofia..."
                         onChange={e => setAuraName(e.target.value.replace(/(^|\s)(\S)/g, (_: string, sp: string, ch: string) => sp + ch.toUpperCase()))} />
                     </div>
-                    <div className="fi2" style={{ marginTop: 8 }}>
-                      <div className="fil">Chave API Anthropic (Chat interno)</div>
-                      <input className="ef" type="password" placeholder="sk-ant-..." value={auraApiKey} onChange={e => setAuraApiKey(e.target.value)} />
-                    </div>
-                    <div style={{ fontSize: 10, color: "var(--tx3)", marginTop: 4, lineHeight: 1.5 }}>{"Usada pelo chat flutuante da " + (auraName || "IA") + " dentro do CRM. Obtenha em console.anthropic.com."}</div>
-                  </div>
-                  <div>
-                    <div className="stit">Comunicação</div>
-                    <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 10, lineHeight: 1.6 }}>Credenciais para disparo real de Email e SMS. Cada estúdio usa suas próprias chaves.</div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx2)", marginBottom: 6, marginTop: 4 }}>Email — Resend</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 7, marginBottom: 14 }}>
-                      <div className="fi2"><div className="fil">Resend API Key</div><input className="ef" type="password" placeholder="re_..." value={resendApiKey} onChange={e => { setResendApiKey(e.target.value); if (canaisHabilitados.email) salvarCanaisHabilitados({ ...canaisHabilitados, email: false }); }} /></div>
-                      <div className="fi2"><div className="fil">Email Remetente</div><input className="ef" type="email" placeholder="ia@seuestudio.com.br" value={emailRemetente} onChange={e => { setEmailRemetente(e.target.value); if (canaisHabilitados.email) salvarCanaisHabilitados({ ...canaisHabilitados, email: false }); }} /></div>
-                      <div className="fi2"><div className="fil">Nome Remetente</div><input className="ef" placeholder="Nome do seu estúdio" value={nomeRemetente} onChange={e => setNomeRemetente(e.target.value)} /></div>
-                      <button type="button" disabled={testandoCanal === "email"} onClick={() => testarCanal("email")} style={{ alignSelf: "flex-start", marginTop: 4, background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.35)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--gold)", cursor: testandoCanal === "email" ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                        {testandoCanal === "email" ? "Enviando..." : "📧 Testar canal"}
-                        {canaisHabilitados.email && <span style={{ color: "var(--q3)" }}>✓ Testado</span>}
-                      </button>
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--tx2)", marginBottom: 6 }}>SMS — Zenvia</div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                      <div className="fi2"><div className="fil">Zenvia API Key</div><input className="ef" type="password" placeholder="Sua chave de API da Zenvia" value={zenviaApiKey} onChange={e => { setZenviaApiKey(e.target.value); if (canaisHabilitados.sms || canaisHabilitados.whatsapp) salvarCanaisHabilitados({ ...canaisHabilitados, sms: false, whatsapp: false }); }} /></div>
-                      <div className="fi2"><div className="fil">Número de Envio</div><input className="ef" placeholder="+55DDD999999999" value={zenviaNumero} onChange={e => { setZenviaNumero(e.target.value); if (canaisHabilitados.sms || canaisHabilitados.whatsapp) salvarCanaisHabilitados({ ...canaisHabilitados, sms: false, whatsapp: false }); }} /></div>
-                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 4 }}>
-                        <button type="button" disabled={testandoCanal === "sms"} onClick={() => testarCanal("sms")} style={{ background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.35)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--gold)", cursor: testandoCanal === "sms" ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                          {testandoCanal === "sms" ? "Enviando..." : "💬 Testar SMS"}
-                          {canaisHabilitados.sms && <span style={{ color: "var(--q3)" }}>✓ Testado</span>}
-                        </button>
-                        <button type="button" disabled={testandoCanal === "whatsapp"} onClick={() => testarCanal("whatsapp")} style={{ background: "rgba(201,168,76,.1)", border: "1px solid rgba(201,168,76,.35)", borderRadius: 6, padding: "6px 12px", fontSize: 12, color: "var(--gold)", cursor: testandoCanal === "whatsapp" ? "wait" : "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-                          {testandoCanal === "whatsapp" ? "Enviando..." : "📱 Testar WhatsApp"}
-                          {canaisHabilitados.whatsapp && <span style={{ color: "var(--q3)" }}>✓ Testado</span>}
-                        </button>
-                      </div>
-                      <div style={{ fontSize: 10, color: "var(--tx3)", lineHeight: 1.5 }}>O teste usa as mesmas credenciais Zenvia para SMS e WhatsApp — confirme separadamente cada canal após receber a mensagem.</div>
-                    </div>
+                    <div style={{ fontSize: 10, color: "var(--tx3)", marginTop: 6, lineHeight: 1.5 }}>As chaves de API (Anthropic, Resend, Zenvia) estão centralizadas em <strong style={{ color: "var(--gold)" }}>Licenças → Chaves de Acesso</strong>.</div>
                   </div>
                   {/* ── SEÇÃO: INSTRUÇÕES DA AGENTE ── */}
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
