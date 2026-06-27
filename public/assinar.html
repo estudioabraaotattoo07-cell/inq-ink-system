@@ -403,19 +403,11 @@ window.assinar=async function(){
     }
   }
 
-  // Upload foto para Storage antes de gerar PDF (para foto entrar no documento)
-  let fotoUrl=null;
-  if(eMenorResp && fotoBase64){
-    btn.textContent="Enviando foto...";
-    fotoUrl=await uploadFotoStorage(fotoBase64,fotoTipo,dados.id||"x",dados.doc);
-    if(fotoUrl && responsavelDados) responsavelDados.foto_doc=fotoUrl;
-  }
-
-  // Gerar PDF como base64
+  // Gerar PDF como base64 (foto não entra no PDF — vai como arquivo separado via servidor)
   btn.textContent="Gerando PDF...";
   let pdfBase64=null,pdfNome=null;
   try{
-    const pdfBlob=await gerarPdf(assinBase64,anamneseDados,responsavelDados,fotoUrl);
+    const pdfBlob=await gerarPdf(assinBase64,anamneseDados,responsavelDados,null);
     const nomeMin=(dados.nome||"menor").replace(/ /g,"-");
     const titulosNome={anamnese:"FICHA-DE-ANAMNESE",contrato:"CONTRATO-DE-EXECUCAO",menor_resp1:`AUTORIZACAO-${nomeMin}-RESPONSAVEL-1`,menor_resp2:`AUTORIZACAO-${nomeMin}-RESPONSAVEL-2`};
     pdfNome=`${titulosNome[dados.doc]||"DOCUMENTO"}-${new Date().toLocaleDateString("pt-BR").replace(/\//g,"-")}.pdf`;
@@ -424,11 +416,11 @@ window.assinar=async function(){
 
   btn.textContent="Confirmando...";
   try{
-    // foto_base64 não enviada — upload já foi feito pelo browser acima; fotoUrl já está em responsavel_dados.foto_doc
+    // foto enviada ao servidor para upload com service key (anon key não tem permissão no Storage)
     const r=await fetch("/api/lead?acao=assinar",{
       method:"POST",
       headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({token,assinatura:assinBase64,doc:dados.doc,anamnese:anamneseDados,responsavel_dados:responsavelDados,pdf_base64:pdfBase64,pdf_nome:pdfNome})
+      body:JSON.stringify({token,assinatura:assinBase64,doc:dados.doc,anamnese:anamneseDados,responsavel_dados:responsavelDados,foto_base64:fotoBase64||null,foto_tipo:fotoTipo,pdf_base64:pdfBase64,pdf_nome:pdfNome})
     });
     const res=await r.json();
     if(r.ok){show("success");}
