@@ -4488,11 +4488,12 @@ export default function CRM() {
                       const m = miss(c); const ch = churn(c);
                       const anivMes = isAniversMes((c as any).nascimento || "");
                       const anivHoje = isAniversHoje((c as any).nascimento || "");
+                      const eMenorCard = isMenor((c as any).nascimento || "");
                       return (
                         <div key={c.id} className="card" onClick={() => { setSel(c); setSelCtx("clientes"); setFichaTab("dados"); setFichaEditada(false); setFichaSaveStep(0); }} style={{ animation: "fadeSlideIn .22s ease both" }}>
                           <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "3px", background: aColor(c.artista), borderRadius: "7px 0 0 7px" }} />
                           <div className="ctop">
-                            <div className="cname">{anivHoje ? "🎂 " : ""}{c.nome}</div>
+                            <div className="cname">{eMenorCard ? "👼 " : ""}{anivHoje ? "🎂 " : ""}{c.nome}</div>
                             <span className={"qb " + QC[c.qual]}>{c.qual}</span>
                           </div>
                           {(() => {
