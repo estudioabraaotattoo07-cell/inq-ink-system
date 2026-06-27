@@ -975,6 +975,15 @@ function isAniversMes(nasc: string): boolean {
   if (!d) return false;
   return d.getMonth() === new Date().getMonth();
 }
+function isMenor(nasc: string): boolean {
+  if (!nasc) return false;
+  const d = parseNascimento(nasc);
+  if (!d) return false;
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - d.getFullYear();
+  if (hoje.getMonth() < d.getMonth() || (hoje.getMonth() === d.getMonth() && hoje.getDate() < d.getDate())) idade--;
+  return idade < 18;
+}
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
 export default function CRM() {
@@ -4729,7 +4738,7 @@ export default function CRM() {
                             </td>
                           )}
                           <td>
-                            <div className="tdn">{isAniversMes((c as any).nascimento || "") ? "🎂 " : ""}{c.nome}</div>
+                            <div className="tdn">{isMenor((c as any).nascimento || "") ? "👼 " : ""}{isAniversMes((c as any).nascimento || "") ? "🎂 " : ""}{c.nome}</div>
                             <div className="tdd">{c.insta || <span style={{ color: "var(--q2)" }}>⚠ Instagram</span>}</div>
                           </td>
                           <td>
@@ -7530,12 +7539,13 @@ export default function CRM() {
             <div className="modal">
               <div className="mh" style={{ position: "relative" }}>
                 <div style={{ flex: 1 }}>
-                  <div className="mn">{isAniversMes((sc as any).nascimento || "") ? "🎂 " : ""}{sc.nome}</div>
+                  <div className="mn">{isMenor((sc as any).nascimento || "") ? "👼 " : ""}{isAniversMes((sc as any).nascimento || "") ? "🎂 " : ""}{sc.nome}</div>
                   <div className="ms">
                     <span className={"qb " + QC[sc.qual]}>{sc.qual}{sc.qual === "Q0" ? " - Presencial" : ""}</span>
                     <span className={("at " + aClass(sc.artista)) || ""} style={aStyle(sc.artista)}>{aName(sc.artista).split(" ")[0]}</span>
                     {sc.etapa === "blacklist" && <span className="tag-bl">🚫</span>}
                     {sc.etapa === "lista_espera" && <span className="tag-wl">⏳</span>}
+                    {isMenor((sc as any).nascimento || "") && <span style={{ fontSize: 10, fontWeight: 700, color: "#9B59B6", background: "rgba(155,89,182,.12)", border: "1px solid rgba(155,89,182,.3)", borderRadius: 4, padding: "1px 6px" }}>👼 Menor de idade</span>}
                     {isAniversHoje((sc as any).nascimento || "") && <span style={{ fontSize: 10, fontWeight: 700, color: "var(--gold)", background: "rgba(201,168,76,.15)", border: "1px solid rgba(201,168,76,.3)", borderRadius: 4, padding: "1px 6px" }}>🎂 Aniversário hoje!</span>}
                     <span style={{ color: "var(--tx3)", fontSize: 11 }}>Entrou em {sc.data}</span>
                     {(() => { const s = calcScore(sc); return <span style={{ fontSize: 10, fontWeight: 700, color: s.cor, background: s.cor + "22", border: "1px solid " + s.cor + "44", borderRadius: 4, padding: "1px 6px", letterSpacing: ".04em" }}>⭐ {s.label} {s.score}</span>; })()}
