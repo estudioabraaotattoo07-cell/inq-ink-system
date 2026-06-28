@@ -431,6 +431,10 @@ const DEFAULT_STAGES = [
   { id: "cons_agendada", label: "Consulta Marcada", color: "#9B6BB5", emoji: "📅" },
   { id: "sessao_agend", label: "Sessão Marcada", color: "#4A9EBF", emoji: "✏️" },
   { id: "tatuado", label: "Sessão Realizada", color: "#27AE60", emoji: "✅" },
+  { id: "aguard_1a_sessao", label: "Aguardando 1ª Sessão", color: "#F39C12", emoji: "🖊️" },
+  { id: "aguard_prox_sessao", label: "Aguardando Próxima Sessão", color: "#E8A838", emoji: "🔄" },
+  { id: "reengajamento", label: "Reengajamento", color: "#16A085", emoji: "💎" },
+  { id: "precisa_remarcar", label: "Precisa Remarcar", color: "#E74C3C", emoji: "📞" },
   { id: "aguard_agend", label: "Aguardando Agendamento", color: "#F39C12", emoji: "⏰" },
   { id: "pos_venda", label: "Pós-venda", color: "#E67E22", emoji: "💬" },
   { id: "lista_espera", label: "Lista de Espera", color: "#3498DB", emoji: "⏳" },
@@ -445,6 +449,10 @@ const STAGE_INFO: Record<string, string> = {
   cons_agendada: "Consulta presencial já confirmada. O cliente virá ao estúdio para uma conversa sobre o projeto: entender a proposta, alinhar expectativas, ver referências e definir o caminho antes de tatuar. Prepare o ambiente e o artista responsável.",
   sessao_agend: "Sessão de tatuagem agendada e confirmada. O projeto já foi discutido, o valor alinhado e o horário marcado. Tudo certo para tatuar na data combinada. Confirme com antecedência e certifique-se de que o cliente está preparado.",
   tatuado: "Sessão concluída com sucesso. Agora é hora do pós-atendimento: acompanhe a cicatrização, peça feedback, solicite avaliação e mantenha o vínculo para futuras sessões ou indicações. Um cliente satisfeito é o melhor canal de aquisição.",
+  aguard_1a_sessao: "Consulta concluída — cliente aguarda o agendamento da primeira sessão do projeto. O projeto foi alinhado, o artista está ciente. Entre em contato para marcar a data e não deixe o ímpeto esfriar.",
+  aguard_prox_sessao: "Sessão parcial concluída — projeto em andamento com mais sessões previstas, mas sem data marcada ainda. Entre em contato para definir o próximo horário e manter o projeto em movimento.",
+  reengajamento: "Projeto encerrado. Cliente faz parte da base ativa — apto a retornar com um novo projeto. O sistema envia mensagens de reativação a cada 180 dias automaticamente. Foco em fidelização e indicações.",
+  precisa_remarcar: "Cliente recusou a confirmação de presença ou sinalizou que precisa remarcar. Entre em contato imediatamente via WhatsApp para redefinir a data antes que o slot seja perdido.",
   aguard_agend: "Cliente que confirmou interesse em agendar mas ainda não tem data definida — seja por indisponibilidade de agenda, aguardo de orçamento ou outro motivo. Monitore e entre em contato assim que houver abertura. Não deixe esfriar.",
   pos_venda: "Clientes que passaram pela régua de pós-venda após a sessão. Foco em satisfação, cicatrização saudável e fidelização. Mantenha o relacionamento ativo: eles têm grande potencial para retornar e indicar novas pessoas.",
   lista_espera: "Clientes que querem ser atendidos mas a agenda está sem disponibilidade no momento. Estão aguardando a vez. Contate assim que surgir uma abertura — eles já demonstraram comprometimento ao aceitar esperar.",
@@ -1317,7 +1325,13 @@ export default function CRM() {
   const [pvPreSessaoConfirmDelete, setPvPreSessaoConfirmDelete] = useState<number | null>(null);
   const [disparoPreSessaoPendente, setDisparoPreSessaoPendente] = useState<{etapa: any} | null>(null);
   // ── ACORDEÃO DAS RÉGUAS ──
-  const [pvAccordion, setPvAccordion] = useState<{preVenda: boolean; preSessao: boolean; posVenda: boolean}>({ preVenda: false, preSessao: false, posVenda: false });
+  const [pvAccordion, setPvAccordion] = useState<{preVenda: boolean; preSessao: boolean; posVenda: boolean; fluxo: boolean}>({ preVenda: false, preSessao: false, posVenda: false, fluxo: true });
+  // ── FLUXO_ETAPAS (régua unificada) ──
+  const [fluxoEtapas, setFluxoEtapas] = useState<any[]>([]);
+  const [fluxoEditandoId, setFluxoEditandoId] = useState<string | null>(null);
+  const [fluxoEditLocal, setFluxoEditLocal] = useState<any | null>(null);
+  const [fluxoSlugAberto, setFluxoSlugAberto] = useState<string | null>(null);
+  const [fluxoSalvando, setFluxoSalvando] = useState(false);
   // ── AGENDAMENTOS PENDENTES (vindos da Aura do site) ──
   const [agendamentosPendentes, setAgendamentosPendentes] = useState<any[]>([]);
   const [decisaoPendente, setDecisaoPendente] = useState<{id: string; acao: "aprovar" | "recusar"; nome: string} | null>(null);
@@ -1657,6 +1671,11 @@ export default function CRM() {
               }
             } catch {}
           }
+          // ── FLUXO_ETAPAS — carregar da tabela ──
+          try {
+            const { data: fluxoData } = await sb.from("fluxo_etapas").select("*").eq("user_id", userId).order("etapa_slug").order("ordem");
+            if (fluxoData) setFluxoEtapas(fluxoData);
+          } catch {}
           // ── RÉGUA PRÉ-SESSÃO ──
           if (cfg.pre_sessao_regua_ativa !== undefined) setPreSessaoReguaAtiva(cfg.pre_sessao_regua_ativa !== false);
           const pvPSRaw = cfg.pre_sessao_regua;
@@ -4345,7 +4364,7 @@ export default function CRM() {
             { id: "financeiro", l: "Financeiro", i: "💰", roles: ["admin"] },
             { id: "artistas", l: "Profissionais", i: "💼", roles: ["admin"] },
             { id: "dashboard", l: "Visão Geral", i: "📊", roles: ["admin","profissional"] },
-            { id: "posvenda", l: "Pré/Pós-Venda", i: "💬", roles: ["admin","profissional"] },
+            { id: "posvenda", l: "Relacionamento", i: "💬", roles: ["admin","profissional"] },
             { id: "disparos", l: "Disparos", i: "📣", roles: ["admin"] },
             { id: "origens", l: "Origens", i: "🔗", roles: ["admin"] },
             { id: "campanhas", l: "Campanhas", i: "🎯", roles: ["admin"] },
@@ -7054,6 +7073,162 @@ export default function CRM() {
                   </div>
                 ))
               }
+
+              {/* ── FLUXO UNIFICADO POR ETAPA ── */}
+              <AccordionHeader titulo="Fluxo de Relacionamento por Etapa" aberto={pvAccordion.fluxo} onToggle={() => setPvAccordion(p => ({ ...p, fluxo: !p.fluxo }))} />
+              {pvAccordion.fluxo && (() => {
+                const slugsComFluxo = Array.from(new Set(fluxoEtapas.map((f: any) => f.etapa_slug)));
+                const salvarFluxoEtapa = async (etapa: any) => {
+                  setFluxoSalvando(true);
+                  try {
+                    if (etapa.id && etapa.id.length > 10) {
+                      await sb.from("fluxo_etapas").update({ label: etapa.label, dias: etapa.dias, canal: etapa.canal, mensagem: etapa.mensagem, ativo: etapa.ativo, repetir: etapa.repetir, repetir_intervalo_dias: etapa.repetir_intervalo_dias }).eq("id", etapa.id);
+                      setFluxoEtapas(p => p.map((f: any) => f.id === etapa.id ? { ...f, ...etapa } : f));
+                    } else {
+                      const { data: novo } = await sb.from("fluxo_etapas").insert({ ...etapa, user_id: userId, id: undefined }).select().single();
+                      if (novo) setFluxoEtapas(p => [...p, novo]);
+                    }
+                    setFluxoEditandoId(null);
+                    setFluxoEditLocal(null);
+                  } catch {}
+                  setFluxoSalvando(false);
+                };
+                const excluirFluxoEtapa = async (id: string) => {
+                  await sb.from("fluxo_etapas").delete().eq("id", id);
+                  setFluxoEtapas(p => p.filter((f: any) => f.id !== id));
+                };
+                const adicionarNovaEtapa = (slug: string) => {
+                  const tempId = "new_" + Date.now();
+                  const novaEtapa = { id: tempId, etapa_slug: slug, label: "Nova mensagem", dias: 1, canal: "email", mensagem: "Olá, {nome}! ...", ativo: true, repetir: false, repetir_intervalo_dias: null, ordem: fluxoEtapas.filter((f: any) => f.etapa_slug === slug).length };
+                  setFluxoEditandoId(tempId);
+                  setFluxoEditLocal(novaEtapa);
+                  setFluxoSlugAberto(slug);
+                };
+                const CANAIS_OPT = [{ v: "email", l: "E-mail" }, { v: "sms", l: "SMS" }, { v: "whatsapp", l: "WhatsApp" }, { v: "ambos", l: "E-mail + SMS" }];
+                return (
+                  <div style={{ padding: "8px 16px 16px" }}>
+                    <div style={{ fontSize: 12, color: "var(--tx3)", marginBottom: 14 }}>
+                      Configure mensagens automáticas para cada etapa do pipeline. O sistema envia no prazo configurado após o cliente entrar na etapa.
+                    </div>
+                    {stages.map((stage: any) => {
+                      const etapasDesteSlug = fluxoEtapas.filter((f: any) => f.etapa_slug === stage.id);
+                      const temFluxo = etapasDesteSlug.length > 0;
+                      const aberto = fluxoSlugAberto === stage.id;
+                      return (
+                        <div key={stage.id} style={{ marginBottom: 6, border: "1px solid var(--br)", borderRadius: 8, overflow: "hidden" }}>
+                          <div onClick={() => setFluxoSlugAberto(aberto ? null : stage.id)}
+                            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", cursor: "pointer", background: aberto ? "var(--dk3)" : "transparent", userSelect: "none" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: "50%", background: stage.color, flexShrink: 0 }} />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--tx)" }}>{stage.label}</span>
+                              {temFluxo && <span style={{ fontSize: 10, background: "rgba(201,168,76,.15)", color: "var(--gold)", border: "1px solid rgba(201,168,76,.3)", borderRadius: 10, padding: "1px 7px" }}>{etapasDesteSlug.length} msg</span>}
+                            </div>
+                            <span style={{ fontSize: 11, color: "var(--tx3)" }}>{aberto ? "▲" : "▼"}</span>
+                          </div>
+                          {aberto && (
+                            <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--br)", display: "flex", flexDirection: "column", gap: 8 }}>
+                              {etapasDesteSlug.map((fe: any) => (
+                                fluxoEditandoId === fe.id ? (
+                                  <div key={fe.id} style={{ background: "var(--dk3)", borderRadius: 7, padding: "12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                      <div style={{ flex: 1, minWidth: 120 }}>
+                                        <div className="fil" style={{ marginBottom: 3 }}>Rótulo</div>
+                                        <input className="ef" value={fluxoEditLocal?.label || ""} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, label: e.target.value }))} placeholder="Ex: Lembrete D+3" />
+                                      </div>
+                                      <div style={{ width: 80 }}>
+                                        <div className="fil" style={{ marginBottom: 3 }}>Dias</div>
+                                        <input className="ef" type="number" min={0} value={fluxoEditLocal?.dias ?? 1} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, dias: parseInt(e.target.value) || 0 }))} />
+                                      </div>
+                                      <div style={{ width: 130 }}>
+                                        <div className="fil" style={{ marginBottom: 3 }}>Canal</div>
+                                        <select className="ef" value={fluxoEditLocal?.canal || "email"} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, canal: e.target.value }))}>
+                                          {CANAIS_OPT.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                                        </select>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <div className="fil" style={{ marginBottom: 3 }}>Mensagem <span style={{ color: "var(--tx3)", fontWeight: 400 }}>(use {"{nome}"} e {"{estudio}"})</span></div>
+                                      <textarea className="ef" rows={4} value={fluxoEditLocal?.mensagem || ""} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, mensagem: e.target.value }))} style={{ resize: "vertical", width: "100%" }} />
+                                    </div>
+                                    {stage.id === "reengajamento" && (
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                        <input type="checkbox" id={"rep_" + fe.id} checked={!!(fluxoEditLocal?.repetir)} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, repetir: e.target.checked }))} />
+                                        <label htmlFor={"rep_" + fe.id} style={{ fontSize: 12, color: "var(--tx2)" }}>Repetir a cada</label>
+                                        <input className="ef" type="number" min={30} style={{ width: 70 }} value={fluxoEditLocal?.repetir_intervalo_dias || 180} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, repetir_intervalo_dias: parseInt(e.target.value) || 180 }))} />
+                                        <span style={{ fontSize: 12, color: "var(--tx3)" }}>dias</span>
+                                      </div>
+                                    )}
+                                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                                      <button className="btn-c" onClick={() => { setFluxoEditandoId(null); setFluxoEditLocal(null); }}>Cancelar</button>
+                                      <button className="btn-s" onClick={() => salvarFluxoEtapa(fluxoEditLocal)} disabled={fluxoSalvando}>{fluxoSalvando ? "Salvando..." : "Salvar"}</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div key={fe.id} style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, background: fe.ativo ? "var(--dk3)" : "rgba(0,0,0,0.1)", borderRadius: 7, padding: "10px 12px", opacity: fe.ativo ? 1 : 0.6 }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ display: "flex", align: "center", gap: 6, marginBottom: 3 }}>
+                                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--tx)" }}>{fe.label}</span>
+                                        <span style={{ fontSize: 10, color: "var(--tx3)" }}>D+{fe.dias} · {CANAIS_OPT.find(o => o.v === fe.canal)?.l || fe.canal}</span>
+                                        {fe.repetir && <span style={{ fontSize: 10, color: "var(--gold)" }}>↺ {fe.repetir_intervalo_dias}d</span>}
+                                      </div>
+                                      <div style={{ fontSize: 11, color: "var(--tx3)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fe.mensagem}</div>
+                                    </div>
+                                    <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                                      <button onClick={() => { setFluxoEditandoId(fe.id); setFluxoEditLocal({ ...fe }); }} style={{ fontSize: 11, background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 5, padding: "3px 8px", color: "var(--tx2)", cursor: "pointer" }}>Editar</button>
+                                      <button onClick={() => { if (window.confirm("Remover esta mensagem?")) excluirFluxoEtapa(fe.id); }} style={{ fontSize: 11, background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 5, padding: "3px 8px", color: "var(--q1)", cursor: "pointer" }}>✕</button>
+                                    </div>
+                                  </div>
+                                )
+                              ))}
+                              {fluxoEditandoId && fluxoEditandoId.startsWith("new_") && (fluxoEditLocal as any)?.etapa_slug === stage.id ? (
+                                <div style={{ background: "var(--dk3)", borderRadius: 7, padding: "12px", display: "flex", flexDirection: "column", gap: 8 }}>
+                                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                                    <div style={{ flex: 1, minWidth: 120 }}>
+                                      <div className="fil" style={{ marginBottom: 3 }}>Rótulo</div>
+                                      <input className="ef" value={fluxoEditLocal?.label || ""} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, label: e.target.value }))} placeholder="Ex: Lembrete D+3" />
+                                    </div>
+                                    <div style={{ width: 80 }}>
+                                      <div className="fil" style={{ marginBottom: 3 }}>Dias</div>
+                                      <input className="ef" type="number" min={0} value={fluxoEditLocal?.dias ?? 1} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, dias: parseInt(e.target.value) || 0 }))} />
+                                    </div>
+                                    <div style={{ width: 130 }}>
+                                      <div className="fil" style={{ marginBottom: 3 }}>Canal</div>
+                                      <select className="ef" value={fluxoEditLocal?.canal || "email"} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, canal: e.target.value }))}>
+                                        {CANAIS_OPT.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
+                                      </select>
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="fil" style={{ marginBottom: 3 }}>Mensagem <span style={{ color: "var(--tx3)", fontWeight: 400 }}>(use {"{nome}"} e {"{estudio}"})</span></div>
+                                    <textarea className="ef" rows={4} value={fluxoEditLocal?.mensagem || ""} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, mensagem: e.target.value }))} style={{ resize: "vertical", width: "100%" }} />
+                                  </div>
+                                  {stage.id === "reengajamento" && (
+                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                      <input type="checkbox" id={"rep_new"} checked={!!(fluxoEditLocal?.repetir)} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, repetir: e.target.checked }))} />
+                                      <label htmlFor="rep_new" style={{ fontSize: 12, color: "var(--tx2)" }}>Repetir a cada</label>
+                                      <input className="ef" type="number" min={30} style={{ width: 70 }} value={fluxoEditLocal?.repetir_intervalo_dias || 180} onChange={e => setFluxoEditLocal((p: any) => ({ ...p, repetir_intervalo_dias: parseInt(e.target.value) || 180 }))} />
+                                      <span style={{ fontSize: 12, color: "var(--tx3)" }}>dias</span>
+                                    </div>
+                                  )}
+                                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                                    <button className="btn-c" onClick={() => { setFluxoEditandoId(null); setFluxoEditLocal(null); }}>Cancelar</button>
+                                    <button className="btn-s" onClick={() => salvarFluxoEtapa(fluxoEditLocal)} disabled={fluxoSalvando}>{fluxoSalvando ? "Salvando..." : "Salvar"}</button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <button onClick={() => adicionarNovaEtapa(stage.id)}
+                                  style={{ alignSelf: "flex-start", fontSize: 11, background: "var(--dk4)", border: "1px dashed var(--br)", borderRadius: 6, padding: "5px 12px", color: "var(--tx3)", cursor: "pointer" }}>
+                                  + Adicionar mensagem
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
 
               {/* ── RÉGUAS DE PRÉ-VENDA ── */}
               <AccordionHeader titulo="Réguas de Pré-Venda" aberto={pvAccordion.preVenda} onToggle={() => setPvAccordion(p => ({ ...p, preVenda: !p.preVenda }))} />
@@ -10441,6 +10616,8 @@ export default function CRM() {
                         }
                         const arNome = artists.find(a => ev.tipo?.includes(a.id))?.nome || "";
         addLog("✅ Consulta cumprida: " + ev.title + (ev.date ? " em " + ev.date.split("-").reverse().join("/") : "") + (arNome ? " — " + arNome : ""));
+                        // Move pipeline para aguardando 1ª sessão
+                        executarMove(ev.cliente_id, "aguard_1a_sessao");
                         setConfirmPresenca(null);
                       }} style={{ flex: 1, background: "rgba(201,168,76,.15)", border: "1px solid rgba(201,168,76,.4)", borderRadius: 7, padding: "10px", fontSize: 13, fontWeight: 700, color: "var(--gold)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
                         ✓ Cumpriu Consulta
@@ -13088,36 +13265,45 @@ export default function CRM() {
         {/* ── MODAL: SESSÃO CONCLUÍDA — PROJETO COMPLETO? ── */}
         {agendarProximaModal && (
           <div className="ov" onClick={() => setAgendarProximaModal(null)}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(460px, 92vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 12, width: "min(480px, 92vw)", padding: "24px 24px 20px", display: "flex", flexDirection: "column", gap: 16 }}>
               <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 18, fontWeight: 700, color: "var(--gold)" }}>
-                ✅ Sessão concluída
+                ✅ Sessão concluída — e agora?
               </div>
               <div style={{ fontSize: 13, color: "var(--tx2)", lineHeight: 1.6 }}>
-                Este projeto está completo ou ainda há mais sessões a realizar?
+                Este projeto foi <strong>encerrado</strong> ou o cliente precisará de <strong>mais sessões</strong>?
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <button onClick={() => {
                   const cid = agendarProximaModal.cid;
                   setAgendarProximaModal(null);
-                  executarMove(cid, "pos_venda");
-                }} style={{ background: "rgba(39,174,96,.12)", border: "1px solid rgba(39,174,96,.4)", borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#27AE60", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "left" }}>
-                  ✅ Projeto completo → Pós-Venda
-                  <div style={{ fontSize: 11, fontWeight: 400, color: "rgba(39,174,96,.8)", marginTop: 3 }}>Régua de pós-venda inicia automaticamente</div>
+                  executarMove(cid, "reengajamento");
+                }} style={{ background: "rgba(22,160,133,.12)", border: "1px solid rgba(22,160,133,.4)", borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#16A085", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "left" }}>
+                  💎 Projeto encerrado → Reengajamento
+                  <div style={{ fontSize: 11, fontWeight: 400, color: "rgba(22,160,133,.8)", marginTop: 3 }}>Régua de pós-venda (D+1/D+7/D+30/D+37) + reativação a cada 180 dias</div>
                 </button>
                 <button onClick={() => {
                   const cid = agendarProximaModal.cid;
                   setAgendarProximaModal(null);
-                  executarMove(cid, "aguard_agend");
-                }} style={{ background: "rgba(243,156,18,.12)", border: "1px solid rgba(243,156,18,.4)", borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#F39C12", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "left" }}>
-                  ⏰ Mais sessões → Aguardando Agendamento
-                  <div style={{ fontSize: 11, fontWeight: 400, color: "rgba(243,156,18,.8)", marginTop: 3 }}>Régua específica para projetos em andamento</div>
+                  executarMove(cid, "sessao_agend");
+                  changeTab("agenda");
+                }} style={{ background: "rgba(74,158,191,.12)", border: "1px solid rgba(74,158,191,.4)", borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#4A9EBF", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "left" }}>
+                  📅 Agendar próxima sessão agora
+                  <div style={{ fontSize: 11, fontWeight: 400, color: "rgba(74,158,191,.8)", marginTop: 3 }}>Abre a agenda para marcar a data — cliente vai para Sessão Marcada</div>
+                </button>
+                <button onClick={() => {
+                  const cid = agendarProximaModal.cid;
+                  setAgendarProximaModal(null);
+                  executarMove(cid, "aguard_prox_sessao");
+                }} style={{ background: "rgba(232,168,56,.12)", border: "1px solid rgba(232,168,56,.4)", borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#E8A838", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", textAlign: "left" }}>
+                  🔄 Mais sessões, sem data ainda → Aguardando Próxima Sessão
+                  <div style={{ fontSize: 11, fontWeight: 400, color: "rgba(232,168,56,.8)", marginTop: 3 }}>Projeto continua, data a definir — recebe convite recorrente para remarcar</div>
                 </button>
                 <button onClick={() => setAgendarProximaModal(null)} style={{ background: "none", border: "1px solid var(--br)", borderRadius: 8, padding: "10px 16px", fontSize: 12, color: "var(--tx3)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                  Cancelar
+                  Decidir depois
                 </button>
               </div>
               <div style={{ fontSize: 11, color: "var(--tx3)", textAlign: "center" }}>
-                Os e-mails de cuidados de cicatrização serão enviados independente da escolha.
+                Os e-mails de cuidados de cicatrização são enviados independente da escolha.
               </div>
             </div>
           </div>

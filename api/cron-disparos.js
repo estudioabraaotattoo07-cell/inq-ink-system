@@ -1,7 +1,7 @@
 // api/cron-disparos.js — Motor de disparo automático (Vercel Cron)
-// Roda diariamente às 09h00 (UTC). Verifica réguas pós-venda e pré-venda
-// para todos os usuários. Dispara via Resend (email) ou Zenvia (WhatsApp/SMS)
-// quando: prazo atingido + não enviado ainda + etapa ativa + canal habilitado.
+// Roda diariamente às 09h00 (UTC). Verifica réguas pós-venda, pré-venda e
+// fluxo_etapas para todos os usuários. Dispara via Resend (email) ou
+// Zenvia (WhatsApp/SMS) quando: prazo atingido + não enviado ainda + ativo.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -262,6 +262,23 @@ export default async function handler(req, res) {
         continue;
       }
 
+      // 3. Buscar fluxo_etapas deste user_id (agrupado por etapa_slug)
+      let fluxoEtapas = {};
+      try {
+        const { data: fluxoData } = await sb
+          .from("fluxo_etapas")
+          .select("*")
+          .eq("user_id", userId)
+          .eq("ativo", true)
+          .order("ordem", { ascending: true });
+        if (fluxoData) {
+          for (const fe of fluxoData) {
+            if (!fluxoEtapas[fe.etapa_slug]) fluxoEtapas[fe.etapa_slug] = [];
+            fluxoEtapas[fe.etapa_slug].push(fe);
+          }
+        }
+      } catch {}
+
       for (const cliente of clientes) {
         let disparosEnviados = {};
         try {
@@ -368,6 +385,79 @@ export default async function handler(req, res) {
                 } catch {
                   totalErros++;
                 }
+              }
+            }
+          }
+        }
+
+        // ── FLUXO_ETAPAS (régua unificada por slug de etapa) ────────────────
+        const etapaSlug = cliente.etapa || "";
+        const etapasDoFluxo = fluxoEtapas[etapaSlug] || [];
+
+        if (etapasDoFluxo.length > 0 && cliente.etapa_desde) {
+          const diasEtapa = diasEntre(cliente.etapa_desde, hoje);
+          if (diasEtapa >= 0) {
+            for (const fe of etapasDoFluxo) {
+              try {
+                const feId = "fluxo__" + fe.id;
+                const jaEnviou = disparosEnviados && disparosEnviados[feId];
+
+                // repetir: reengajamento envia a cada repetir_intervalo_dias dias
+                if (jaEnviou && fe.repetir && fe.repetir_intervalo_dias > 0) {
+                  const enviadoEm = new Date(jaEnviou);
+                  const diasDesdeEnvio = Math.floor((hoje - enviadoEm) / (1000 * 60 * 60 * 24));
+                  if (diasDesdeEnvio < fe.repetir_intervalo_dias) continue;
+                } else if (jaEnviou) {
+                  continue;
+                }
+
+                if (diasEtapa < fe.dias) continue;
+
+                const canais = fe.canal === "ambos" ? ["email", "sms"] : [fe.canal || "email"];
+                for (const canalAtual of canais) {
+                  const canalOk = canaisHabilitados ? (canaisHabilitados[canalAtual] !== false) : (canalAtual === "email");
+                  if (!canalOk) continue;
+
+                  const msg = substituirVars(fe.mensagem, cliente, studioName);
+                  let ok = false;
+
+                  if (canalAtual === "email") {
+                    if (!cfg.resend_api_key || !cliente.email) continue;
+                    const html = "<div style='font-family:Arial,sans-serif;font-size:14px;line-height:1.8;color:#222;max-width:600px'>" +
+                      msg.replace(/\n/g, "<br>") + "</div>";
+                    ok = await dispararEmail({
+                      apiKey: cfg.resend_api_key,
+                      from: cfg.email_remetente || "noreply@acasadoscarvalhotattoo.com.br",
+                      nome_remetente: cfg.nome_remetente || studioName,
+                      to: cliente.email,
+                      subject: (fe.label || etapaSlug) + " — " + studioName,
+                      html
+                    });
+                  } else if (canalAtual === "sms" || canalAtual === "whatsapp") {
+                    if (!cfg.zenvia_api_key || !cfg.zenvia_numero || !cliente.tel) continue;
+                    const tel = (cliente.tel || "").replace(/[^0-9]/g, "");
+                    ok = await dispararZenvia({
+                      apiKey: cfg.zenvia_api_key,
+                      from: cfg.zenvia_numero,
+                      to: tel,
+                      text: msg,
+                      canal: canalAtual
+                    });
+                  }
+
+                  if (ok) {
+                    let disparosAtuais = {};
+                    try {
+                      const { data: cliAtual } = await sb.from("clientes").select("disparos_enviados").eq("id", cliente.id).single();
+                      disparosAtuais = cliAtual?.disparos_enviados || {};
+                    } catch {}
+                    await marcarEnviado(cliente.id, feId, disparosAtuais);
+                    await registrarHistorico(userId, "Fluxo [" + etapaSlug + "] — " + (fe.label || feId) + " — " + cliente.nome + " (" + canalAtual + ")");
+                    totalDisparos++;
+                  }
+                }
+              } catch {
+                totalErros++;
               }
             }
           }
