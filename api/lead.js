@@ -150,6 +150,7 @@ export default async function handler(req, res) {
         menor_assinatura: cliente.menor_assinatura || null,
         menor_assinatura_mae: cliente.menor_assinatura_mae || null,
         contrato_obs: cliente.contrato_obs || linkInfo?.obs_contrato || null,
+        studio_city: linkInfo?.studio_city || null,
         docs_status: cliente.docs_status || {},
         ja_assinado: (cliente.docs_status || {})[docTipo] === "assinado",
         enviado_em: linkInfo?.enviado_em || null,

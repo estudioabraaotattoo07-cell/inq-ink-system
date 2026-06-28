@@ -8065,7 +8065,7 @@ export default function CRM() {
                       if(assinA){
                         y+=6;
                         if(docId==="contrato"){
-                          const cidadeContrato = (sc as any).cidade || "Belo Horizonte";
+                          const cidadeContrato = studioCity || "—";
                           const dataContrato = new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
                           ln(`${cidadeContrato}, ${dataContrato}`,10,false,[120,120,120]);
                           y+=2;
@@ -8223,7 +8223,7 @@ export default function CRM() {
                       const linksAtuais: Record<string,any> = (sc as any).assinar_link || {};
                       const artistaNomeLink = artists.find((a: any) => a.id === (sc as any).artista)?.nome || artists.find((a: any) => a.nome === (sc as any).artista)?.nome || (sc as any).artista || "";
                       const obsLink = docId === "contrato" ? obsContrato.trim() : "";
-                      const novosLinks = { ...linksAtuais, [docId]: { token, exp, enviado_em, artista_nome: artistaNomeLink, obs_contrato: obsLink } };
+                      const novosLinks = { ...linksAtuais, [docId]: { token, exp, enviado_em, artista_nome: artistaNomeLink, obs_contrato: obsLink, studio_city: studioCity || "" } };
                       // persiste contrato_obs na ficha para uso no PDF manual
                       if (docId === "contrato" && obsLink) {
                         await sb.from("clientes").update({ contrato_obs: obsLink }).eq("id", sc.id);
@@ -12624,12 +12624,13 @@ export default function CRM() {
                     <div style={{ fontSize: 12, color: "var(--tx2)", marginBottom: 10 }}>Baixe os dados do sistema em CSV para backup ou análise externa.</div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                       <button onClick={() => {
+                        const sep = ";";
                         const headers = ["Nome","Telefone","Email","Nascimento","CPF","Instagram","Profissional","Etapa","Origem","Servico","Valor","Forma Pgto","Data Cadastro","Obs"];
-                        const rows = [headers.join(","),
+                        const rows = [headers.join(sep),
                           ...clients.map(c => {
                             const projAtivo = ((c as any).projetos || []).find((p: any) => p.status !== "concluido") || ((c as any).projetos || [])[0];
                             const arNome = artists.find((a: any) => a.id === c.artista)?.nome || c.artista || "";
-                            return [c.nome, c.tel, c.email, (c as any).nascimento || "", (c as any).documento || "", c.insta || "", arNome, c.etapa, c.orig, projAtivo?.servico || (c as any).servico_interesse || "", (c as any).val_a || "", (c as any).pgto || "", c.data, c.obs || ""].map(v => `"${(v||"").toString().replace(/"/g,'""')}"`).join(",");
+                            return [c.nome, c.tel, c.email, (c as any).nascimento || "", (c as any).documento || "", c.insta || "", arNome, c.etapa, c.orig, projAtivo?.servico || (c as any).servico_interesse || "", (c as any).val_a || "", (c as any).pgto || "", c.data, c.obs || ""].map(v => `"${(v||"").toString().replace(/"/g,'""')}"`).join(sep);
                           })];
                         const bom = "﻿";
                         const blob = new Blob([bom + rows.join("\n")], { type: "text/csv;charset=utf-8;" });

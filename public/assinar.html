@@ -481,8 +481,9 @@ async function gerarPdf(assinBase64, anamneseDados, responsavelDados, fotoDocUrl
 
   y+=6;
   if(dados.doc==="contrato"){
+    const cidadeAssin=dados.studio_city||"";
     const dataAssin=new Date().toLocaleDateString("pt-BR",{day:"2-digit",month:"long",year:"numeric"});
-    ln(`Belo Horizonte, ${dataAssin}`,10,false,[120,120,120]);
+    ln(`${cidadeAssin?cidadeAssin+", ":""}${dataAssin}`,10,false,[120,120,120]);
     y+=2;
   }
   ln("Assinatura — Lei 14.063/2020",10,false,[120,120,120]);
