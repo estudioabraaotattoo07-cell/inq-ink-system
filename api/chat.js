@@ -391,7 +391,7 @@ async function solicitarAgendamento(input) {
       artista
         ? supabase.from("artistas").select("id,nome,email,tel").ilike("nome", "%" + artista.split(" ")[0] + "%").eq("user_id", STUDIO_USER_ID).limit(1).single().then(r => r.data)
         : Promise.resolve(null),
-      supabase.from("configuracoes").select("studio_email,studio_name").eq("user_id", STUDIO_USER_ID).limit(1).single().then(r => r.data)
+      supabase.from("configuracoes").select("studio_email,studio_name,fluxo_notificacao_artista_ativa").eq("user_id", STUDIO_USER_ID).limit(1).single().then(r => r.data)
     ]);
 
     const artistaId = artistaRow?.id || null;
@@ -523,7 +523,7 @@ async function solicitarAgendamento(input) {
       if (emailArtista) destsPro.push(emailArtista);
       if (emailEstudio && !destsPro.includes(emailEstudio)) destsPro.push(emailEstudio);
 
-      if (destsPro.length > 0) {
+      if (cfgRow?.fluxo_notificacao_artista_ativa !== false && destsPro.length > 0) {
         fetch("https://api.resend.com/emails", {
           method: "POST",
           headers: { "Authorization": "Bearer " + resendKey, "Content-Type": "application/json" },
@@ -562,7 +562,7 @@ async function solicitarAgendamento(input) {
 
     // SMS para o artista — conteúdo completo
     const zenviaKey = process.env.ZENVIA_API_KEY;
-    if (zenviaKey) {
+    if (cfgRow?.fluxo_notificacao_artista_ativa !== false && zenviaKey) {
       const smsTo = telArtista || (artista && artista.toLowerCase().includes("camilla") ? "5527996941787" : "5527996929665");
       const smsText = [
         tipoLabel.toUpperCase(),

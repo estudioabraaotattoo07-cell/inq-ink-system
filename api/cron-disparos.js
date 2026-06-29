@@ -261,7 +261,7 @@ export default async function handler(req, res) {
         } catch {}
 
         // ── AVALIAÇÃO GOOGLE (sistema fixo — D+1 após sessão concluída) ────
-        if (cliente.sessao_concluida_em && cfg.resend_api_key && cliente.email) {
+        if (cfg.fluxo_nps_ativa !== false && cliente.sessao_concluida_em && cfg.resend_api_key && cliente.email) {
           const diasPv = diasEntre(cliente.sessao_concluida_em, hoje);
           const jaEnviouAvaliacao = disparosEnviados && disparosEnviados["__avaliacao_google__"];
           if (diasPv >= 1 && !jaEnviouAvaliacao) {
@@ -303,7 +303,7 @@ export default async function handler(req, res) {
         }
 
         // ── AVALIAÇÃO NPS + CONVITE GOOGLE (fluxo pós-sessão encadeado) ────────
-        if (cliente.etapa === "pos_venda" && cfg.resend_api_key && cliente.email) {
+        if (cfg.fluxo_nps_ativa !== false && cliente.etapa === "pos_venda" && cfg.resend_api_key && cliente.email) {
           const status = cliente.avaliacao_fluxo_status;
           const fn = (cliente.nome || "").trim().split(" ")[0];
 
@@ -351,7 +351,7 @@ export default async function handler(req, res) {
           }
 
           // E-mail 2: disparar convite Google se status é "positiva" e google_convite_em <= agora
-          if (status === "positiva" && cliente.google_convite_em && new Date(cliente.google_convite_em) <= hoje) {
+          if (cfg.fluxo_google_convite_ativa !== false && status === "positiva" && cliente.google_convite_em && new Date(cliente.google_convite_em) <= hoje) {
             const linkSim = "https://inq-saas.vercel.app/api/lead?acao=google_sim&token=" + cliente.id;
             const linkNao = "https://inq-saas.vercel.app/api/lead?acao=google_nao&token=" + cliente.id;
             const html = `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;color:#222;background:#fff;padding:32px"><p style="font-size:11px;letter-spacing:2px;color:#d4a84b;text-transform:uppercase;margin-bottom:4px">Casa dos Carvalho Tattoo</p><hr style="border:none;border-top:1px solid #d4a84b;margin-bottom:24px"><p style="font-size:16px">Olá, <strong>${fn}</strong>!</p><p style="line-height:1.8;color:#444;margin:16px 0">Muito obrigado pela sua avaliação — fico feliz que sua experiência no estúdio tenha sido boa.</p><p style="line-height:1.8;color:#444;margin-bottom:24px">Se você topar, sua opinião no Google faz uma diferença enorme para nós. Quando as pessoas pesquisam um estúdio, são as avaliações reais de clientes como você que ajudam a decidir.</p><div style="text-align:center;margin-bottom:24px"><a href="${linkSim}" style="display:inline-block;background:#d4a84b;color:#111;text-decoration:none;border-radius:8px;padding:13px 28px;font-size:14px;font-weight:bold;margin:6px">Sim, quero avaliar no Google</a><br><a href="${linkNao}" style="display:inline-block;background:#f5f5f5;color:#555;text-decoration:none;border-radius:8px;padding:13px 28px;font-size:14px;margin:6px">Não, obrigado</a></div><p style="font-size:12px;color:#bbb;text-align:center">Sem pressão — qualquer resposta é válida para nós.</p><p style="font-size:12px;color:#bbb;margin-top:24px">Com carinho, ${nomeArtista}</p></div>`;
@@ -372,7 +372,7 @@ export default async function handler(req, res) {
         }
 
         // ── CONFIRMAÇÃO DE PRESENÇA D-1 ─────────────────────────────────────
-        if (cliente.etapa === "sessao_agend") {
+        if (cfg.fluxo_confirmacao_presenca_ativa !== false && cliente.etapa === "sessao_agend") {
           try {
             // Calcular amanhã em horário de Brasília (UTC-3)
             const hojeUtc = new Date();

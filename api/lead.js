@@ -596,42 +596,54 @@ export default async function handler(req, res) {
   // Dispara SMS e e-mail apenas no primeiro cadastro (não em updates progressivos)
   if (!isNewClient) return res.status(200).json({ ok: true, clienteId, updated: true });
 
+  // Buscar toggles de automação
+  const { data: cfgDisparos } = await sb.from("configuracoes")
+    .select("fluxo_boas_vindas_email_ativa, fluxo_boas_vindas_sms_ativa, fluxo_notificacao_artista_ativa")
+    .eq("user_id", row.user_id).single();
+
   const zenviaKey = process.env.ZENVIA_API_KEY;
   const fn = nome.trim().split(" ")[0];
 
   if (zenviaKey && tel && tel.replace(/\D/g, "").length >= 10) {
     const telLimpo = "55" + tel.replace(/\D/g, "").replace(/^55/, "");
+    const smsFns = [];
 
-    const smsFns = [
-      // SMS para o cliente
-      fetch("https://api.zenvia.com/v2/channels/sms/messages", {
-        method: "POST",
-        headers: { "X-API-TOKEN": zenviaKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "estudio.abraao.tattoo",
-          to: telLimpo,
-          contents: [{ type: "text", text: `Oi ${fn}! 🖤 Sou a Aura da Casa dos Carvalho. Recebemos sua ideia de tatuagem e em breve nossa equipe entra em contato. Fique de olho no seu e-mail!` }]
-        })
-      }).catch(e => console.warn("SMS cliente error:", e)),
+    // SMS para o cliente (controlado por fluxo_boas_vindas_sms_ativa)
+    if (cfgDisparos?.fluxo_boas_vindas_sms_ativa !== false) {
+      smsFns.push(
+        fetch("https://api.zenvia.com/v2/channels/sms/messages", {
+          method: "POST",
+          headers: { "X-API-TOKEN": zenviaKey, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "estudio.abraao.tattoo",
+            to: telLimpo,
+            contents: [{ type: "text", text: `Oi ${fn}! 🖤 Sou a Aura da Casa dos Carvalho. Recebemos sua ideia de tatuagem e em breve nossa equipe entra em contato. Fique de olho no seu e-mail!` }]
+          })
+        }).catch(e => console.warn("SMS cliente error:", e))
+      );
+    }
 
-      // SMS para o profissional responsável (ou estúdio se indefinido)
-      fetch("https://api.zenvia.com/v2/channels/sms/messages", {
-        method: "POST",
-        headers: { "X-API-TOKEN": zenviaKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          from: "estudio.abraao.tattoo",
-          to: artista && artista.toLowerCase().includes("camilla") ? "5527996941787" : "5527996929665",
-          contents: [{ type: "text", text: `✦ Novo lead: ${nome} | ${tel} | ${email || "—"} | Artista: ${artista || "A definir"}` }]
-        })
-      }).catch(e => console.warn("SMS estudio error:", e)),
-    ];
+    // SMS para o profissional responsável (controlado por fluxo_notificacao_artista_ativa)
+    if (cfgDisparos?.fluxo_notificacao_artista_ativa !== false) {
+      smsFns.push(
+        fetch("https://api.zenvia.com/v2/channels/sms/messages", {
+          method: "POST",
+          headers: { "X-API-TOKEN": zenviaKey, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            from: "estudio.abraao.tattoo",
+            to: artista && artista.toLowerCase().includes("camilla") ? "5527996941787" : "5527996929665",
+            contents: [{ type: "text", text: `✦ Novo lead: ${nome} | ${tel} | ${email || "—"} | Artista: ${artista || "A definir"}` }]
+          })
+        }).catch(e => console.warn("SMS estudio error:", e))
+      );
+    }
 
-    await Promise.all(smsFns);
+    if (smsFns.length > 0) await Promise.all(smsFns);
   }
 
-  // E-mail de boas-vindas ao cliente (apenas se tiver e-mail e chave Resend configurada)
+  // E-mail de boas-vindas ao cliente (controlado por fluxo_boas_vindas_email_ativa)
   const resendKey = process.env.RESEND_API_KEY;
-  if (resendKey && email) {
+  if (cfgDisparos?.fluxo_boas_vindas_email_ativa !== false && resendKey && email) {
     const emailFrom = process.env.EMAIL_REMETENTE || "contato@acasadoscarvalhotattoo.com.br";
     const artistaNome = artista && artista.toLowerCase().includes("camilla") ? "a Camilla" : artista ? "o Abraão" : null;
     const waNumero = artista && artista.toLowerCase().includes("camilla") ? "5527996941787" : "5527996929665";

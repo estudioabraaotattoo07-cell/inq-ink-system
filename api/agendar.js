@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     artista
       ? sb.from("artistas").select("nome,email,tel").ilike("nome", "%" + artista.split(" ")[0] + "%").eq("user_id", STUDIO_USER_ID).limit(1).single().then(r => r.data)
       : Promise.resolve(null),
-    sb.from("configuracoes").select("studio_email,studio_name").eq("user_id", STUDIO_USER_ID).limit(1).single().then(r => r.data)
+    sb.from("configuracoes").select("studio_email,studio_name,fluxo_notificacao_artista_ativa").eq("user_id", STUDIO_USER_ID).limit(1).single().then(r => r.data)
   ]);
 
   const emailArtista = artistaRow?.email || null;
@@ -120,7 +120,7 @@ export default async function handler(req, res) {
     if (emailArtista) destsPro.push(emailArtista);
     if (emailEstudio && !destsPro.includes(emailEstudio)) destsPro.push(emailEstudio);
 
-    if (destsPro.length > 0) {
+    if (cfgRow?.fluxo_notificacao_artista_ativa !== false && destsPro.length > 0) {
       fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { "Authorization": "Bearer " + resendKey, "Content-Type": "application/json" },
