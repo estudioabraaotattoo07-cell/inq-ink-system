@@ -1098,10 +1098,11 @@ export default function CRM() {
   const [googleLink, setGoogleLink] = useState("");
   const [studioSite, setStudioSite] = useState("");
   // ── ORIGENS ──
-  const [origens, setOrigens] = useState<{id: string; user_id: string; nome: string; slug: string; pago?: boolean; criado_em: string}[]>([]);
+  const [origens, setOrigens] = useState<{id: string; user_id: string; nome: string; slug: string; pago?: boolean; pagina?: string; criado_em: string}[]>([]);
   const [origenEditIdx, setOrigenEditIdx] = useState<number | null>(null);
   const [origenEditNome, setOrigenEditNome] = useState("");
   const [origenEditPago, setOrigenEditPago] = useState(false);
+  const [origenEditPagina, setOrigenEditPagina] = useState("");
   const [eventosTrafego, setEventosTrafego] = useState<{id: string; tipo_evento: string; origem: string; cliente_id: string | null; criado_em: string}[]>([]);
   const [origenConfirmDel, setOrigenConfirmDel] = useState<number | null>(null);
   // ── CAMPANHAS ──
@@ -6323,22 +6324,24 @@ export default function CRM() {
         {/* ── ORIGENS ── */}
         {tab === "origens" && (() => {
           const siteBase = (studioSite || "https://seusite.com.br").replace(/\/$/, "");
-          const salvarOrigem = async (nome: string, idx: number | null, pago?: boolean) => {
+          const salvarOrigem = async (nome: string, idx: number | null, pago?: boolean, pagina?: string) => {
             const sl = slugify(nome);
             if (!sl) return;
             const pg = pago ?? false;
+            const pag = (pagina || "").trim().replace(/^([^/])/, "/$1"); // garante barra inicial
             try {
               if (idx === null) {
-                const { data: nova } = await sb.from("origens").insert({ nome, slug: sl, pago: pg, user_id: userId, criado_em: new Date().toISOString() }).select("*").single();
+                const { data: nova } = await sb.from("origens").insert({ nome, slug: sl, pago: pg, pagina: pag, user_id: userId, criado_em: new Date().toISOString() }).select("*").single();
                 if (nova) setOrigens(prev => [...prev, nova]);
               } else {
-                await sb.from("origens").update({ nome, slug: sl, pago: pg }).eq("id", origens[idx].id);
-                setOrigens(prev => prev.map((o, i) => i === idx ? { ...o, nome, slug: sl, pago: pg } : o));
+                await sb.from("origens").update({ nome, slug: sl, pago: pg, pagina: pag }).eq("id", origens[idx].id);
+                setOrigens(prev => prev.map((o, i) => i === idx ? { ...o, nome, slug: sl, pago: pg, pagina: pag } : o));
               }
             } catch {}
             setOrigenEditIdx(null);
             setOrigenEditNome("");
             setOrigenEditPago(false);
+            setOrigenEditPagina("");
           };
           const excluirOrigem = async (idx: number) => {
             try {
@@ -6437,17 +6440,18 @@ export default function CRM() {
                 {origenEditIdx === -1 && (
                   <div style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, padding: "16px", marginBottom: 16, display: "flex", flexDirection: "column", gap: 10 }}>
                     <div style={{ fontSize: 12, color: "var(--tx3)", fontWeight: 600 }}>Nova origem</div>
-                    <input className="ef" placeholder="Ex: Instagram Abraão, Google Maps, Campanha de Verão..." value={origenEditNome} autoFocus onChange={e => setOrigenEditNome(e.target.value)} onKeyDown={e => { if (e.key === "Enter") salvarOrigem(origenEditNome.trim(), null, origenEditPago); if (e.key === "Escape") { setOrigenEditIdx(null); setOrigenEditNome(""); setOrigenEditPago(false); } }} />
+                    <input className="ef" placeholder="Ex: Instagram Abraão, Google Maps, Campanha de Verão..." value={origenEditNome} autoFocus onChange={e => setOrigenEditNome(e.target.value)} onKeyDown={e => { if (e.key === "Enter") salvarOrigem(origenEditNome.trim(), null, origenEditPago, origenEditPagina); if (e.key === "Escape") { setOrigenEditIdx(null); setOrigenEditNome(""); setOrigenEditPago(false); setOrigenEditPagina(""); } }} />
+                    <input className="ef" placeholder="Página destino (opcional) — ex: /abraao ou /camilla" value={origenEditPagina} onChange={e => setOrigenEditPagina(e.target.value)} />
                     {origenEditNome.trim() && (
-                      <div style={{ fontSize: 11, color: "var(--tx3)" }}>Link: <span style={{ color: "var(--gold)", fontFamily: "monospace" }}>{siteBase + "?origem=" + slugify(origenEditNome.trim())}</span></div>
+                      <div style={{ fontSize: 11, color: "var(--tx3)" }}>Link: <span style={{ color: "var(--gold)", fontFamily: "monospace" }}>{siteBase + (origenEditPagina.trim() ? (origenEditPagina.trim().startsWith("/") ? origenEditPagina.trim() : "/" + origenEditPagina.trim()) : "") + "?origem=" + slugify(origenEditNome.trim())}</span></div>
                     )}
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <button onClick={() => setOrigenEditPago(p => !p)} style={{ background: origenEditPago ? "rgba(201,168,76,.15)" : "var(--dk3)", border: "1px solid " + (origenEditPago ? "var(--gold)" : "var(--br)"), borderRadius: 6, padding: "5px 12px", fontSize: 11, color: origenEditPago ? "var(--gold)" : "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: origenEditPago ? 600 : 400 }}>
                         {origenEditPago ? "💰 Pago" : "🌱 Orgânico"}
                       </button>
                       <div style={{ flex: 1 }} />
-                      <button className="btn-c" onClick={() => { setOrigenEditIdx(null); setOrigenEditNome(""); setOrigenEditPago(false); }}>Cancelar</button>
-                      <button className="btn-s" onClick={() => salvarOrigem(origenEditNome.trim(), null, origenEditPago)}>Salvar</button>
+                      <button className="btn-c" onClick={() => { setOrigenEditIdx(null); setOrigenEditNome(""); setOrigenEditPago(false); setOrigenEditPagina(""); }}>Cancelar</button>
+                      <button className="btn-s" onClick={() => salvarOrigem(origenEditNome.trim(), null, origenEditPago, origenEditPagina)}>Salvar</button>
                     </div>
                   </div>
                 )}
@@ -6458,24 +6462,25 @@ export default function CRM() {
                 )}
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                   {origensComMetrica.map((o, idx) => {
-                    const link = siteBase + "?origem=" + o.slug;
+                    const link = siteBase + (o.pagina ? (o.pagina.startsWith("/") ? o.pagina : "/" + o.pagina) : "") + "?origem=" + o.slug;
                     const realIdx = origens.findIndex(x => x.id === o.id);
                     const isEditing = origenEditIdx === realIdx;
                     return (
                       <div key={o.id} style={{ background: "var(--dk2)", border: "1px solid var(--br)", borderRadius: 10, padding: "14px 16px" }}>
                         {isEditing ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                            <input className="ef" value={origenEditNome} autoFocus onChange={e => setOrigenEditNome(e.target.value)} onKeyDown={e => { if (e.key === "Enter") salvarOrigem(origenEditNome.trim(), realIdx, origenEditPago); if (e.key === "Escape") { setOrigenEditIdx(null); setOrigenEditNome(""); setOrigenEditPago(false); } }} />
+                            <input className="ef" value={origenEditNome} autoFocus onChange={e => setOrigenEditNome(e.target.value)} onKeyDown={e => { if (e.key === "Enter") salvarOrigem(origenEditNome.trim(), realIdx, origenEditPago, origenEditPagina); if (e.key === "Escape") { setOrigenEditIdx(null); setOrigenEditNome(""); setOrigenEditPago(false); setOrigenEditPagina(""); } }} />
+                            <input className="ef" placeholder="Página destino (opcional) — ex: /abraao ou /camilla" value={origenEditPagina} onChange={e => setOrigenEditPagina(e.target.value)} />
                             {origenEditNome.trim() && (
-                              <div style={{ fontSize: 11, color: "var(--tx3)" }}>Link: <span style={{ color: "var(--gold)", fontFamily: "monospace" }}>{siteBase + "?origem=" + slugify(origenEditNome.trim())}</span></div>
+                              <div style={{ fontSize: 11, color: "var(--tx3)" }}>Link: <span style={{ color: "var(--gold)", fontFamily: "monospace" }}>{siteBase + (origenEditPagina.trim() ? (origenEditPagina.trim().startsWith("/") ? origenEditPagina.trim() : "/" + origenEditPagina.trim()) : "") + "?origem=" + slugify(origenEditNome.trim())}</span></div>
                             )}
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <button onClick={() => setOrigenEditPago(p => !p)} style={{ background: origenEditPago ? "rgba(201,168,76,.15)" : "var(--dk3)", border: "1px solid " + (origenEditPago ? "var(--gold)" : "var(--br)"), borderRadius: 6, padding: "5px 12px", fontSize: 11, color: origenEditPago ? "var(--gold)" : "var(--tx2)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontWeight: origenEditPago ? 600 : 400 }}>
                                 {origenEditPago ? "💰 Pago" : "🌱 Orgânico"}
                               </button>
                               <div style={{ flex: 1 }} />
-                              <button className="btn-c" onClick={() => { setOrigenEditIdx(null); setOrigenEditNome(""); setOrigenEditPago(false); }}>Cancelar</button>
-                              <button className="btn-s" onClick={() => salvarOrigem(origenEditNome.trim(), realIdx, origenEditPago)}>Salvar</button>
+                              <button className="btn-c" onClick={() => { setOrigenEditIdx(null); setOrigenEditNome(""); setOrigenEditPago(false); setOrigenEditPagina(""); }}>Cancelar</button>
+                              <button className="btn-s" onClick={() => salvarOrigem(origenEditNome.trim(), realIdx, origenEditPago, origenEditPagina)}>Salvar</button>
                             </div>
                           </div>
                         ) : (
@@ -6491,7 +6496,7 @@ export default function CRM() {
                                 <div style={{ fontSize: 11, color: "var(--tx3)", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{link}</div>
                               </div>
                               <button title="Copiar link" onClick={() => { try { navigator.clipboard.writeText(link); } catch {} }} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 10px", fontSize: 14, cursor: "pointer", color: "var(--tx2)", flexShrink: 0 }}>📋</button>
-                              <button title="Editar" onClick={() => { setOrigenEditIdx(realIdx); setOrigenEditNome(o.nome); setOrigenEditPago(o.pago || false); }} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 10px", fontSize: 14, cursor: "pointer", color: "var(--tx2)", flexShrink: 0 }}>✏️</button>
+                              <button title="Editar" onClick={() => { setOrigenEditIdx(realIdx); setOrigenEditNome(o.nome); setOrigenEditPago(o.pago || false); setOrigenEditPagina(o.pagina || ""); }} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "6px 10px", fontSize: 14, cursor: "pointer", color: "var(--tx2)", flexShrink: 0 }}>✏️</button>
                               <button title="Remover" onClick={() => setOrigenConfirmDel(realIdx)} style={{ background: "rgba(192,57,43,.1)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 6, padding: "6px 10px", fontSize: 14, cursor: "pointer", color: "#C0392B", flexShrink: 0 }}>✕</button>
                             </div>
                             {/* Métricas da origem */}
