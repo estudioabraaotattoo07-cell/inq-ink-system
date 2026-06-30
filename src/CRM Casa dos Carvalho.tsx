@@ -7119,7 +7119,16 @@ export default function CRM() {
                     </div>
                     {stages.map((stage: any) => {
                       const etapasDesteSlug = fluxoEtapas.filter((f: any) => f.etapa_slug === stage.id);
-                      const temFluxo = etapasDesteSlug.length > 0;
+                      const sid = stage.id;
+                      const sistemaCounts: Record<string, number> = {
+                        lead: 2, lead_morno: 2, aura_agend: 2,
+                        cons_agendada: 2, sessao_agend: 2,
+                        pos_venda: 2, tatuado: 2,
+                        reengajamento: 1,
+                      };
+                      const totalSistema = sistemaCounts[sid] || 0;
+                      const totalFluxos = etapasDesteSlug.length + totalSistema;
+                      const temFluxo = totalFluxos > 0;
                       const aberto = fluxoSlugAberto === stage.id;
                       return (
                         <div key={stage.id} style={{ marginBottom: 6, border: "1px solid var(--br)", borderRadius: 8, overflow: "hidden" }}>
@@ -7128,7 +7137,12 @@ export default function CRM() {
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <div style={{ width: 8, height: 8, borderRadius: "50%", background: stage.color, flexShrink: 0 }} />
                               <span style={{ fontSize: 13, fontWeight: 600, color: "var(--tx)" }}>{stage.label}</span>
-                              {temFluxo && <span style={{ fontSize: 10, background: "rgba(201,168,76,.15)", color: "var(--gold)", border: "1px solid rgba(201,168,76,.3)", borderRadius: 10, padding: "1px 7px" }}>{etapasDesteSlug.length} msg</span>}
+                              {temFluxo && (
+                                <span style={{ fontSize: 10, background: "rgba(201,168,76,.15)", color: "var(--gold)", border: "1px solid rgba(201,168,76,.3)", borderRadius: 10, padding: "1px 7px" }}>
+                                  {totalFluxos} {totalFluxos === 1 ? "fluxo" : "fluxos"}
+                                  {totalSistema > 0 && <span style={{ color: "rgba(201,168,76,.7)", marginLeft: 3 }}>· {totalSistema} sistema</span>}
+                                </span>
+                              )}
                             </div>
                             <span style={{ fontSize: 11, color: "var(--tx3)" }}>{aberto ? "▲" : "▼"}</span>
                           </div>
