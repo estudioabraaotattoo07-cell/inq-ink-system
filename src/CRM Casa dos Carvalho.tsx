@@ -432,10 +432,10 @@ const DEFAULT_STAGES = [
   { id: "sessao_agend", label: "Sessão Marcada", color: "#4A9EBF", emoji: "✏️" },
   { id: "tatuado", label: "Sessão Realizada", color: "#27AE60", emoji: "✅" },
   { id: "aguard_1a_sessao", label: "Aguardando 1ª Sessão", color: "#F39C12", emoji: "🖊️" },
-  { id: "aguard_prox_sessao", label: "Aguardando Próxima Sessão", color: "#E8A838", emoji: "🔄" },
+  { id: "aguard_prox_sessao", label: "Aguardando Nova Solicitação de Projeto", color: "#E8A838", emoji: "🔄" },
   { id: "reengajamento", label: "Reengajamento", color: "#16A085", emoji: "💎" },
   { id: "precisa_remarcar", label: "Precisa Remarcar", color: "#E74C3C", emoji: "📞" },
-  { id: "aguard_agend", label: "Aguardando Agendamento", color: "#F39C12", emoji: "⏰" },
+  { id: "aguard_agend", label: "Aguardando Agendamento de Sessão em Andamento", color: "#F39C12", emoji: "⏰" },
   { id: "pos_venda", label: "Pós-venda", color: "#E67E22", emoji: "💬" },
   { id: "lista_espera", label: "Lista de Espera", color: "#3498DB", emoji: "⏳" },
   { id: "hibernacao", label: "Hibernação", color: "#666", emoji: "💤" },
@@ -7125,6 +7125,7 @@ export default function CRM() {
                         cons_agendada: 3, sessao_agend: 3,
                         aguard_1a_sessao: 2,
                         precisa_remarcar: 1,
+                        aguard_prox_sessao: 1,
                         pos_venda: 2, tatuado: 2,
                         reengajamento: 1,
                       };
@@ -7187,6 +7188,9 @@ export default function CRM() {
                                   <CardSistema ativo={fluxoToggles.nps} label="Avaliação NPS pós-sessão" gatilho="D+1 — após entrada no Pós-venda" preview={"Assunto: Como foi sua sessão, {nome}?\n\nFoi uma alegria ter você no estúdio. Como você avalia sua experiência? [escala 0–10]\n\nNota e comentário salvos na ficha automaticamente."} />
                                   <CardSistema ativo={fluxoToggles.google_convite} label="Convite ao Google" gatilho="D+2 — após avaliação positiva (nota ≥ 7)" preview={"Assunto: Uma última coisa, {nome} — leva 1 minuto\n\nSua opinião no Google faz uma diferença enorme para nós. Clique para avaliar — o seu comentário já aparece pré-preenchido."} />
                                 </>);
+                                if (sid === "aguard_prox_sessao") return (
+                                  <CardSistema label="E-mail de recontato + link WhatsApp" gatilho="D+60 — sem nova solicitação. Move para Hibernação em D+90 se não houver retorno" preview={"Assunto: A próxima ideia já nasceu, {nome}?\n\nOlá, {nome}! Faz um tempo desde a sua última sessão. Esperamos que sua arte esteja linda e bem cicatrizada.\n\nSabemos que uma boa ideia não tem pressa para nascer. Mas quando ela chegar, queremos ser os primeiros a saber.\n\n[ Tenho uma nova ideia ] → abre WhatsApp\n\nRespeitoso abraço, {estudio}"} />
+                                );
                                 if (sid === "precisa_remarcar") return (
                                   <CardSistema label="E-mail de remarcação com link WhatsApp" gatilho="Imediato — ao entrar em Precisa Remarcar" preview={"Assunto: Sua vaga foi liberada, {nome}\n\nSua sessão foi desmarcada e o horário já foi disponibilizado para outros clientes.\n\nTrabalhamos com agenda limitada por uma razão: cada projeto merece atenção total. Quando um horário é agendado, a nossa atenção é plena para você — não terá a surpresa de ter o seu artista dividindo atenção com outros clientes.\n\nAssim que estiver pronto(a) para retomar, guardamos seu projeto com cuidado. Ele é seu.\n\n[ Remarcar pelo WhatsApp ]\n\nCasa dos Carvalho Tattoo"} />
                                 );
@@ -8775,14 +8779,14 @@ export default function CRM() {
                         setNovoProjetoAberto(sc.id);
                         setNovoProjetoForm({ estilo: "", tam: "Medio", primeira: false, desc: "", valorTotal: "", servico: "" });
                       }} style={{ fontSize: 11, fontWeight: 600, background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 6, padding: "4px 10px", color: "var(--gold)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                        + Nova Solicitação
+                        + Nova Solicitação de Projeto
                       </button>
                     )}
                   </div>
                   {/* Formulário inline de novo projeto */}
                   {novoProjetoAberto === sc.id && (
                     <div style={{ background: "var(--dk3)", border: "1px solid var(--gold)", borderRadius: 8, padding: "14px", marginBottom: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-                      <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>Nova Solicitação</div>
+                      <div style={{ fontSize: 11, color: "var(--gold)", fontWeight: 600, textTransform: "uppercase", letterSpacing: ".05em" }}>Nova Solicitação de Projeto</div>
                       <div className="fi2">
                         <div className="fil">Nome / Identificação do Projeto *</div>
                         <input className="ef" placeholder="Ex: Tatuagem no braço, Limpeza de pele, Implante..." value={novoProjetoForm.estilo}
@@ -8835,7 +8839,7 @@ export default function CRM() {
                     return (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
                         {projetos.length === 0 && (
-                          <div style={{ fontSize: 12, color: "var(--tx3)", fontStyle: "italic", padding: "8px 0" }}>Nenhuma solicitação cadastrada. Clique em + Nova Solicitação.</div>
+                          <div style={{ fontSize: 12, color: "var(--tx3)", fontStyle: "italic", padding: "8px 0" }}>Nenhuma solicitação cadastrada. Clique em + Nova Solicitação de Projeto.</div>
                         )}
                         {ativos.map((proj: any, pi: number) => (
                           <div key={proj.id} style={{ background: "var(--dk3)", border: "1px solid var(--br)", borderRadius: 8, padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}>

@@ -371,6 +371,52 @@ export default async function handler(req, res) {
           }
         }
 
+        // ── AGUARDANDO NOVA SOLICITAÇÃO DE PROJETO — D+60 e-mail / D+90 hibernação ──
+        if (cliente.etapa === "aguard_prox_sessao" && cliente.etapa_desde) {
+          const diasEtapa = diasEntre(cliente.etapa_desde, hoje);
+          const fn = (cliente.nome || "").trim().split(" ")[0];
+
+          // D+90: mover automaticamente para Hibernação
+          if (diasEtapa >= 90) {
+            await sb.from("clientes").update({ etapa: "hibernacao", etapa_desde: new Date().toISOString() }).eq("id", cliente.id);
+            await registrarHistorico(userId, "Movido automaticamente para Hibernação após 90 dias sem nova solicitação — " + cliente.nome);
+            totalDisparos++;
+          } else if (diasEtapa >= 60 && cfg.resend_api_key && cliente.email) {
+            // D+60: e-mail de recontato (uma única vez)
+            const jaEnviouD60 = disparosEnviados && disparosEnviados["__aguard_prox_sessao_d60__"];
+            if (!jaEnviouD60) {
+              const linkWpp = "https://wa.me/5527999598230?text=" + encodeURIComponent("Olá! Sou " + cliente.nome + " e já tenho uma nova ideia para tatuar na Casa dos Carvalho. Gostaria de agendar uma consulta para conversarmos sobre o projeto!");
+              const htmlD60 = `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;color:#222;background:#fff;padding:32px">
+<p style="font-size:11px;letter-spacing:2px;color:#d4a84b;text-transform:uppercase;margin-bottom:4px">Casa dos Carvalho Tattoo</p>
+<hr style="border:none;border-top:1px solid #d4a84b;margin-bottom:24px">
+<p style="font-size:16px">Olá, <strong>${fn}</strong>!</p>
+<p style="line-height:1.8;color:#444;margin:16px 0">Faz um tempo desde a sua última sessão aqui na Casa dos Carvalho — e esperamos que sua arte esteja linda e bem cicatrizada.</p>
+<p style="line-height:1.8;color:#444;margin-bottom:24px">Sabemos que uma boa ideia não tem pressa para nascer. Mas quando ela chegar, queremos ser os primeiros a saber.</p>
+<p style="line-height:1.8;color:#444;margin-bottom:28px">Se já está pensando no próximo projeto, é só chamar a gente.</p>
+<div style="text-align:center;margin-bottom:28px">
+  <a href="${linkWpp}" style="display:inline-block;background:#d4a84b;color:#111;text-decoration:none;border-radius:8px;padding:14px 32px;font-size:14px;font-weight:bold">Tenho uma nova ideia</a>
+</div>
+<p style="font-size:12px;color:#bbb;margin-top:24px">Respeitoso abraço, ${studioName}</p>
+</div>`;
+              const ok = await dispararEmail({
+                apiKey: cfg.resend_api_key,
+                from: cfg.email_remetente || "noreply@acasadoscarvalhotattoo.com.br",
+                nome_remetente: studioName,
+                to: cliente.email,
+                subject: "A próxima ideia já nasceu, " + fn + "?",
+                html: htmlD60,
+              });
+              if (ok) {
+                let disparosAtuais = {};
+                try { const { data: cliAtual } = await sb.from("clientes").select("disparos_enviados").eq("id", cliente.id).single(); disparosAtuais = cliAtual?.disparos_enviados || {}; } catch {}
+                await marcarEnviado(cliente.id, "__aguard_prox_sessao_d60__", disparosAtuais);
+                await registrarHistorico(userId, "E-mail recontato D+60 Aguardando Nova Solicitação enviado — " + cliente.nome);
+                totalDisparos++;
+              }
+            }
+          }
+        }
+
         // ── PRECISA REMARCAR — E-mail imediato com link WhatsApp ────────────────
         if (cliente.etapa === "precisa_remarcar" && cfg.resend_api_key && cliente.email) {
           const fn = (cliente.nome || "").trim().split(" ")[0];
