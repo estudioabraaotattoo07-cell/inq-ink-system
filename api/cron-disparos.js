@@ -372,7 +372,7 @@ export default async function handler(req, res) {
         }
 
         // ── AGUARDANDO NOVA SOLICITAÇÃO DE PROJETO — D+60 e-mail / D+90 hibernação ──
-        if (cliente.etapa === "aguard_prox_sessao" && cliente.etapa_desde) {
+        if (cfg.fluxo_recontato_prox_sessao_ativa !== false && cliente.etapa === "aguard_prox_sessao" && cliente.etapa_desde) {
           const diasEtapa = diasEntre(cliente.etapa_desde, hoje);
           const fn = (cliente.nome || "").trim().split(" ")[0];
 
@@ -418,7 +418,7 @@ export default async function handler(req, res) {
         }
 
         // ── PRECISA REMARCAR — E-mail imediato com link WhatsApp ────────────────
-        if (cliente.etapa === "precisa_remarcar" && cfg.resend_api_key && cliente.email) {
+        if (cfg.fluxo_remarcar_ativa !== false && cliente.etapa === "precisa_remarcar" && cfg.resend_api_key && cliente.email) {
           const fn = (cliente.nome || "").trim().split(" ")[0];
           const jaEnviouRemarcar = disparosEnviados && disparosEnviados["__precisa_remarcar_email__"];
           if (!jaEnviouRemarcar && cliente.etapa_desde) {
@@ -472,7 +472,7 @@ export default async function handler(req, res) {
           }
 
           const jaEnviouBV = disparosEnviados && disparosEnviados["__aguard_1a_sessao_bv__"];
-          if (!jaEnviouBV && cliente.etapa_desde) {
+          if (cfg.fluxo_agradecimento_1asessao_ativa !== false && !jaEnviouBV && cliente.etapa_desde) {
             const diasEtapa = diasEntre(cliente.etapa_desde, hoje);
             if (diasEtapa >= 0) {
               const htmlBV = `<div style="font-family:Georgia,serif;max-width:600px;margin:0 auto;color:#222;background:#fff;padding:32px">
@@ -504,7 +504,7 @@ export default async function handler(req, res) {
 
           // E-mail D+30 de recontato com botões Sim/Não
           const jaEnviouD30 = disparosEnviados && disparosEnviados["__aguard_1a_sessao_d30__"];
-          if (!jaEnviouD30 && cliente.etapa_desde) {
+          if (cfg.fluxo_recontato_d30_ativa !== false && !jaEnviouD30 && cliente.etapa_desde) {
             const diasEtapa = diasEntre(cliente.etapa_desde, hoje);
             if (diasEtapa >= 30) {
               const baseUrl = process.env.VERCEL_URL ? "https://" + process.env.VERCEL_URL : "http://localhost:3000";
@@ -548,6 +548,8 @@ export default async function handler(req, res) {
         // ── SMS D-0 (dia da sessão ou consulta — cliente + artista) ────────────
         if (cfg.zenvia_api_key && cfg.zenvia_numero && (cliente.etapa === "sessao_agend" || cliente.etapa === "cons_agendada")) {
           const ehConsulta = cliente.etapa === "cons_agendada";
+          const smsAtivo = ehConsulta ? (cfg.fluxo_sms_consulta_ativa !== false) : (cfg.fluxo_sms_sessao_ativa !== false);
+          if (!smsAtivo) { /* fluxo pausado */ } else
           try {
             const hojeUtc = new Date();
             const hojeBRT = new Date(hojeUtc.getTime() - 3 * 60 * 60 * 1000);

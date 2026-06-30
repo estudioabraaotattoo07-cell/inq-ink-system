@@ -1300,9 +1300,8 @@ export default function CRM() {
   const [agPipelineOpen, setAgPipelineOpen] = useState(false);
   const [pvEditando, setPvEditando] = useState<number | null>(null);
   const [canaisHabilitados, setCanaisHabilitados] = useState<{email: boolean; whatsapp: boolean; sms: boolean}>({ email: true, whatsapp: false, sms: false });
-  const [fluxoToggles, setFluxoToggles] = useState({ boas_vindas_email: true, nps: true, google_convite: true, confirmacao_presenca: true, notificacao_artista: true });
+  const [fluxoToggles, setFluxoToggles] = useState({ boas_vindas_email: true, nps: true, google_convite: true, confirmacao_presenca: true, notificacao_artista: true, confirma_consulta: true, confirma_sessao: true, sms_consulta: true, sms_sessao: true, recontato_prox_sessao: true, remarcar: true, agradecimento_1asessao: true, recontato_d30: true });
   const [toggleConfirm, setToggleConfirm] = useState<{campo: string; novoValor: boolean; label: string} | null>(null);
-  const [fluxoPreviewAberto, setFluxoPreviewAberto] = useState<Record<string, boolean>>({});
   // ── ACORDEÃO DAS RÉGUAS ──
   const [pvAccordion, setPvAccordion] = useState<{preVenda: boolean; preSessao: boolean; posVenda: boolean; fluxo: boolean}>({ preVenda: false, preSessao: false, posVenda: false, fluxo: true });
   // ── FLUXO_ETAPAS (régua unificada) ──
@@ -1621,6 +1620,14 @@ export default function CRM() {
             google_convite: cfg.fluxo_google_convite_ativa !== false,
             confirmacao_presenca: cfg.fluxo_confirmacao_presenca_ativa !== false,
             notificacao_artista: cfg.fluxo_notificacao_artista_ativa !== false,
+            confirma_consulta: cfg.fluxo_confirma_consulta_ativa !== false,
+            confirma_sessao: cfg.fluxo_confirma_sessao_ativa !== false,
+            sms_consulta: cfg.fluxo_sms_consulta_ativa !== false,
+            sms_sessao: cfg.fluxo_sms_sessao_ativa !== false,
+            recontato_prox_sessao: cfg.fluxo_recontato_prox_sessao_ativa !== false,
+            remarcar: cfg.fluxo_remarcar_ativa !== false,
+            agradecimento_1asessao: cfg.fluxo_agradecimento_1asessao_ativa !== false,
+            recontato_d30: cfg.fluxo_recontato_d30_ativa !== false,
           });
           // ── FLUXO_ETAPAS — carregar da tabela ──
           try {
@@ -2553,12 +2560,14 @@ export default function CRM() {
 
   const enviarEmailAgendamento = async (tipo: "cons" | "sess", cliente: any, data: string, horaInicio: number, artistaNome: string) => {
     if (!resendApiKey || !emailRemetente || !cliente?.email) return;
+    const ehConsulta = tipo === "cons";
+    if (ehConsulta && !fluxoToggles.confirma_consulta) return;
+    if (!ehConsulta && !fluxoToggles.confirma_sessao) return;
     const studioNomeF = (studioName || "A Casa dos Carvalho").replace(/_/g, " ");
     const dataFmt = data ? data.split("-").reverse().join("/") : "—";
     const horaFmt = String(horaInicio).padStart(2,"0") + ":00";
     const enderecoFmt = [studioRua, studioNumero, studioBairro, studioCity].filter(Boolean).join(", ") || "nosso estúdio";
     const whatsappFmt = studioTel ? maskTel(studioTel) : "nosso WhatsApp";
-    const ehConsulta = tipo === "cons";
     const assunto = ehConsulta
       ? `Sua consulta está agendada, ${cliente.nome} ✦`
       : `Sua sessão está confirmada, ${cliente.nome} ✦`;
@@ -6948,116 +6957,6 @@ export default function CRM() {
                 </div>
               )}
 
-              {/* ── AUTOMAÇÕES DO ECOSSISTEMA ── */}
-              {(() => {
-                const togglePrev = (k: string) => setFluxoPreviewAberto(p => ({ ...p, [k]: !p[k] }));
-                const SwitchBtn = ({ campo, label }: { campo: keyof typeof fluxoToggles; label: string }) => {
-                  const ativo = fluxoToggles[campo];
-                  return (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--dk3)", borderRadius: 7, padding: "8px 12px" }}>
-                      <div style={{ fontSize: 12, color: "var(--tx2)" }}>{label}</div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                        <span style={{ fontSize: 10, color: ativo ? "var(--q3)" : "var(--tx3)", fontWeight: 600 }}>{ativo ? "● Ativo" : "○ Pausado"}</span>
-                        <div onClick={() => setToggleConfirm({ campo, novoValor: !ativo, label })} style={{ width: 36, height: 20, borderRadius: 10, background: ativo ? "var(--q3)" : "var(--dk5)", position: "relative", transition: "background .2s", cursor: "pointer" }}>
-                          <div style={{ width: 14, height: 14, background: "#fff", borderRadius: "50%", position: "absolute", top: 3, left: ativo ? 19 : 3, transition: "left .2s" }} />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                };
-                const PreviewBlock = ({ id, texto }: { id: string; texto: string }) => (
-                  <div style={{ borderTop: "1px solid var(--br)", padding: "0 14px" }}>
-                    <button onClick={() => togglePrev(id)} style={{ background: "none", border: "none", color: "var(--tx3)", fontSize: 11, cursor: "pointer", padding: "8px 0", width: "100%", textAlign: "left", fontFamily: "'DM Sans',sans-serif" }}>
-                      {fluxoPreviewAberto[id] ? "▲ Ocultar pré-visualização" : "▼ Ver pré-visualização do e-mail"}
-                    </button>
-                    {fluxoPreviewAberto[id] && (
-                      <div style={{ background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 7, padding: "12px 14px", fontSize: 11, color: "var(--tx2)", lineHeight: 1.8, marginBottom: 12, whiteSpace: "pre-wrap", fontStyle: "italic" }}>
-                        {texto}
-                      </div>
-                    )}
-                  </div>
-                );
-                return (
-                  <div style={{ marginBottom: 20 }}>
-                    <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 16, fontWeight: 700, color: "var(--tx)", marginBottom: 4 }}>Automações do Ecossistema</div>
-                    <div style={{ fontSize: 11, color: "var(--tx3)", marginBottom: 12 }}>Fluxos automáticos que rodam em segundo plano. Ligue ou pause cada um sem perder as configurações.</div>
-
-                    {/* Card: Confirmação D-1 */}
-                    {(() => {
-                      const ativo = fluxoToggles.confirmacao_presenca;
-                      return (
-                        <div style={{ border: "1px solid " + (ativo ? "rgba(201,168,76,.25)" : "var(--br)"), borderRadius: 9, background: ativo ? "var(--dk2)" : "var(--dk3)", overflow: "hidden", marginBottom: 8 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)", fontFamily: "'Cormorant Garamond',serif", marginBottom: 2 }}>Lembrete D-1 (Sessão e Consulta)</div>
-                              <div style={{ fontSize: 11, color: "var(--tx3)", lineHeight: 1.5 }}>E-mail enviado um dia antes da sessão ou consulta com link de confirmação de presença. Gatilho: etapa Sessão Marcada ou Consulta Marcada com evento na agenda amanhã.</div>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                              <span style={{ fontSize: 10, color: ativo ? "var(--q3)" : "var(--tx3)", fontWeight: 600 }}>{ativo ? "● Ativo" : "○ Pausado"}</span>
-                              <div onClick={() => setToggleConfirm({ campo: "confirmacao_presenca", novoValor: !ativo, label: "Confirmação de Presença D-1" })} style={{ width: 36, height: 20, borderRadius: 10, background: ativo ? "var(--q3)" : "var(--dk5)", position: "relative", transition: "background .2s", cursor: "pointer" }}>
-                                <div style={{ width: 14, height: 14, background: "#fff", borderRadius: "50%", position: "absolute", top: 3, left: ativo ? 19 : 3, transition: "left .2s" }} />
-                              </div>
-                            </div>
-                          </div>
-                          <PreviewBlock id="confirmacao" texto={"Assunto: Confirme sua presença amanhã — {estudio}\n\nOlá, {nome}! Sua sessão está marcada para amanhã.\n\n[botão: Confirmo minha presença]\n[botão: Preciso remarcar]\n\nToken válido por 48h. Resposta registrada automaticamente na ficha do cliente."} />
-                        </div>
-                      );
-                    })()}
-
-                    {/* Card: NPS */}
-                    {(() => {
-                      const ativo = fluxoToggles.nps;
-                      return (
-                        <div style={{ border: "1px solid " + (ativo ? "rgba(201,168,76,.25)" : "var(--br)"), borderRadius: 9, background: ativo ? "var(--dk2)" : "var(--dk3)", overflow: "hidden", marginBottom: 8 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
-                                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)", fontFamily: "'Cormorant Garamond',serif" }}>Avaliação NPS pós-sessão</span>
-                                <span style={{ fontSize: 10, background: "rgba(201,168,76,.12)", color: "var(--gold)", border: "1px solid rgba(201,168,76,.3)", borderRadius: 10, padding: "1px 7px" }}>2 e-mails</span>
-                              </div>
-                              <div style={{ fontSize: 11, color: "var(--tx3)", lineHeight: 1.5 }}>{"E-mail enviado D+1 após entrada no Pós-venda com escala 0–10. Nota e comentário salvos na ficha. Gatilho: etapa = pos_venda, 1 dia após."}</div>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                              <span style={{ fontSize: 10, color: ativo ? "var(--q3)" : "var(--tx3)", fontWeight: 600 }}>{ativo ? "● Ativo" : "○ Pausado"}</span>
-                              <div onClick={() => setToggleConfirm({ campo: "nps", novoValor: !ativo, label: "Avaliação NPS pós-sessão" })} style={{ width: 36, height: 20, borderRadius: 10, background: ativo ? "var(--q3)" : "var(--dk5)", position: "relative", transition: "background .2s", cursor: "pointer" }}>
-                                <div style={{ width: 14, height: 14, background: "#fff", borderRadius: "50%", position: "absolute", top: 3, left: ativo ? 19 : 3, transition: "left .2s" }} />
-                              </div>
-                            </div>
-                          </div>
-                          <PreviewBlock id="nps" texto={"Assunto: Como foi sua sessão, {nome}?\n\nOlá, {nome}!\n\nFoi uma alegria ter você aqui no estúdio. Sua opinião é muito importante para nós.\n\nComo você avalia sua experiência conosco?\n\n[0][1][2][3][4][5][6]  [7][8][9][10]\n(0 = extremamente insatisfeito · 10 = extremamente satisfeito)\n\nSe nota >= 7: campo de texto — \"o que foi mais especial?\"\nSe nota <= 6: campo de texto — \"o que não foi como esperava?\"\n\nNota e comentário salvos automaticamente na ficha.\nToken expira em 7 dias."} />
-                        </div>
-                      );
-                    })()}
-
-                    {/* Card: Google */}
-                    {(() => {
-                      const ativo = fluxoToggles.google_convite;
-                      return (
-                        <div style={{ border: "1px solid " + (ativo ? "rgba(201,168,76,.25)" : "var(--br)"), borderRadius: 9, background: ativo ? "var(--dk2)" : "var(--dk3)", overflow: "hidden", marginBottom: 8 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px" }}>
-                            <div style={{ flex: 1, minWidth: 0 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--tx)", fontFamily: "'Cormorant Garamond',serif", marginBottom: 2 }}>Convite ao Google</div>
-                              <div style={{ fontSize: 11, color: "var(--tx3)", lineHeight: 1.5 }}>{"Enviado 24h após avaliação positiva (nota >= 7). Exibe o comentário original para copiar e colar no Google. Gatilho: avaliacao_fluxo_status = positiva."}</div>
-                            </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                              <span style={{ fontSize: 10, color: ativo ? "var(--q3)" : "var(--tx3)", fontWeight: 600 }}>{ativo ? "● Ativo" : "○ Pausado"}</span>
-                              <div onClick={() => setToggleConfirm({ campo: "google_convite", novoValor: !ativo, label: "Convite ao Google" })} style={{ width: 36, height: 20, borderRadius: 10, background: ativo ? "var(--q3)" : "var(--dk5)", position: "relative", transition: "background .2s", cursor: "pointer" }}>
-                                <div style={{ width: 14, height: 14, background: "#fff", borderRadius: "50%", position: "absolute", top: 3, left: ativo ? 19 : 3, transition: "left .2s" }} />
-                              </div>
-                            </div>
-                          </div>
-                          <PreviewBlock id="google" texto={"Assunto: Uma última coisa, {nome} — leva 1 minuto\n\nOlá, {nome}!\n\nMuito obrigado pela sua avaliação. Se você topar, sua opinião no Google faz uma diferença enorme para nós.\n\n[botão: Sim, quero avaliar no Google]\n[botão: Não, obrigado]\n\nSe SIM: página mostra o comentário original + botão Copiar + link Google\nSe NAO: agradecimento simples, fluxo encerrado\n\nResposta registrada na ficha: google_sim ou google_nao"} />
-                        </div>
-                      );
-                    })()}
-
-                    <div style={{ fontSize: 10, color: "var(--tx3)", padding: "8px 12px", background: "var(--dk3)", borderRadius: 7, lineHeight: 1.6 }}>
-                      Pausar um fluxo não afeta clientes que já estão no meio do ciclo. O sistema só para de iniciar novos disparos para novos clientes a partir do momento em que é pausado.
-                    </div>
-                  </div>
-                );
-              })()}
-
               {/* ── PRÉ-VENDA: clientes em follow-up de pós-venda ── */}
               {pvC.length === 0
                 ? <div className="empty">Nenhum cliente em pós-venda.</div>
@@ -7163,14 +7062,32 @@ export default function CRM() {
                             <div style={{ padding: "10px 14px 14px", borderTop: "1px solid var(--br)", display: "flex", flexDirection: "column", gap: 8 }}>
                               {/* ── Cards de automações do sistema por etapa ── */}
                               {(() => {
-                                const CardSistema = ({ label, gatilho, preview, ativo = true }: { label: string; gatilho: string; preview: string; ativo?: boolean }) => (
+                                const CardSistema = ({ label, gatilho, preview, ativo = true, toggleKey }: { label: string; gatilho: string; preview: string; ativo?: boolean; toggleKey?: keyof typeof fluxoToggles }) => (
                                   <div style={{ background: "rgba(201,168,76,.05)", border: "1px solid rgba(201,168,76,.2)", borderRadius: 7, padding: "10px 12px", opacity: ativo ? 1 : 0.5 }}>
                                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
                                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                         <span style={{ fontSize: 11, fontWeight: 700, color: "var(--tx)" }}>{label}</span>
                                         <span style={{ fontSize: 9, background: "rgba(201,168,76,.15)", color: "var(--gold)", border: "1px solid rgba(201,168,76,.25)", borderRadius: 8, padding: "1px 6px", fontWeight: 700 }}>SISTEMA</span>
                                       </div>
-                                      <span style={{ fontSize: 9, color: ativo ? "var(--q3)" : "var(--tx3)", fontWeight: 600 }}>{ativo ? "● Ativo" : "○ Pausado"}</span>
+                                      {toggleKey ? (
+                                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                          <span style={{ fontSize: 9, color: ativo ? "var(--q3)" : "var(--tx3)", fontWeight: 600 }}>{ativo ? "● Ativo" : "○ Pausado"}</span>
+                                          <div
+                                            onClick={() => {
+                                              if (ativo) {
+                                                setToggleConfirm({ campo: toggleKey as string, novoValor: false, label });
+                                              } else {
+                                                sb.from("configuracoes").upsert({ user_id: userId, ["fluxo_" + toggleKey + "_ativa"]: true }, { onConflict: "user_id" });
+                                                setFluxoToggles(p => ({ ...p, [toggleKey]: true }));
+                                              }
+                                            }}
+                                            style={{ width: 30, height: 17, borderRadius: 9, background: ativo ? "var(--q3)" : "var(--dk5)", position: "relative", transition: "background .2s", cursor: "pointer", flexShrink: 0 }}>
+                                            <div style={{ width: 11, height: 11, background: "#fff", borderRadius: "50%", position: "absolute", top: 3, left: ativo ? 16 : 3, transition: "left .2s" }} />
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <span style={{ fontSize: 9, color: ativo ? "var(--q3)" : "var(--tx3)", fontWeight: 600 }}>{ativo ? "● Ativo" : "○ Pausado"}</span>
+                                      )}
                                     </div>
                                     <div style={{ fontSize: 10, color: "var(--tx3)", marginBottom: 4 }}>{gatilho}</div>
                                     <div style={{ fontSize: 10, color: "var(--tx3)", fontStyle: "italic", background: "var(--dk4)", borderRadius: 4, padding: "6px 8px", lineHeight: 1.6 }}>{preview}</div>
@@ -7178,35 +7095,35 @@ export default function CRM() {
                                 );
                                 const sid = stage.id;
                                 const boasVindasCards = (<>
-                                  <CardSistema ativo={fluxoToggles.boas_vindas_email} label="E-mail de boas-vindas ao cliente" gatilho="Imediato — ao entrar no sistema (Aura Chat ou cadastro manual)" preview={"Assunto: Recebemos sua mensagem, {nome}!\n\nOlá, {nome}! Que alegria receber sua ideia aqui na Casa dos Carvalho. Já registramos tudo com cuidado — em até 24h, alguém da nossa equipe vai te ligar pessoalmente. Sem formulário, sem robô — conversa de gente pra gente.\n\n+ Resumo dos dados registrados (nome, telefone, ideia, região, artista...)"} />
-                                  <CardSistema ativo={fluxoToggles.notificacao_artista} label="E-mail de alerta interno ao artista" gatilho="Imediato — notifica o profissional responsável" preview={"Assunto: Novo lead — {nome}\n\nUm novo cliente entrou em contato solicitando atendimento com você.\n\nNome: {nome} · Tel: {tel} · Ideia: {estilo} · Região: {regiao}\n\nAcesse o sistema para dar andamento."} />
+                                  <CardSistema ativo={fluxoToggles.boas_vindas_email} toggleKey="boas_vindas_email" label="E-mail de boas-vindas ao cliente" gatilho="Imediato — ao entrar no sistema (Aura Chat ou cadastro manual)" preview={"Assunto: Recebemos sua mensagem, {nome}!\n\nOlá, {nome}! Que alegria receber sua ideia aqui na Casa dos Carvalho. Já registramos tudo com cuidado — em até 24h, alguém da nossa equipe vai te ligar pessoalmente. Sem formulário, sem robô — conversa de gente pra gente.\n\n+ Resumo dos dados registrados (nome, telefone, ideia, região, artista...)"} />
+                                  <CardSistema ativo={fluxoToggles.notificacao_artista} toggleKey="notificacao_artista" label="E-mail de alerta interno ao artista" gatilho="Imediato — notifica o profissional responsável" preview={"Assunto: Novo lead — {nome}\n\nUm novo cliente entrou em contato solicitando atendimento com você.\n\nNome: {nome} · Tel: {tel} · Ideia: {estilo} · Região: {regiao}\n\nAcesse o sistema para dar andamento."} />
                                 </>);
                                 if (sid === "lead") return boasVindasCards;
                                 if (sid === "lead_morno") return boasVindasCards;
                                 if (sid === "aura_agend") return boasVindasCards;
                                 if (sid === "cons_agendada") return (<>
-                                  <CardSistema label="E-mail de confirmação de consulta" gatilho="Imediato — ao agendar a consulta" preview={"Assunto: Sua consulta está agendada, {nome} ✦\n\nOlá, {nome}! Que bom ter você aqui. Sua consulta na Casa dos Carvalho foi agendada com sucesso — esse é o primeiro passo do seu projeto de tatuagem.\n\n📅 Data · 🕐 Horário · ✦ Profissional · 📍 Local\n\nNa consulta vamos: entender sua ideia, definir estilo/tamanho/posicionamento, tirar dúvidas e apresentar orçamento personalizado."} />
-                                  <CardSistema ativo={fluxoToggles.confirmacao_presenca} label="Lembrete D-1 de consulta" gatilho="Um dia antes — evento na agenda amanhã" preview={"Assunto: Sua consulta é amanhã — {estudio}\n\nOlá, {nome}! Sua consulta está marcada para amanhã.\n\nEstamos ansiosos para conhecer a sua ideia — mal podemos esperar!\n\nConfirme sua presença aqui: [link]\n\nLembrete carinhoso: faltas sem aviso podem resultar em restrições futuras de agendamento."} />
-                                  <CardSistema label="SMS no dia da consulta — cliente e artista" gatilho="No dia — manhã cedo (cliente + artista vinculado)" preview={"Cliente: Olá, {nome}! Hoje é o dia da sua consulta na Casa dos Carvalho. Estamos ansiosos para ouvir a sua ideia e apresentar o projeto da sua nova arte que será eternizada na sua pele. Te esperamos às {hora} em: Rua Aristides Navarro 165, Centro de Vitória - ES. Até logo! — {estudio}\n\nArtista: INK SYSTEM: Você tem uma consulta hoje com {nome} às {hora}. Projeto solicitado: {solicitacao}. Confira sua agenda e prepare-se."} />
+                                  <CardSistema ativo={fluxoToggles.confirma_consulta} toggleKey="confirma_consulta" label="E-mail de confirmação de consulta" gatilho="Imediato — ao agendar a consulta" preview={"Assunto: Sua consulta está agendada, {nome} ✦\n\nOlá, {nome}! Que bom ter você aqui. Sua consulta na Casa dos Carvalho foi agendada com sucesso — esse é o primeiro passo do seu projeto de tatuagem.\n\n📅 Data · 🕐 Horário · ✦ Profissional · 📍 Local\n\nNa consulta vamos: entender sua ideia, definir estilo/tamanho/posicionamento, tirar dúvidas e apresentar orçamento personalizado."} />
+                                  <CardSistema ativo={fluxoToggles.confirmacao_presenca} toggleKey="confirmacao_presenca" label="Lembrete D-1 de consulta" gatilho="Um dia antes — evento na agenda amanhã" preview={"Assunto: Sua consulta é amanhã — {estudio}\n\nOlá, {nome}! Sua consulta está marcada para amanhã.\n\nEstamos ansiosos para conhecer a sua ideia — mal podemos esperar!\n\nConfirme sua presença aqui: [link]\n\nLembrete carinhoso: faltas sem aviso podem resultar em restrições futuras de agendamento."} />
+                                  <CardSistema ativo={fluxoToggles.sms_consulta} toggleKey="sms_consulta" label="SMS no dia da consulta — cliente e artista" gatilho="No dia — manhã cedo (cliente + artista vinculado)" preview={"Cliente: Olá, {nome}! Hoje é o dia da sua consulta na Casa dos Carvalho. Estamos ansiosos para ouvir a sua ideia e apresentar o projeto da sua nova arte que será eternizada na sua pele. Te esperamos às {hora} em: Rua Aristides Navarro 165, Centro de Vitória - ES. Até logo! — {estudio}\n\nArtista: INK SYSTEM: Você tem uma consulta hoje com {nome} às {hora}. Projeto solicitado: {solicitacao}. Confira sua agenda e prepare-se."} />
                                 </>);
                                 if (sid === "sessao_agend") return (<>
-                                  <CardSistema label="E-mail de confirmação de sessão" gatilho="Imediato — ao agendar a sessão" preview={"Assunto: Sua sessão está confirmada, {nome} ✦\n\nOlá, {nome}! Sua sessão na Casa dos Carvalho está marcada e a gente já está animado com o que vem por aí.\n\n📅 Data · 🕐 Horário · ✦ Profissional · 📍 Local\n\nAntes da sua sessão: alimente-se bem, evite álcool 24h antes, durma bem, hidrate a pele da região."} />
-                                  <CardSistema ativo={fluxoToggles.confirmacao_presenca} label="Lembrete D-1 de sessão" gatilho="Um dia antes — evento na agenda amanhã" preview={"Assunto: Sua sessão é amanhã — {estudio}\n\nOlá, {nome}! A arte está pronta, o artista está animado — mal podemos esperar para tatuar você!\n\nConfirme sua presença: [link]\n\nLembrete carinhoso: faltas sem aviso são registradas e podem resultar em restrições futuras."} />
-                                  <CardSistema label="SMS no dia da sessão — cliente e artista" gatilho="No dia — manhã cedo (cliente + artista vinculado)" preview={"Cliente: Olá, {nome}! Hoje é o dia da sua sessão de tatuagem na Casa dos Carvalho. A arte está pronta e o artista está animado para tatuar você! Te esperamos às {hora} em: Rua Aristides Navarro 165, Centro de Vitória - ES. Pontualidade é muito importante para nós. Até logo! — {estudio}\n\nArtista: INK SYSTEM: Você tem uma sessão de tatuagem hoje com {nome} às {hora}. Projeto solicitado: {solicitacao}. Prepare tudo para a arte de hoje."} />
+                                  <CardSistema ativo={fluxoToggles.confirma_sessao} toggleKey="confirma_sessao" label="E-mail de confirmação de sessão" gatilho="Imediato — ao agendar a sessão" preview={"Assunto: Sua sessão está confirmada, {nome} ✦\n\nOlá, {nome}! Sua sessão na Casa dos Carvalho está marcada e a gente já está animado com o que vem por aí.\n\n📅 Data · 🕐 Horário · ✦ Profissional · 📍 Local\n\nAntes da sua sessão: alimente-se bem, evite álcool 24h antes, durma bem, hidrate a pele da região."} />
+                                  <CardSistema ativo={fluxoToggles.confirmacao_presenca} toggleKey="confirmacao_presenca" label="Lembrete D-1 de sessão" gatilho="Um dia antes — evento na agenda amanhã" preview={"Assunto: Sua sessão é amanhã — {estudio}\n\nOlá, {nome}! A arte está pronta, o artista está animado — mal podemos esperar para tatuar você!\n\nConfirme sua presença: [link]\n\nLembrete carinhoso: faltas sem aviso são registradas e podem resultar em restrições futuras."} />
+                                  <CardSistema ativo={fluxoToggles.sms_sessao} toggleKey="sms_sessao" label="SMS no dia da sessão — cliente e artista" gatilho="No dia — manhã cedo (cliente + artista vinculado)" preview={"Cliente: Olá, {nome}! Hoje é o dia da sua sessão de tatuagem na Casa dos Carvalho. A arte está pronta e o artista está animado para tatuar você! Te esperamos às {hora} em: Rua Aristides Navarro 165, Centro de Vitória - ES. Pontualidade é muito importante para nós. Até logo! — {estudio}\n\nArtista: INK SYSTEM: Você tem uma sessão de tatuagem hoje com {nome} às {hora}. Projeto solicitado: {solicitacao}. Prepare tudo para a arte de hoje."} />
                                 </>);
                                 if (sid === "pos_venda" || sid === "tatuado") return (<>
-                                  <CardSistema ativo={fluxoToggles.nps} label="Avaliação NPS pós-sessão" gatilho="D+1 — após entrada no Pós-venda" preview={"Assunto: Como foi sua sessão, {nome}?\n\nFoi uma alegria ter você no estúdio. Como você avalia sua experiência? [escala 0–10]\n\nNota e comentário salvos na ficha automaticamente."} />
-                                  <CardSistema ativo={fluxoToggles.google_convite} label="Convite ao Google" gatilho="D+2 — após avaliação positiva (nota ≥ 7)" preview={"Assunto: Uma última coisa, {nome} — leva 1 minuto\n\nSua opinião no Google faz uma diferença enorme para nós. Clique para avaliar — o seu comentário já aparece pré-preenchido."} />
+                                  <CardSistema ativo={fluxoToggles.nps} toggleKey="nps" label="Avaliação NPS pós-sessão" gatilho="D+1 — após entrada no Pós-venda" preview={"Assunto: Como foi sua sessão, {nome}?\n\nFoi uma alegria ter você no estúdio. Como você avalia sua experiência? [escala 0–10]\n\nNota e comentário salvos na ficha automaticamente."} />
+                                  <CardSistema ativo={fluxoToggles.google_convite} toggleKey="google_convite" label="Convite ao Google" gatilho="D+2 — após avaliação positiva (nota ≥ 7)" preview={"Assunto: Uma última coisa, {nome} — leva 1 minuto\n\nSua opinião no Google faz uma diferença enorme para nós. Clique para avaliar — o seu comentário já aparece pré-preenchido."} />
                                 </>);
                                 if (sid === "aguard_prox_sessao") return (
-                                  <CardSistema label="E-mail de recontato + link WhatsApp" gatilho="D+60 — sem nova solicitação. Move para Hibernação em D+90 se não houver retorno" preview={"Assunto: A próxima ideia já nasceu, {nome}?\n\nOlá, {nome}! Faz um tempo desde a sua última sessão. Esperamos que sua arte esteja linda e bem cicatrizada.\n\nSabemos que uma boa ideia não tem pressa para nascer. Mas quando ela chegar, queremos ser os primeiros a saber.\n\n[ Tenho uma nova ideia ] → abre WhatsApp\n\nRespeitoso abraço, {estudio}"} />
+                                  <CardSistema ativo={fluxoToggles.recontato_prox_sessao} toggleKey="recontato_prox_sessao" label="E-mail de recontato + link WhatsApp" gatilho="D+60 — sem nova solicitação. Move para Hibernação em D+90 se não houver retorno" preview={"Assunto: A próxima ideia já nasceu, {nome}?\n\nOlá, {nome}! Faz um tempo desde a sua última sessão. Esperamos que sua arte esteja linda e bem cicatrizada.\n\nSabemos que uma boa ideia não tem pressa para nascer. Mas quando ela chegar, queremos ser os primeiros a saber.\n\n[ Tenho uma nova ideia ] → abre WhatsApp\n\nRespeitoso abraço, {estudio}"} />
                                 );
                                 if (sid === "precisa_remarcar") return (
-                                  <CardSistema label="E-mail de remarcação com link WhatsApp" gatilho="Imediato — ao entrar em Precisa Remarcar" preview={"Assunto: Sua vaga foi liberada, {nome}\n\nSua sessão foi desmarcada e o horário já foi disponibilizado para outros clientes.\n\nTrabalhamos com agenda limitada por uma razão: cada projeto merece atenção total. Quando um horário é agendado, a nossa atenção é plena para você — não terá a surpresa de ter o seu artista dividindo atenção com outros clientes.\n\nAssim que estiver pronto(a) para retomar, guardamos seu projeto com cuidado. Ele é seu.\n\n[ Remarcar pelo WhatsApp ]\n\nCasa dos Carvalho Tattoo"} />
+                                  <CardSistema ativo={fluxoToggles.remarcar} toggleKey="remarcar" label="E-mail de remarcação com link WhatsApp" gatilho="Imediato — ao entrar em Precisa Remarcar" preview={"Assunto: Sua vaga foi liberada, {nome}\n\nSua sessão foi desmarcada e o horário já foi disponibilizado para outros clientes.\n\nTrabalhamos com agenda limitada por uma razão: cada projeto merece atenção total. Quando um horário é agendado, a nossa atenção é plena para você — não terá a surpresa de ter o seu artista dividindo atenção com outros clientes.\n\nAssim que estiver pronto(a) para retomar, guardamos seu projeto com cuidado. Ele é seu.\n\n[ Remarcar pelo WhatsApp ]\n\nCasa dos Carvalho Tattoo"} />
                                 );
                                 if (sid === "aguard_1a_sessao") return (<>
-                                  <CardSistema label="E-mail de agradecimento pela consulta" gatilho="Imediato — ao entrar em Aguardando 1ª Sessão" preview={"Assunto: Obrigado pela sua visita, {nome}\n\nOlá, {nome}! Queremos te agradecer por ter vindo até a gente. Sua pontualidade e compromisso dizem muito sobre quem você é.\n\nSeu projeto está registrado com carinho. Daqui a 30 dias vamos entrar em contato para saber se já chegou a sua hora!\n\nRespeitoso abraço, {estudio}"} />
-                                  <CardSistema label="E-mail de recontato D+30 — Sim / Não" gatilho="30 dias após entrar na etapa — repete a cada 30 dias enquanto clicar Não" preview={"Assunto: Já chegou a sua hora, {nome}?\n\nFaz 30 dias desde a sua consulta. Seu projeto continua guardado com o mesmo cuidado de sempre.\n\n{artista} criou algo pensado exclusivamente para você.\n\n[ Sim, quero agendar! ] → abre WhatsApp\n[ Ainda não ] → recontato em mais 30 dias"} />
+                                  <CardSistema ativo={fluxoToggles.agradecimento_1asessao} toggleKey="agradecimento_1asessao" label="E-mail de agradecimento pela consulta" gatilho="Imediato — ao entrar em Aguardando 1ª Sessão" preview={"Assunto: Obrigado pela sua visita, {nome}\n\nOlá, {nome}! Queremos te agradecer por ter vindo até a gente. Sua pontualidade e compromisso dizem muito sobre quem você é.\n\nSeu projeto está registrado com carinho. Daqui a 30 dias vamos entrar em contato para saber se já chegou a sua hora!\n\nRespeitoso abraço, {estudio}"} />
+                                  <CardSistema ativo={fluxoToggles.recontato_d30} toggleKey="recontato_d30" label="E-mail de recontato D+30 — Sim / Não" gatilho="30 dias após entrar na etapa — repete a cada 30 dias enquanto clicar Não" preview={"Assunto: Já chegou a sua hora, {nome}?\n\nFaz 30 dias desde a sua consulta. Seu projeto continua guardado com o mesmo cuidado de sempre.\n\n{artista} criou algo pensado exclusivamente para você.\n\n[ Sim, quero agendar! ] → abre WhatsApp\n[ Ainda não ] → recontato em mais 30 dias"} />
                                 </>);
                                 if (sid === "reengajamento") return (
                                   <CardSistema label="Reativação de clientes" gatilho="A cada 180 dias — cliente em Reengajamento" preview={"Olá, {nome}! Espero que sua arte esteja linda e bem cuidada. Se a próxima ideia já está nascendo, você sabe onde nos encontrar."} />
