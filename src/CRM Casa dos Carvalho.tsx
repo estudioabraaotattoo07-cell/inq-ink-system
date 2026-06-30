@@ -1263,6 +1263,8 @@ export default function CRM() {
   const [confirmAgForm, setConfirmAgForm] = useState(false);
   const [confirmPresenca, setConfirmPresenca] = useState<{event: any} | null>(null);
   const [consultaCumpridaExpanded, setConsultaCumpridaExpanded] = useState(false);
+  const [naoCompExpanded, setNaoCompExpanded] = useState(false);
+  const [naoCompMotivo, setNaoCompMotivo] = useState("");
   const [presencaMotivo, setPresencaMotivo] = useState("");
   const [confirmTrocarProfissional, setConfirmTrocarProfissional] = useState<{clienteId: any; novoArtista: string; antigoArtista: string} | null>(null);
   const [nascDraft, setNascDraft] = useState<{dia: string; mes: string; ano: string}>({ dia: "", mes: "", ano: "" });
@@ -2302,6 +2304,45 @@ export default function CRM() {
       const audit = msg + " — " + new Date().toLocaleDateString("pt-BR") + " — por " + artista;
       return { ...c, faltas: novasFaltas, etapa: novoEtapa, hist: [...c.hist, { t: audit, d: new Date().toLocaleString("pt-BR") }] };
     }));
+  };
+
+  const executarNaoCompareceu = async (ev: any, motivo: string, opcao: "remarcar" | "falta") => {
+    await sb.from("agenda").update({ status: "cancelado" }).eq("id", ev.id);
+    setAgEvents(p => p.map(x => x.id === ev.id ? { ...x, status: "cancelado" } : x));
+    const cliAtual = clients.find(c => c.id === ev.cliente_id);
+    const arNome = artists.find(a => ev.tipo?.includes(a.id))?.nome || auraName || "Equipe";
+    if (opcao === "remarcar") {
+      const histExtra = [
+        { t: "⊘ Não compareceu — Precisa Remarcar: " + (ev.date||"").split("-").reverse().join("/"), d: new Date().toLocaleString("pt-BR") },
+        ...(motivo.trim() ? [{ t: "Motivo: " + motivo, d: new Date().toLocaleString("pt-BR") }] : [])
+      ];
+      const novoHist = [...(cliAtual?.hist || []), ...histExtra];
+      if (cliAtual) {
+        setClients(p => p.map(c => c.id !== ev.cliente_id ? c : { ...c, hist: novoHist }));
+        await sb.from("clientes").update({ hist: novoHist }).eq("id", ev.cliente_id);
+      }
+      executarMove(ev.cliente_id, "precisa_remarcar");
+      addLog(`Agenda: não compareceu (vai remarcar) — "${ev.title}"` + (motivo ? ` — ${motivo}` : ""));
+    } else {
+      const novasFaltas = (cliAtual?.faltas || 0) + 1;
+      const novoEtapa = novasFaltas >= 3 ? "blacklist" : cliAtual?.etapa || "";
+      const msg = novasFaltas === 1
+        ? "1ª falta registrada — taxa R$100 notificada."
+        : novasFaltas === 2 ? "2ª falta — cobrar 30% do orçamento."
+        : "3ª falta — cliente movido para Blacklist.";
+      const audit = msg + " — " + new Date().toLocaleDateString("pt-BR") + " — por " + arNome;
+      const histExtra = [
+        { t: audit, d: new Date().toLocaleString("pt-BR") },
+        ...(motivo.trim() ? [{ t: "Motivo: " + motivo, d: new Date().toLocaleString("pt-BR") }] : [])
+      ];
+      const novoHist = [...(cliAtual?.hist || []), ...histExtra];
+      if (cliAtual) {
+        setClients(p => p.map(c => c.id !== ev.cliente_id ? c : { ...c, faltas: novasFaltas, etapa: novoEtapa, hist: novoHist }));
+        await sb.from("clientes").update({ faltas: novasFaltas, etapa: novoEtapa, hist: novoHist }).eq("id", ev.cliente_id);
+        setTimeout(() => setShowAviso(msg), 300);
+      }
+      addLog(`Agenda: falta registrada — "${ev.title}"` + (motivo ? ` — ${motivo}` : ""));
+    }
   };
 
   const removerFalta = (cid: number, artista: string) => {
@@ -9352,6 +9393,20 @@ export default function CRM() {
                       </div>
                     );
                   })()}
+                  {(sc.faltas || 0) > 0 && (
+                    <div className="fi2" style={{ marginTop: 7 }}>
+                      <div className="fil">Faltas registradas</div>
+                      <div style={{
+                        marginTop: 5, display: "inline-flex", alignItems: "center", gap: 6,
+                        padding: "5px 12px", borderRadius: 6, fontSize: 13, fontWeight: 700,
+                        background: (sc.faltas||0) >= 3 ? "rgba(192,57,43,.15)" : (sc.faltas||0) === 2 ? "rgba(230,126,34,.12)" : "rgba(201,168,76,.1)",
+                        border: "1px solid " + ((sc.faltas||0) >= 3 ? "rgba(192,57,43,.4)" : (sc.faltas||0) === 2 ? "rgba(230,126,34,.35)" : "rgba(201,168,76,.35)"),
+                        color: (sc.faltas||0) >= 3 ? "var(--q1)" : (sc.faltas||0) === 2 ? "#E67E22" : "var(--gold)"
+                      }}>
+                        ⊘ {sc.faltas} {sc.faltas === 1 ? "falta" : "faltas"}
+                      </div>
+                    </div>
+                  )}
                   <div className="fi2" style={{ marginTop: 7 }}>
                     <div className="fil">Observações Internas</div>
                     <textarea value={sc.obs} onChange={e => upCLocal(sc.id, "obs", e.target.value)}
@@ -10106,10 +10161,42 @@ export default function CRM() {
                         </div>
                       );
                     })()}
-                    <button className="btn-c" style={{ color: "#E67E22", borderColor: "rgba(230,126,34,.3)" }}
-                      onClick={() => setConfirmCancelarEvento({ event: editingEvent, motivo: "" })}>
-                      ⊘ Cliente Desmarcou
-                    </button>
+                    {!naoCompExpanded ? (
+                      <button className="btn-c" style={{ color: "var(--q1)", borderColor: "rgba(192,57,43,.3)" }}
+                        onClick={() => { setNaoCompExpanded(true); setNaoCompMotivo(""); }}>
+                        ⊘ Não Compareceu
+                      </button>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, background: "var(--dk3)", border: "1px solid rgba(192,57,43,.25)", borderRadius: 8, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>O que aconteceu?</div>
+                        <textarea
+                          placeholder="Motivo / observação (opcional)"
+                          value={naoCompMotivo}
+                          onChange={e => setNaoCompMotivo(e.target.value)}
+                          style={{ background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", resize: "vertical", minHeight: 54, outline: "none" }}
+                        />
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={async () => {
+                            await executarNaoCompareceu(editingEvent, naoCompMotivo, "remarcar");
+                            setNaoCompExpanded(false); setNaoCompMotivo("");
+                            setShowAgForm(false); setEditingEvent(null); setAgClientVinc(null);
+                          }} style={{ flex: 1, background: "var(--dk4)", border: "1px solid rgba(243,156,18,.35)", borderRadius: 7, padding: "9px", fontSize: 12, fontWeight: 700, color: "#F39C12", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                            📅 Precisa Remarcar
+                          </button>
+                          <button onClick={async () => {
+                            await executarNaoCompareceu(editingEvent, naoCompMotivo, "falta");
+                            setNaoCompExpanded(false); setNaoCompMotivo("");
+                            setShowAgForm(false); setEditingEvent(null); setAgClientVinc(null);
+                          }} style={{ flex: 1, background: "var(--dk4)", border: "1px solid rgba(192,57,43,.35)", borderRadius: 7, padding: "9px", fontSize: 12, fontWeight: 700, color: "var(--q1)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                            ⊘ Registrar Falta
+                          </button>
+                        </div>
+                        <button onClick={() => { setNaoCompExpanded(false); setNaoCompMotivo(""); }}
+                          style={{ background: "none", border: "none", fontSize: 11, color: "var(--tx3)", cursor: "pointer", alignSelf: "flex-start", padding: 0, fontFamily: "'DM Sans',sans-serif" }}>
+                          ← voltar
+                        </button>
+                      </div>
+                    )}
                     <button className="btn-c" style={{ color: "#9B59B6", borderColor: "rgba(155,89,182,.3)" }}
                       onClick={() => setConfirmCancelarEvento({ event: editingEvent, motivo: "", quem: "profissional" } as any)}>
                       ⊘ Profissional Desmarcou
@@ -10472,53 +10559,45 @@ export default function CRM() {
                         Sim, compareceu
                       </button>
                     )}
-                    <button onClick={() => setPresencaMotivo("abrirMotivos")} style={{ flex: 1, background: "rgba(192,57,43,.12)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 7, padding: "10px", fontSize: 13, fontWeight: 700, color: "var(--q1)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                      Nao compareceu
-                    </button>
+                    {!naoCompExpanded ? (
+                      <button onClick={() => { setNaoCompExpanded(true); setNaoCompMotivo(""); }}
+                        style={{ flex: 1, background: "rgba(192,57,43,.12)", border: "1px solid rgba(192,57,43,.3)", borderRadius: 7, padding: "10px", fontSize: 13, fontWeight: 700, color: "var(--q1)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                        ⊘ Não Compareceu
+                      </button>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%", background: "var(--dk3)", border: "1px solid rgba(192,57,43,.25)", borderRadius: 8, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 11, color: "var(--tx3)", fontWeight: 600 }}>O que aconteceu?</div>
+                        <textarea
+                          placeholder="Motivo / observação (opcional)"
+                          value={naoCompMotivo}
+                          onChange={e => setNaoCompMotivo(e.target.value)}
+                          style={{ background: "var(--dk4)", border: "1px solid var(--br)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--tx)", fontFamily: "'DM Sans',sans-serif", resize: "vertical", minHeight: 54, outline: "none" }}
+                        />
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={async () => {
+                            await executarNaoCompareceu(confirmPresenca.event, naoCompMotivo, "remarcar");
+                            setNaoCompExpanded(false); setNaoCompMotivo("");
+                            setConfirmPresenca(null); setPresencaMotivo("");
+                          }} style={{ flex: 1, background: "var(--dk4)", border: "1px solid rgba(243,156,18,.35)", borderRadius: 7, padding: "9px", fontSize: 12, fontWeight: 700, color: "#F39C12", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                            📅 Precisa Remarcar
+                          </button>
+                          <button onClick={async () => {
+                            await executarNaoCompareceu(confirmPresenca.event, naoCompMotivo, "falta");
+                            setNaoCompExpanded(false); setNaoCompMotivo("");
+                            setConfirmPresenca(null); setPresencaMotivo("");
+                          }} style={{ flex: 1, background: "var(--dk4)", border: "1px solid rgba(192,57,43,.35)", borderRadius: 7, padding: "9px", fontSize: 12, fontWeight: 700, color: "var(--q1)", cursor: "pointer", fontFamily: "'DM Sans',sans-serif" }}>
+                            ⊘ Registrar Falta
+                          </button>
+                        </div>
+                        <button onClick={() => { setNaoCompExpanded(false); setNaoCompMotivo(""); }}
+                          style={{ background: "none", border: "none", fontSize: 11, color: "var(--tx3)", cursor: "pointer", alignSelf: "flex-start", padding: 0, fontFamily: "'DM Sans',sans-serif" }}>
+                          ← voltar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
-              {presencaMotivo === "abrirMotivos" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ fontSize: 11, color: "var(--tx3)", textTransform: "uppercase", letterSpacing: ".06em" }}>Motivo da falta</div>
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    {["Faltou sem aviso", "Compromisso familiar", "Problema de saude", "Questao financeira", "Outro"].map(m => (
-                      <button key={m} onClick={() => setPresencaMotivo(m)}
-                        style={{ padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "'DM Sans',sans-serif",
-                          background: presencaMotivo === m ? "rgba(192,57,43,.2)" : "var(--dk3)",
-                          border: presencaMotivo === m ? "1px solid var(--q1)" : "1px solid var(--br)",
-                          color: presencaMotivo === m ? "var(--q1)" : "var(--tx2)" }}>
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                  <button disabled={presencaMotivo === "abrirMotivos"}
-                    onClick={async () => {
-                      const ev = confirmPresenca.event;
-                      await sb.from("agenda").update({ status: "cancelado" }).eq("id", ev.id);
-                      setAgEvents(p => p.map(x => x.id === ev.id ? { ...x, status: "cancelado" } : x));
-                      const cliPres = ev.cliente_id ? clients.find(c => c.id === ev.cliente_id) : null;
-                      if (cliPres) {
-                        const novasFaltas = (cliPres.faltas || 0) + 1;
-                        const novoEtapa = novasFaltas >= 3 ? "blacklist" : cliPres.etapa;
-                        const updated = { ...cliPres, faltas: novasFaltas, etapa: novoEtapa,
-                          hist: [...cliPres.hist,
-                            { t: "Falta registrada: " + (ev.date || "").split("-").reverse().join("/") + " as " + ev.start + "h", d: new Date().toLocaleString("pt-BR") },
-                            { t: "Motivo: " + presencaMotivo, d: new Date().toLocaleString("pt-BR") }
-                          ]};
-                        setClients(p => p.map(c => c.id !== cliPres.id ? c : updated));
-                        setTimeout(() => saveClientDb(updated), 100);
-                        const msg = novasFaltas === 1 ? "1a falta registrada — taxa R$100 notificada." : novasFaltas === 2 ? "2a falta — cobrar 30% do orcamento." : "3a falta — cliente movido para Blacklist.";
-                        setTimeout(() => setShowAviso(msg), 300);
-                      }
-                      addLog("Agenda: falta registrada — " + ev.title + " — " + presencaMotivo);
-                      setConfirmPresenca(null); setPresencaMotivo("");
-                    }}
-                    style={{ background: presencaMotivo === "abrirMotivos" ? "var(--dk4)" : "rgba(192,57,43,.8)", color: "#fff", border: "none", borderRadius: 7, padding: "9px", fontSize: 12, fontWeight: 700, cursor: presencaMotivo === "abrirMotivos" ? "not-allowed" : "pointer", fontFamily: "'DM Sans',sans-serif" }}>
-                    Confirmar Falta
-                  </button>
-                </div>
-              )}
               <button className="btn-c" style={{ alignSelf: "flex-start" }} onClick={() => { setConfirmPresenca(null); setPresencaMotivo(""); }}>Cancelar</button>
             </div>
           </div>
