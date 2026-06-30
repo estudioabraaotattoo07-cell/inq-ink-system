@@ -4733,7 +4733,7 @@ export default function CRM() {
                             <div className="tdd">{c.insta || <span style={{ color: "var(--q2)" }}>⚠ Instagram</span>}</div>
                           </td>
                           <td>
-                            <div style={{ fontSize: 12 }}>{c.tel}</div>
+                            <div style={{ fontSize: 12 }}>{maskTel(c.tel || "")}</div>
                             <div className="tdd">{c.email || <span style={{ color: "var(--q2)" }}>⚠ Email</span>}</div>
                           </td>
                           <td>
