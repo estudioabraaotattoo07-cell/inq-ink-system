@@ -178,6 +178,11 @@ body{background:var(--dk);color:var(--tx);font-family:'DM Sans',sans-serif;}
   .mn{font-size:18px!important;}
   .tab{padding:9px 7px!important;font-size:10px!important;}
   .topbar{padding:0 12px!important;}
+  .wg{min-width:0!important;grid-template-columns:26px repeat(7,1fr)!important;}
+  .wt{font-size:7px!important;padding:1px 2px!important;}
+  .wh{font-size:9px!important;padding:4px 1px!important;}
+  .we{font-size:8px!important;padding:2px 3px!important;}
+  .dtime{width:34px!important;font-size:8px!important;padding:6px 2px!important;}
 }
 .topbar{background:var(--dk2);border-bottom:1px solid var(--br);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
 .bmark{width:30px;height:30px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:14px;font-weight:700;color:#000;}
