@@ -7122,7 +7122,7 @@ export default function CRM() {
                       const sid = stage.id;
                       const sistemaCounts: Record<string, number> = {
                         lead: 2, lead_morno: 2, aura_agend: 2,
-                        cons_agendada: 2, sessao_agend: 2,
+                        cons_agendada: 3, sessao_agend: 3,
                         pos_venda: 2, tatuado: 2,
                         reengajamento: 1,
                       };
@@ -7174,10 +7174,12 @@ export default function CRM() {
                                 if (sid === "cons_agendada") return (<>
                                   <CardSistema label="E-mail de confirmação de consulta" gatilho="Imediato — ao agendar a consulta" preview={"Assunto: Sua consulta está agendada, {nome} ✦\n\nOlá, {nome}! Que bom ter você aqui. Sua consulta na Casa dos Carvalho foi agendada com sucesso — esse é o primeiro passo do seu projeto de tatuagem.\n\n📅 Data · 🕐 Horário · ✦ Profissional · 📍 Local\n\nNa consulta vamos: entender sua ideia, definir estilo/tamanho/posicionamento, tirar dúvidas e apresentar orçamento personalizado."} />
                                   <CardSistema ativo={fluxoToggles.confirmacao_presenca} label="Lembrete D-1 de consulta" gatilho="Um dia antes — evento na agenda amanhã" preview={"Assunto: Sua consulta é amanhã — {estudio}\n\nOlá, {nome}! Sua consulta está marcada para amanhã.\n\nEstamos ansiosos para conhecer a sua ideia — mal podemos esperar!\n\nConfirme sua presença aqui: [link]\n\nLembrete carinhoso: faltas sem aviso podem resultar em restrições futuras de agendamento."} />
+                                  <CardSistema label="SMS no dia da consulta — cliente e artista" gatilho="No dia — manhã cedo (cliente + artista vinculado)" preview={"Cliente: Olá, {nome}! Hoje é o dia da sua consulta na Casa dos Carvalho. Estamos ansiosos para ouvir a sua ideia e apresentar o projeto da sua nova arte que será eternizada na sua pele. Te esperamos às {hora} em: Rua Aristides Navarro 165, Centro de Vitória - ES. Até logo! — {estudio}\n\nArtista: INK SYSTEM: Você tem uma consulta hoje com {nome} às {hora}. Projeto solicitado: {solicitacao}. Confira sua agenda e prepare-se."} />
                                 </>);
                                 if (sid === "sessao_agend") return (<>
                                   <CardSistema label="E-mail de confirmação de sessão" gatilho="Imediato — ao agendar a sessão" preview={"Assunto: Sua sessão está confirmada, {nome} ✦\n\nOlá, {nome}! Sua sessão na Casa dos Carvalho está marcada e a gente já está animado com o que vem por aí.\n\n📅 Data · 🕐 Horário · ✦ Profissional · 📍 Local\n\nAntes da sua sessão: alimente-se bem, evite álcool 24h antes, durma bem, hidrate a pele da região."} />
                                   <CardSistema ativo={fluxoToggles.confirmacao_presenca} label="Lembrete D-1 de sessão" gatilho="Um dia antes — evento na agenda amanhã" preview={"Assunto: Sua sessão é amanhã — {estudio}\n\nOlá, {nome}! A arte está pronta, o artista está animado — mal podemos esperar para tatuar você!\n\nConfirme sua presença: [link]\n\nLembrete carinhoso: faltas sem aviso são registradas e podem resultar em restrições futuras."} />
+                                  <CardSistema label="SMS no dia da sessão — cliente e artista" gatilho="No dia — manhã cedo (cliente + artista vinculado)" preview={"Cliente: Olá, {nome}! Hoje é o dia da sua sessão de tatuagem na Casa dos Carvalho. A arte está pronta e o artista está animado para tatuar você! Te esperamos às {hora} em: Rua Aristides Navarro 165, Centro de Vitória - ES. Pontualidade é muito importante para nós. Até logo! — {estudio}\n\nArtista: INK SYSTEM: Você tem uma sessão de tatuagem hoje com {nome} às {hora}. Projeto solicitado: {solicitacao}. Prepare tudo para a arte de hoje."} />
                                 </>);
                                 if (sid === "pos_venda" || sid === "tatuado") return (<>
                                   <CardSistema ativo={fluxoToggles.nps} label="Avaliação NPS pós-sessão" gatilho="D+1 — após entrada no Pós-venda" preview={"Assunto: Como foi sua sessão, {nome}?\n\nFoi uma alegria ter você no estúdio. Como você avalia sua experiência? [escala 0–10]\n\nNota e comentário salvos na ficha automaticamente."} />

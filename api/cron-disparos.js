@@ -229,7 +229,7 @@ export default async function handler(req, res) {
       try {
         const { data: cliData } = await sb
           .from("clientes")
-          .select("id, nome, email, tel, etapa, etapa_desde, sessao_concluida_em, disparos_enviados, hist, followups, confirmacao_token, confirmacao_token_exp, confirmacao_evento_id, confirmacao_presenca, artista, avaliacao_fluxo_status, avaliacao_token, avaliacao_token_exp, google_convite_em")
+          .select("id, nome, email, tel, etapa, etapa_desde, sessao_concluida_em, disparos_enviados, hist, followups, confirmacao_token, confirmacao_token_exp, confirmacao_evento_id, confirmacao_presenca, artista, solicitacao, avaliacao_fluxo_status, avaliacao_token, avaliacao_token_exp, google_convite_em")
           .eq("user_id", userId)
           .is("excluido_em", null);
         if (cliData) clientes = cliData;
@@ -369,6 +369,74 @@ export default async function handler(req, res) {
               totalDisparos++;
             }
           }
+        }
+
+        // ── SMS D-0 (dia da sessão ou consulta — cliente + artista) ────────────
+        if (cfg.zenvia_api_key && cfg.zenvia_numero && (cliente.etapa === "sessao_agend" || cliente.etapa === "cons_agendada")) {
+          const ehConsulta = cliente.etapa === "cons_agendada";
+          try {
+            const hojeUtc = new Date();
+            const hojeBRT = new Date(hojeUtc.getTime() - 3 * 60 * 60 * 1000);
+            const hojeStr = hojeBRT.toISOString().split("T")[0];
+
+            const { data: evHoje } = await sb
+              .from("agenda")
+              .select("id, date, hora")
+              .eq("cliente_id", cliente.id)
+              .neq("status", "concluido")
+              .eq("date", hojeStr)
+              .limit(1)
+              .single();
+
+            if (evHoje) {
+              const dedupKey = "__sms_d0__" + evHoje.id;
+              const jaEnviouD0 = disparosEnviados && disparosEnviados[dedupKey];
+
+              if (!jaEnviouD0) {
+                const horaEv = evHoje.hora || "";
+                const enderecoStudio = "Rua Aristides Navarro 165, Centro de Vitoria - ES";
+                const solicitacao = cliente.solicitacao || "";
+                let enviouD0 = false;
+
+                // SMS para o cliente
+                if (cliente.tel) {
+                  const telCliente = (cliente.tel || "").replace(/[^0-9]/g, "");
+                  const msgCliente = ehConsulta
+                    ? `Ola, ${cliente.nome}! Hoje e o dia da sua consulta na Casa dos Carvalho. Estamos ansiosos para ouvir a sua ideia e apresentar o projeto da sua nova arte que sera eternizada na sua pele. Te esperamos as ${horaEv} em: ${enderecoStudio}. Ate logo! - ${studioName}`
+                    : `Ola, ${cliente.nome}! Hoje e o dia da sua sessao de tatuagem na Casa dos Carvalho. A arte esta pronta e o artista esta animado para tatuar voce! Te esperamos as ${horaEv} em: ${enderecoStudio}. Pontualidade e muito importante para nos. Ate logo! - ${studioName}`;
+                  const okCliente = await dispararZenvia({ apiKey: cfg.zenvia_api_key, from: cfg.zenvia_numero, to: telCliente, text: msgCliente, canal: "sms" });
+                  if (okCliente) enviouD0 = true;
+                }
+
+                // SMS para o artista (busca tel na lista de artistas do studio)
+                if (cliente.artista) {
+                  try {
+                    const { data: artData } = await sb.from("configuracoes").select("artistas").eq("user_id", userId).single();
+                    const artistas = typeof artData?.artistas === "string" ? JSON.parse(artData.artistas) : (artData?.artistas || []);
+                    const art = artistas.find(a => a.id === cliente.artista);
+                    if (art?.tel) {
+                      const telArtista = (art.tel || "").replace(/[^0-9]/g, "");
+                      const msgArtista = ehConsulta
+                        ? `INK SYSTEM: Voce tem uma consulta hoje com ${cliente.nome} as ${horaEv}.${solicitacao ? " Projeto solicitado: " + solicitacao + "." : ""} Confira sua agenda e prepare-se.`
+                        : `INK SYSTEM: Voce tem uma sessao de tatuagem hoje com ${cliente.nome} as ${horaEv}.${solicitacao ? " Projeto solicitado: " + solicitacao + "." : ""} Prepare tudo para a arte de hoje.`;
+                      await dispararZenvia({ apiKey: cfg.zenvia_api_key, from: cfg.zenvia_numero, to: telArtista, text: msgArtista, canal: "sms" });
+                    }
+                  } catch {}
+                }
+
+                if (enviouD0) {
+                  let disparosAtuais = {};
+                  try {
+                    const { data: cliAtual } = await sb.from("clientes").select("disparos_enviados").eq("id", cliente.id).single();
+                    disparosAtuais = cliAtual?.disparos_enviados || {};
+                  } catch {}
+                  await marcarEnviado(cliente.id, dedupKey, disparosAtuais);
+                  await registrarHistorico(userId, (ehConsulta ? "SMS D-0 de consulta enviado" : "SMS D-0 de sessao enviado") + " — " + cliente.nome);
+                  totalDisparos++;
+                }
+              }
+            }
+          } catch {}
         }
 
         // ── LEMBRETE D-1 (sessão ou consulta) ───────────────────────────────
