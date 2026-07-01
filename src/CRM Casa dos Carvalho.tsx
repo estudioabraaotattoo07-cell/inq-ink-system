@@ -3126,15 +3126,24 @@ export default function CRM() {
         return "❌ Cliente não encontrado.";
       }
       if (tool === "registrar_pagamento") {
+        const clienteAura = clients.find(c => String(c.id) === String(params.cliente_id));
+        const artistaIdAura = clienteAura?.artista || "";
+        const artistaObjAura = artists.find((a: any) => a.id === artistaIdAura);
+        const comAura = artistaObjAura?.com || 0;
         const { data: fdPag } = await sb.from("financeiro").insert({
           data: new Date().toISOString().split("T")[0],
           cliente_id: params.cliente_id,
           cliente_nome: params.cliente_nome,
+          artista: artistaIdAura,
+          artista_id: artistaIdAura,
           val_a: params.valor,
           val_c: params.valor,
           pgto: params.forma,
           categoria: "sessao",
           tipo: "entrada",
+          com_base: comAura,
+          com_sess: comAura,
+          competencia: new Date().toISOString().slice(0, 7),
           user_id: userId
         }).select().single();
         if (fdPag) setFin((p: any[]) => [...p, { ...fdPag, cliente: params.cliente_nome }]);
@@ -13506,11 +13515,15 @@ export default function CRM() {
                     const dataISO = hoje.toISOString().split("T")[0];
                     const competencia = dataISO.slice(0, 7);
                     const descricao = "Pagamento avulso" + (pgAvulso.obs ? " — " + pgAvulso.obs : "");
+                    const artistaAvulso = artists.find((a: any) => a.id === pgAvulso.artistaId);
+                    const comAvulso = artistaAvulso?.com || 0;
                     const novaEntrada = {
                       cliente_id: pgAvulso.clienteId,
                       cliente_nome: pgAvulso.clienteNome,
                       artista: pgAvulso.artistaId,
+                      artista_id: pgAvulso.artistaId,
                       val_a: valorNum,
+                      val_c: valorNum,
                       pgto: pgAvulso.forma,
                       data: dataISO,
                       competencia,
@@ -13518,6 +13531,8 @@ export default function CRM() {
                       descricao,
                       tipo: "entrada",
                       is_permuta: false,
+                      com_base: comAvulso,
+                      com_sess: comAvulso,
                       user_id: userId,
                     };
                     try {
