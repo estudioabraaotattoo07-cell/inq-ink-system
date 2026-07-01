@@ -135,6 +135,10 @@ export default async function handler(req, res) {
 
   if (req.method === "OPTIONS") return res.status(200).end();
 
+  const acao = req.query && req.query.acao;
+  const token = req.query && req.query.token;
+  const nota = req.query && req.query.nota;
+
   // ── AVALIAÇÃO NPS + CONVITE GOOGLE (novo fluxo pós-sessão) ──────────────────
 
   if (acao === "avaliar_nps") {
@@ -229,9 +233,6 @@ export default async function handler(req, res) {
   }
 
   // ── ROTA DE AVALIAÇÃO (/api/lead?acao=avaliar ou ?acao=feedback) ──
-  const acao = req.query && req.query.acao;
-  const token = req.query && req.query.token;
-  const nota = req.query && req.query.nota;
 
   if (acao === "avaliar" || (acao === "feedback") || (token && nota)) {
     if (acao === "feedback" && req.method === "POST") {
