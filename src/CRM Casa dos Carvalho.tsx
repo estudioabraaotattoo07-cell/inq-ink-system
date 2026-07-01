@@ -2217,6 +2217,10 @@ export default function CRM() {
     if (!confirmPagamento) return;
     const { cid } = confirmPagamento;
     const totalPago = pagFormas.reduce((s, f) => s + (parseFloat(f.valor.replace(/\./g, "").replace(",", ".")) || 0), 0);
+    if (totalPago <= 0) {
+      setShowAviso("Informe ao menos um valor de pagamento antes de confirmar a sessão.");
+      return;
+    }
     const dataHoje = new Date().toLocaleDateString("pt-BR");
     // Lançar cada forma no financeiro
     const cliente = clients.find(c => c.id === cid);
@@ -2250,7 +2254,7 @@ export default function CRM() {
         user_id: userId,
       };
       const { data: fdPag, error } = await sb.from("financeiro").insert(finRowPag).select().single();
-      if (error) console.error("financeiro insert (sessão):", error);
+      if (error) { console.error("financeiro insert (sessão):", error); setShowAviso("Erro ao registrar pagamento no financeiro. Verifique sua conexão e tente novamente."); return; }
       if (fdPag) setFin(p => [...p, { ...finRowPag, id: fdPag.id, cliente: cliente?.nome || "" }]);
     }
     // Registrar no histórico do cliente
