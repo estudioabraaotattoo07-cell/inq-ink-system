@@ -2220,10 +2220,6 @@ export default function CRM() {
     if (!confirmPagamento) return;
     const { cid } = confirmPagamento;
     const totalPago = pagFormas.reduce((s, f) => s + (parseFloat(f.valor.replace(/\./g, "").replace(",", ".")) || 0), 0);
-    if (totalPago <= 0) {
-      setShowAviso("Informe ao menos um valor de pagamento antes de confirmar a sessão.");
-      return;
-    }
     const dataHoje = new Date().toLocaleDateString("pt-BR");
     // Lançar cada forma no financeiro
     const cliente = clients.find(c => c.id === cid);
@@ -2266,7 +2262,10 @@ export default function CRM() {
       const updated = p.map(c => c.id !== cid ? c : {
         ...c,
         pgto: pgtoTexto,
-        hist: [...(c.hist || []), { t: "💰 Pagamento: R$" + totalPago.toFixed(2) + " — " + formasTexto + (pgtoTexto.includes("Cartão") ? " (taxa máquina pendente)" : ""), d: new Date().toLocaleString("pt-BR") }]
+        hist: [...(c.hist || []), totalPago > 0
+          ? { t: "💰 Pagamento: R$" + totalPago.toFixed(2) + " — " + formasTexto + (pgtoTexto.includes("Cartão") ? " (taxa máquina pendente)" : ""), d: new Date().toLocaleString("pt-BR") }
+          : { t: "✅ Sessão concluída sem pagamento registrado nesta etapa", d: new Date().toLocaleString("pt-BR") }
+        ]
       });
       const c = updated.find(c => c.id === cid);
       if (c) setTimeout(() => saveClientDb(c), 100);
