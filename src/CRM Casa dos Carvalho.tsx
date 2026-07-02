@@ -8208,6 +8208,11 @@ export default function CRM() {
                         : "Este cliente nao tem email cadastrado.");
                       return;
                     }
+                    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailDestino) && !emailDestino.includes("..");
+                    if (!emailValido) {
+                      alert("O e-mail informado parece invalido:\n" + emailDestino + "\n\nCorrija o endereco (ex.: ponto duplicado, faltando @ ou dominio) antes de enviar.");
+                      return;
+                    }
                     setDocsEnviandoLink(docId);
                     try {
                       const token = crypto.randomUUID();
@@ -8275,7 +8280,9 @@ export default function CRM() {
                       if (r.ok) {
                         alert(`Link de assinatura enviado para ${emailDestino}. Valido por 7 dias.`);
                       } else {
-                        alert("Erro ao enviar email. Verifique as configuracoes do Resend.");
+                        let motivo = "";
+                        try { const err = await r.json(); motivo = err?.message || err?.error || ""; } catch {}
+                        alert("Nao foi possivel enviar para " + emailDestino + (motivo ? "\n\nMotivo: " + motivo : "\n\nVerifique se o endereco de e-mail esta correto e tente novamente."));
                       }
                     } catch {
                       alert("Erro ao gerar link de assinatura.");
