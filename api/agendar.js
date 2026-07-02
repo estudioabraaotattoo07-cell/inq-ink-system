@@ -56,6 +56,7 @@ export default async function handler(req, res) {
       descricao,
       regiao: regiao || "",
       etapa: "aura_agend",
+      etapa_desde: new Date().toISOString(),
       orig: "Site - Aura Chat",
       qual: "Q1",
       obs: "Agendamento via Aura Chat",

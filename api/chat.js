@@ -448,6 +448,7 @@ async function solicitarAgendamento(input) {
         descricao: descricao || "",
         regiao: regiao || "",
         etapa: (tipo === "consulta") ? "lead_morno" : "aura_agend",
+        etapa_desde: new Date().toISOString(),
         orig: "Site - Aura Chat",
         qual: "Q1",
         obs: "Solicitação via Aura Chat." + (horario_ligacao ? " Melhor horário para ligação: " + horario_ligacao + "." : ""),
