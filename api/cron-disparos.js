@@ -240,7 +240,7 @@ export default async function handler(req, res) {
       try {
         const { data: cliData } = await sb
           .from("clientes")
-          .select("id, nome, email, tel, etapa, etapa_desde, sessao_concluida_em, disparos_enviados, hist, followups, confirmacao_token, confirmacao_token_exp, confirmacao_evento_id, confirmacao_presenca, artista, solicitacao, avaliacao_fluxo_status, avaliacao_token, avaliacao_token_exp, google_convite_em")
+          .select("id, nome, email, tel, etapa, etapa_desde, sessao_concluida_em, disparos_enviados, hist, followups, confirmacao_token, confirmacao_token_exp, confirmacao_evento_id, confirmacao_presenca, artista, descricao, avaliacao_fluxo_status, avaliacao_token, avaliacao_token_exp, google_convite_em")
           .eq("user_id", userId)
           .is("excluido_em", null);
         if (cliData) clientes = cliData;
@@ -582,7 +582,7 @@ export default async function handler(req, res) {
               if (!jaEnviouD0) {
                 const horaEv = evHoje.hora || "";
                 const enderecoStudio = "Rua Aristides Navarro 165, Centro de Vitoria - ES";
-                const solicitacao = cliente.solicitacao || "";
+                const solicitacao = cliente.descricao || "";
                 let enviouD0 = false;
 
                 // SMS para o cliente
